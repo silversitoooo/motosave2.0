@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="overlay">
+        <h1>Bienvenido a MotoMatch</h1>
+        <div class="options">
+            <a href="{{ url_for('main.register') }}">Soy nuevo</a> |
+            <a href="{{ url_for('main.login') }}">Iniciar sesión</a>
+        </div>
+    </div>
+    <footer>
+        <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a> </p>
+    </footer>
+</body>
+</html>
