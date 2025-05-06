@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inicio - MotoMatch</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="welcome-header">
+      <h1>Hola, {{ username }}</h1>
+    </div>
+    
+    <div class="dashboard-options">
+      <a href="/friends" class="dashboard-box">
+        <div class="icon-container">
+          <i class="fas fa-users"></i>
+        </div>
+        <p>Amigos</p>
+      </a>
+      
+      <a href="#" class="dashboard-box">
+        <div class="icon-container">
+          <i class="fas fa-motorcycle"></i>
+        </div>
+        <p>Motos populares</p>
+      </a>
+      
+      <a href="#" class="dashboard-box">
+        <div class="icon-container">
+          <i class="fas fa-brain"></i>
+        </div>
+        <p>Tomar test de recomendación</p>
+      </a>
+    </div>
+  </div>
+  
+  <footer>
+    <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
+  </footer>
+</body>
+</html>
