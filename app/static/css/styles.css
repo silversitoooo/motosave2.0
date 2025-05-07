@@ -844,7 +844,7 @@ body {
   
   .like-button {
     background: linear-gradient(90deg, hsl(var(--hue1), 90%, 30%), hsl(var(--hue2), 90%, 30%));
-    color: white;
+    color: rgb(255, 255, 255);
     border: none;
     padding: 10px 15px;
     border-radius: calc(var(--radius) * 0.6);
@@ -904,5 +904,27 @@ body {
       opacity: 1;
       animation-timing-function: var(--ease);
     }
+  }
+  .like-btn {
+    background-color: #ff6600; /* naranja base */
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 15px;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+  }
+  
+  .like-btn:hover {
+    background-color: #e65c00; /* naranja más oscuro */
+    box-shadow: 0 0 10px #ff6600;
+  }
+  
+  .like-btn:disabled {
+    background-color: #ff6600;
+    cursor: default;
+    opacity: 0.7;
   }
   
