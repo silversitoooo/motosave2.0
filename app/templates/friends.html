@@ -12,7 +12,10 @@
 </head>
 <body>
 <div class="main-container">
-<h1 class="tituloFriends">Amigos</h1>
+    <a href="{{ url_for('main.dashboard') }}" class="back-dashboard-btn">
+        <i class="fas fa-arrow-left"></i> Regresar al Dashboard
+    </a>
+    <h1 class="tituloFriends">Amigos</h1>
 <div class="friends-section">
 <div class="friends-column">
 <div class="column-header">

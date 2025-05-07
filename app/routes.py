@@ -2,6 +2,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 
 main = Blueprint('main', __name__)
 
+# Simulación de base de datos
+
+motos_populares = [
+    {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", "likes": 22},
+    {"modelo": "Duke 390", "marca": "KTM", "precio": 46000, "estilo": "Naked", "likes": 18},
+    {"modelo": "V-Strom 650", "marca": "Suzuki", "precio": 68000, "estilo": "Adventure", "likes": 25},
+    {"modelo": "R nineT", "marca": "BMW", "precio": 115000, "estilo": "Clásica", "likes": 30}
+]
+
 usuarios = {
     'admin': 'admin123',
     'maria': 'clave',
@@ -86,3 +95,7 @@ def eliminar_amigo():
     if username and amigo_a_eliminar and amigo_a_eliminar in amigos_por_usuario.get(username, []):
         amigos_por_usuario[username].remove(amigo_a_eliminar)
     return redirect(url_for('main.friends'))
+
+@main.route('/populares')
+def populares():
+    return render_template('populares.html', motos_populares=motos_populares)

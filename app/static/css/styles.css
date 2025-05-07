@@ -629,3 +629,280 @@ body {
    .link:hover {
    text-shadow: 0 0 5px #f97316;
     }
+    .back-dashboard-btn {
+        display: inline-block;
+        margin-bottom: 20px;
+        margin-top:20px;
+        margin-left:5px;
+        padding: 8px 16px;
+        background-color: transparent;
+        border: 2px solid #f97316;
+        color: #f97316;
+        text-decoration: none;
+        font-weight: bold;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    .back-dashboard-btn i {
+        margin-right: 8px;
+    }
+    .back-dashboard-btn:hover {
+        background-color: #f97316;
+        color: #fff;
+        box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+    }
+    /* Populares */
+    /* Variables NeonGlass */
+:root {
+    --hue1: 24; /* Naranja principal (cercano al original #f97316) */
+    --hue2: 16; /* Naranja secundario (ligeramente más rojizo) */
+    --border: 1px;
+    --border-color: hsl(var(--hue1), 12%, 20%);
+    --radius: 15px;
+    --ease: cubic-bezier(0.5, 1, 0.89, 1);
+  }
+  
+  /* Estilos generales */
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+    background-image: url('/static/images/principal.webp');
+    background-size: cover;
+    background-position: center;
+    color: #fff;
+    min-height: 100vh;
+  }
+  
+  /* Contenedor principal con estilo NeonGlass */
+  .main-container {
+    padding: 30px;
+    max-width: 1000px;
+    margin: 30px auto;
+    position: relative;
+    background: linear-gradient(235deg, hsl(var(--hue1) 50% 10% / 0.8), hsl(var(--hue1) 50% 10% / 0) 33%), 
+                linear-gradient(45deg, hsl(var(--hue2) 50% 10% / 0.8), hsl(var(--hue2) 50% 10% / 0) 33%), 
+                linear-gradient(hsl(220deg 25% 4.8% / 0.66));
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius);
+    border: var(--border) solid hsl(var(--hue1), 12%, 20%);
+    box-shadow: hsl(var(--hue2) 50% 2%) 0px 10px 16px -8px, 
+                hsl(var(--hue2) 50% 4%) 0px 20px 36px -14px;
+  }
+  
+  /* Título con estilo neon */
+  .tituloFriends {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 40px;
+    color: white;
+    text-shadow: 0 0 5px hsl(var(--hue1), 90%, 60%), 
+                 0 0 15px hsl(var(--hue1), 90%, 60%), 
+                 0 0 30px hsl(var(--hue1), 90%, 50%);
+    position: relative;
+  }
+  
+  /* Botón de regreso con efecto NeonGlass */
+  .back-dashboard-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    text-decoration: none;
+    color: white;
+    background: linear-gradient(90deg, hsl(var(--hue1), 90%, 30%), hsl(var(--hue2), 90%, 25%));
+    padding: 10px 18px;
+    border-radius: calc(var(--radius) * 0.6);
+    font-size: 16px;
+    font-weight: bold;
+    position: relative;
+    overflow: hidden;
+    border: var(--border) solid hsl(var(--hue1), 30%, 30%, 0.5);
+    box-shadow: 0 0 10px hsl(var(--hue1), 90%, 40%, 0.5);
+    transition: all 0.3s var(--ease);
+  }
+  
+  .back-dashboard-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, 
+                transparent, 
+                hsl(var(--hue1), 100%, 70%, 0.2), 
+                transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s var(--ease);
+  }
+  
+  .back-dashboard-btn:hover {
+    box-shadow: 0 0 15px hsl(var(--hue1), 90%, 50%), 
+                0 0 30px hsl(var(--hue1), 90%, 40%);
+    transform: scale(1.05);
+  }
+  
+  .back-dashboard-btn:hover::before {
+    transform: translateX(100%);
+  }
+  
+  /* Contenedor de tarjetas */
+  .grid-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+  }
+  
+  /* Tarjetas de moto con estilo NeonGlass */
+  .moto-card {
+    background: linear-gradient(235deg, hsl(var(--hue1) 30% 15% / 0.8), hsl(var(--hue1) 20% 10% / 0.5) 33%), 
+                linear-gradient(45deg, hsl(var(--hue2) 20% 10% / 0.8), hsl(var(--hue2) 20% 10% / 0.5) 33%), 
+                linear-gradient(hsl(220deg 10% 8% / 0.7));
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: calc(50% - 20px);
+    box-sizing: border-box;
+    position: relative;
+    border: var(--border) solid hsl(var(--hue1), 20%, 20%, 0.5);
+    transition: all 0.3s var(--ease);
+    overflow: hidden;
+  }
+  
+  /* Efecto de resplandor superior para las tarjetas */
+  .moto-card::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background: linear-gradient(90deg, 
+                transparent, 
+                hsl(var(--hue1), 90%, 60%), 
+                transparent);
+    border-radius: var(--radius);
+    opacity: 0.7;
+    filter: blur(1px);
+    transition: all 0.5s var(--ease);
+  }
+  
+  /* Efecto de resplandor lateral para las tarjetas */
+  .moto-card::after {
+    content: "";
+    position: absolute;
+    top: 20%;
+    bottom: 20%;
+    right: -2px;
+    width: 2px;
+    background: linear-gradient(180deg, 
+                transparent, 
+                hsl(var(--hue2), 90%, 60%), 
+                transparent);
+    border-radius: var(--radius);
+    opacity: 0.7;
+    filter: blur(1px);
+    transition: all 0.5s var(--ease);
+  }
+  
+  .moto-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3),
+                0 0 15px hsl(var(--hue1), 90%, 40%, 0.5);
+  }
+  
+  .moto-card:hover::before,
+  .moto-card:hover::after {
+    opacity: 1;
+    filter: blur(2px);
+  }
+  
+  .moto-card h3 {
+    margin-top: 0;
+    font-size: 24px;
+    color: hsl(var(--hue1), 90%, 80%);
+    text-shadow: 0 0 5px hsl(var(--hue1), 90%, 40%);
+  }
+  
+  .moto-card p {
+    margin: 5px 0;
+    font-weight: 300;
+  }
+  
+  .moto-card p strong {
+    color: hsl(var(--hue2), 80%, 80%);
+  }
+  
+  /* Sección de likes */
+  .like-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid hsl(var(--hue1), 30%, 30%, 0.3);
+  }
+  
+  .like-button {
+    background: linear-gradient(90deg, hsl(var(--hue1), 90%, 30%), hsl(var(--hue2), 90%, 30%));
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: calc(var(--radius) * 0.6);
+    cursor: pointer;
+    font-size: 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 5px hsl(var(--hue1), 90%, 40%, 0.5);
+    transition: all 0.3s var(--ease);
+  }
+  
+  .like-button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, 
+                transparent, 
+                hsl(var(--hue1), 100%, 70%, 0.2), 
+                transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s var(--ease);
+  }
+  
+  .like-button:hover {
+    box-shadow: 0 0 10px hsl(var(--hue1), 90%, 50%),
+                0 0 20px hsl(var(--hue1), 90%, 40%, 0.5);
+  }
+  
+  .like-button:hover::before {
+    transform: translateX(100%);
+  }
+  
+  
+  
+
+  
+  
+  /* Animación para efectos de brillo */
+  @keyframes glow {
+    0% {
+      opacity: 0;
+    }
+    3% {
+      opacity: 1;
+    }
+    10% {
+      opacity: 0;
+    }
+    12% {
+      opacity: 0.7;
+    }
+    16% {
+      opacity: 0.3;
+      animation-timing-function: var(--ease);
+    }
+    100% {
+      opacity: 1;
+      animation-timing-function: var(--ease);
+    }
+  }
+  
