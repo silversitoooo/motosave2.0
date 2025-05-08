@@ -651,8 +651,8 @@ body {
         color: #fff;
         box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
     }
-    /* Populares */
-    /* Variables NeonGlass */
+/* Populares */
+/* Variables NeonGlass */
 :root {
     --hue1: 24; /* Naranja principal (cercano al original #f97316) */
     --hue2: 16; /* Naranja secundario (ligeramente más rojizo) */
@@ -660,25 +660,36 @@ body {
     --border-color: hsl(var(--hue1), 12%, 20%);
     --radius: 15px;
     --ease: cubic-bezier(0.5, 1, 0.89, 1);
-  }
-  
-  /* Estilos generales */
-  body {
+}
+
+/* Reset para HTML y body para asegurar scroll */
+html, body {
+    height: 100%;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto !important; /* Forzamos scroll vertical */
+}
+
+/* Estilos generales */
+body {
     font-family: 'Arial', sans-serif;
     background-image: url('/static/images/principal.webp');
     background-size: cover;
     background-position: center;
+    background-attachment: fixed; /* Fondo fijo al hacer scroll */
     color: #fff;
+    display: flex;
+    flex-direction: column;
     min-height: 100vh;
-  }
-  
-  /* Contenedor principal con estilo NeonGlass */
-  .main-container {
+    position: relative; /* Necesario para posicionamiento absoluto */
+}
+
+/* Contenedor principal con estilo NeonGlass */
+.main-container {
     padding: 30px;
     max-width: 1000px;
-    margin: 30px auto;
+    margin: 30px auto 50px auto; /* Reducido el margen inferior */
     position: relative;
     background: linear-gradient(235deg, hsl(var(--hue1) 50% 10% / 0.8), hsl(var(--hue1) 50% 10% / 0) 33%), 
                 linear-gradient(45deg, hsl(var(--hue2) 50% 10% / 0.8), hsl(var(--hue2) 50% 10% / 0) 33%), 
@@ -688,10 +699,15 @@ body {
     border: var(--border) solid hsl(var(--hue1), 12%, 20%);
     box-shadow: hsl(var(--hue2) 50% 2%) 0px 10px 16px -8px, 
                 hsl(var(--hue2) 50% 4%) 0px 20px 36px -14px;
-  }
-  
-  /* Título con estilo neon */
-  .tituloFriends {
+    flex: 1 0 auto; /* Cambiado para permitir expandirse correctamente */
+    /* IMPORTANTE: eliminamos cualquier propiedad que pueda limitar el scroll */
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+}
+
+/* Título con estilo neon */
+.tituloFriends {
     text-align: center;
     font-size: 36px;
     margin-bottom: 40px;
@@ -700,10 +716,10 @@ body {
                  0 0 15px hsl(var(--hue1), 90%, 60%), 
                  0 0 30px hsl(var(--hue1), 90%, 50%);
     position: relative;
-  }
-  
-  /* Botón de regreso con efecto NeonGlass */
-  .back-dashboard-btn {
+}
+
+/* Botón de regreso con efecto NeonGlass */
+.back-dashboard-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -720,9 +736,9 @@ body {
     border: var(--border) solid hsl(var(--hue1), 30%, 30%, 0.5);
     box-shadow: 0 0 10px hsl(var(--hue1), 90%, 40%, 0.5);
     transition: all 0.3s var(--ease);
-  }
-  
-  .back-dashboard-btn::before {
+}
+
+.back-dashboard-btn::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -732,28 +748,31 @@ body {
                 transparent);
     transform: translateX(-100%);
     transition: transform 0.6s var(--ease);
-  }
-  
-  .back-dashboard-btn:hover {
+}
+
+.back-dashboard-btn:hover {
     box-shadow: 0 0 15px hsl(var(--hue1), 90%, 50%), 
                 0 0 30px hsl(var(--hue1), 90%, 40%);
     transform: scale(1.05);
-  }
-  
-  .back-dashboard-btn:hover::before {
+}
+
+.back-dashboard-btn:hover::before {
     transform: translateX(100%);
-  }
-  
-  /* Contenedor de tarjetas */
-  .grid-container {
+}
+
+/* Contenedor de tarjetas */
+.grid-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 30px; /* Aumentado el espacio entre tarjetas */
     justify-content: center;
-  }
-  
-  /* Tarjetas de moto con estilo NeonGlass */
-  .moto-card {
+    width: 100%;
+    overflow: visible; /* Crucial para permitir que el contenido sea visible */
+    padding-bottom: 40px; /* Espacio adicional abajo */
+}
+
+/* Tarjetas de moto con estilo NeonGlass */
+.moto-card {
     background: linear-gradient(235deg, hsl(var(--hue1) 30% 15% / 0.8), hsl(var(--hue1) 20% 10% / 0.5) 33%), 
                 linear-gradient(45deg, hsl(var(--hue2) 20% 10% / 0.8), hsl(var(--hue2) 20% 10% / 0.5) 33%), 
                 linear-gradient(hsl(220deg 10% 8% / 0.7));
@@ -766,10 +785,12 @@ body {
     border: var(--border) solid hsl(var(--hue1), 20%, 20%, 0.5);
     transition: all 0.3s var(--ease);
     overflow: hidden;
-  }
-  
-  /* Efecto de resplandor superior para las tarjetas */
-  .moto-card::before {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Efecto de resplandor superior para las tarjetas */
+.moto-card::before {
     content: "";
     position: absolute;
     top: -2px;
@@ -784,10 +805,10 @@ body {
     opacity: 0.7;
     filter: blur(1px);
     transition: all 0.5s var(--ease);
-  }
-  
-  /* Efecto de resplandor lateral para las tarjetas */
-  .moto-card::after {
+}
+
+/* Efecto de resplandor lateral para las tarjetas */
+.moto-card::after {
     content: "";
     position: absolute;
     top: 20%;
@@ -802,47 +823,47 @@ body {
     opacity: 0.7;
     filter: blur(1px);
     transition: all 0.5s var(--ease);
-  }
-  
-  .moto-card:hover {
+}
+
+.moto-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3),
                 0 0 15px hsl(var(--hue1), 90%, 40%, 0.5);
-  }
-  
-  .moto-card:hover::before,
-  .moto-card:hover::after {
+}
+
+.moto-card:hover::before,
+.moto-card:hover::after {
     opacity: 1;
     filter: blur(2px);
-  }
-  
-  .moto-card h3 {
+}
+
+.moto-card h3 {
     margin-top: 0;
     font-size: 24px;
     color: hsl(var(--hue1), 90%, 80%);
     text-shadow: 0 0 5px hsl(var(--hue1), 90%, 40%);
-  }
-  
-  .moto-card p {
+}
+
+.moto-card p {
     margin: 5px 0;
     font-weight: 300;
-  }
-  
-  .moto-card p strong {
+}
+
+.moto-card p strong {
     color: hsl(var(--hue2), 80%, 80%);
-  }
-  
-  /* Sección de likes */
-  .like-section {
+}
+
+/* Sección de likes */
+.like-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 15px;
     padding-top: 10px;
     border-top: 1px solid hsl(var(--hue1), 30%, 30%, 0.3);
-  }
-  
-  .like-button {
+}
+
+.like-button {
     background: linear-gradient(90deg, hsl(var(--hue1), 90%, 30%), hsl(var(--hue2), 90%, 30%));
     color: rgb(255, 255, 255);
     border: none;
@@ -854,9 +875,9 @@ body {
     overflow: hidden;
     box-shadow: 0 0 5px hsl(var(--hue1), 90%, 40%, 0.5);
     transition: all 0.3s var(--ease);
-  }
-  
-  .like-button::before {
+}
+
+.like-button::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -866,46 +887,42 @@ body {
                 transparent);
     transform: translateX(-100%);
     transition: transform 0.6s var(--ease);
-  }
-  
-  .like-button:hover {
+}
+
+.like-button:hover {
     box-shadow: 0 0 10px hsl(var(--hue1), 90%, 50%),
                 0 0 20px hsl(var(--hue1), 90%, 40%, 0.5);
-  }
-  
-  .like-button:hover::before {
-    transform: translateX(100%);
-  }
-  
-  
-  
+}
 
-  
-  
-  /* Animación para efectos de brillo */
-  @keyframes glow {
+.like-button:hover::before {
+    transform: translateX(100%);
+}
+
+/* Animación para efectos de brillo */
+@keyframes glow {
     0% {
-      opacity: 0;
+        opacity: 0;
     }
     3% {
-      opacity: 1;
+        opacity: 1;
     }
     10% {
-      opacity: 0;
+        opacity: 0;
     }
     12% {
-      opacity: 0.7;
+        opacity: 0.7;
     }
     16% {
-      opacity: 0.3;
-      animation-timing-function: var(--ease);
+        opacity: 0.3;
+        animation-timing-function: var(--ease);
     }
     100% {
-      opacity: 1;
-      animation-timing-function: var(--ease);
+        opacity: 1;
+        animation-timing-function: var(--ease);
     }
-  }
-  .like-btn {
+}
+
+.like-btn {
     background-color: #ff6600; /* naranja base */
     color: white;
     border: none;
@@ -915,16 +932,74 @@ body {
     font-weight: bold;
     font-size: 15px;
     transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-  }
-  
-  .like-btn:hover {
+}
+
+.like-btn:hover {
     background-color: #e65c00; /* naranja más oscuro */
     box-shadow: 0 0 10px #ff6600;
-  }
-  
-  .like-btn:disabled {
+}
+
+.like-btn:disabled {
     background-color: #ff6600;
     cursor: default;
     opacity: 0.7;
-  }
-  
+}
+
+/* Estilos para las imágenes de las motos */
+.moto-img {
+    width: 100%;
+    height: 180px; /* Altura fija para todas las imágenes */
+    object-fit: cover; /* Mantiene la proporción y cubre el espacio asignado */
+    border-radius: calc(var(--radius) * 0.7); /* Bordes redondeados que coincidan con el tema */
+    margin-bottom: 15px; /* Espacio entre la imagen y el texto */
+    border: var(--border) solid hsl(var(--hue1), 30%, 30%, 0.5); /* Borde consistente con el tema */
+    box-shadow: 0 0 8px hsl(var(--hue1), 80%, 40%, 0.3); /* Sombra sutil */
+    transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+
+/* Efecto hover para las imágenes */
+.moto-img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 12px hsl(var(--hue1), 80%, 50%, 0.5);
+}
+
+/* Footer fijo pero sin bloquear contenido */
+footer {
+    text-align: center;
+    width: 100%;
+    padding: 15px 0;
+    background: linear-gradient(235deg, hsl(var(--hue1) 50% 10% / 0.8), hsl(var(--hue1) 50% 10% / 0) 33%);
+    backdrop-filter: blur(8px);
+    position: sticky; /* Cambiado a sticky para que se mantenga abajo */
+    bottom: 0;
+    z-index: 10;
+    margin-top: auto; /* Mantiene el footer al final */
+    flex-shrink: 0; /* Evita que el footer se encoja */
+}
+
+footer a {
+    color: hsl(var(--hue1), 90%, 80%);
+    text-decoration: none;
+    transition: all 0.3s var(--ease);
+}
+
+footer a:hover {
+    text-shadow: 0 0 5px hsl(var(--hue1), 90%, 60%), 
+                0 0 10px hsl(var(--hue1), 90%, 50%);
+}
+
+/* Ajustar el ancho de las tarjetas en dispositivos móviles */
+@media (max-width: 768px) {
+    .moto-card {
+        width: 100%; /* En móviles, cada tarjeta ocupa el ancho completo */
+    }
+    
+    .moto-img {
+        height: 160px; /* Altura ligeramente menor en móviles */
+    }
+    
+    .main-container {
+        margin: 20px auto 40px auto; /* Márgenes más pequeños en móvil */
+        padding: 20px;
+    }
+}

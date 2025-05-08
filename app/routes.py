@@ -5,10 +5,10 @@ main = Blueprint('main', __name__)
 # Simulación de base de datos
 
 motos_populares = [
-    {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", "likes": 22},
-    {"modelo": "Duke 390", "marca": "KTM", "precio": 46000, "estilo": "Naked", "likes": 18},
-    {"modelo": "V-Strom 650", "marca": "Suzuki", "precio": 68000, "estilo": "Adventure", "likes": 25},
-    {"modelo": "R nineT", "marca": "BMW", "precio": 115000, "estilo": "Clásica", "likes": 30}
+    {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", "likes": 22, "imagen":"https://www.motofichas.com/images/phocagallery/Alpina/Loreto_125/125/alpina-loreto-125.jpg"},
+    {"modelo": "Duke 390", "marca": "KTM", "precio": 46000, "estilo": "Naked", "likes": 18, "imagen":"https://www.motofichas.com/images/phocagallery/yamaha/tmax-2023/001-yamaha-tmax-2024-estudio-negro-01.jpg"},
+    {"modelo": "V-Strom 650", "marca": "Suzuki", "precio": 68000, "estilo": "Adventure", "likes": 25, "imagen":"https://www.motofichas.com/images/phocagallery/Honda/forza-125-2023/001-honda-forza-125-2024-estudio-rojo-01.jpg"},
+    {"modelo": "R nineT", "marca": "BMW", "precio": 115000, "estilo": "Clásica", "likes": 30, "imagen": "https://www.motofichas.com/images/phocagallery/Honda/sh300i-2016/01-honda-sh300i-2016-rojo-siena.jpg"}
 ]
 
 usuarios = {

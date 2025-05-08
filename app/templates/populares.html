@@ -1,48 +1,44 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Motos Populares - MotoMatch</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  <script>
-    window.motosPopulares = {{ motos_populares|tojson|safe }};
-  </script>
-  <script src="{{ url_for('static', filename='js/populares.js') }}" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motos Populares - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        window.motosPopulares = {{ motos_populares|tojson|safe }};
+    </script>
+    <script src="{{ url_for('static', filename='js/populares.js') }}" defer></script>
 </head>
 <body>
-  <div class="main-container neon-glass">
-    <a href="{{ url_for('main.dashboard') }}" class="back-dashboard-btn">
-      <i class="fas fa-arrow-left"></i> Regresar al Dashboard
-    </a>
-
-    <h1 class="tituloFriends">Motos Populares</h1>
-
-    <div class="grid-container">
-      {% for moto in motos_populares %}
-        <div class="moto-card">
-          <span class="shine shine-top"></span>
-          <span class="shine shine-bottom"></span>
-          <span class="glow glow-top"></span>
-          <span class="glow glow-bottom"></span>
-          
-          <h3>{{ moto.modelo }}</h3>
-          <p><strong>Marca:</strong> {{ moto.marca }}</p>
-          <p><strong>Estilo:</strong> {{ moto.estilo }}</p>
-          <p><strong>Precio:</strong> Q{{ moto.precio }}</p>
-          <div class="like-section">
-            <button type="button" class="like-btn" data-modelo="{{ moto.modelo }}">
-              <i class="far fa-heart"></i> Like
-            </button>
-            <span class="like-info"><span class="like-count">{{ moto.likes }}</span> personas les gustó</span>
-          </div>
+    <div class="main-container neon-glass">
+        <a href="{{ url_for('main.dashboard') }}" class="back-dashboard-btn">
+            <i class="fas fa-arrow-left"></i> Regresar al Dashboard
+        </a>
+        <h1 class="tituloFriends">Motos Populares</h1>
+        <div class="grid-container">
+            {% for moto in motos_populares %}
+            <div class="moto-card">
+                <img src="{{ moto.imagen }}" alt="Imagen de {{ moto.modelo }}" class="moto-img">
+                <h3>{{ moto.modelo }}</h3>
+                <p><strong>Marca:</strong> {{ moto.marca }}</p>
+                <p><strong>Estilo:</strong> {{ moto.estilo }}</p>
+                <p><strong>Precio:</strong> Q{{ moto.precio }}</p>
+                <div class="like-section">
+                    <button type="button" class="like-btn" data-modelo="{{ moto.modelo }}">
+                        <i class="far fa-heart"></i> Like
+                    </button>
+                    <span class="like-info">
+                        <span class="like-count">{{ moto.likes }}</span> personas les gustó
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-      {% endfor %}
     </div>
-  </div>
-
-  <footer>
-    <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
-  </footer>
+    <footer>
+        <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
+    </footer>
 </body>
 </html>
