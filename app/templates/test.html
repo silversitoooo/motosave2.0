@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test de Preferencias - MotoMatch</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.17.1/matter.min.js"></script>
+  <script src="{{ url_for('static', filename='js/test.js') }}" defer></script>
+</head>
+<body>
+  <a href="{{ url_for('main.dashboard') }}" class="back-dashboard-btn">
+    <i class="fas fa-arrow-left"></i> Regresar al Dashboard
+  </a>
+  
+  <div id="physics-container"></div>
+  
+  <div class="main-container">
+    <div class="test-container">
+      <h1 class="tituloFriends">Test de Preferencias</h1>
+      
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      
+      <!-- Pregunta 1: Estilo de moto -->
+      <section class="pregunta active" id="pregunta-1" data-type="circles" data-key="estilos">
+        <h2>1. ¿Qué estilo(s) de moto te gustan más?</h2>
+        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 2 clics: me encanta)</p>
+        <div class="options-wrapper">
+          <div class="circle-canvas" id="estilos-canvas"></div>
+        </div>
+      </section>
+
+      <!-- Pregunta 2: Marca favorita -->
+      <section class="pregunta" id="pregunta-2" data-type="circles" data-key="marcas">
+        <h2>2. ¿Qué marca(s) prefieres?</h2>
+        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 2 clics: me encanta)</p>
+        <div class="options-wrapper">
+          <div class="circle-canvas" id="marcas-canvas"></div>
+        </div>
+      </section>
+
+      <!-- Pregunta 3: Uso principal -->
+      <section class="pregunta" id="pregunta-3" data-type="select" data-key="uso">
+        <h2>3. ¿Cuál será el uso principal de la moto?</h2>
+        <select name="uso" id="uso">
+          <option value="ciudad">Ciudad</option>
+          <option value="viajes">Viajes largos</option>
+          <option value="offroad">Off-road</option>
+          <option value="recreativo">Paseo / Hobby</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 4: Nivel de experiencia -->
+      <section class="pregunta" id="pregunta-4" data-type="select" data-key="experiencia">
+        <h2>4. ¿Cuál es tu nivel de experiencia?</h2>
+        <select name="experiencia" id="experiencia">
+          <option value="principiante">Principiante</option>
+          <option value="intermedio">Intermedio</option>
+          <option value="avanzado">Avanzado</option>
+          <option value="profesional">Profesional</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 5: Cilindrada -->
+      <section class="pregunta" id="pregunta-5" data-type="select" data-key="cilindrada">
+        <h2>5. ¿Qué cilindrada prefieres?</h2>
+        <select name="cilindrada" id="cilindrada">
+          <option value="<150">Menos de 150cc</option>
+          <option value="150-300">150–300cc</option>
+          <option value="300-600">300–600cc</option>
+          <option value="600-1000">600–1000cc</option>
+          <option value=">1000">Más de 1000cc</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 6: Año reciente -->
+      <section class="pregunta" id="pregunta-6" data-type="select" data-key="año">
+        <h2>6. ¿Qué tan importante es que la moto sea reciente?</h2>
+        <select name="año" id="año">
+          <option value="reciente">Muy importante (2022+)</option>
+          <option value="moderna">Algo importante (2015+)</option>
+          <option value="indiferente">No importa</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 7: Potencia -->
+      <section class="pregunta" id="pregunta-7" data-type="select" data-key="potencia">
+        <h2>7. ¿Qué potencia te interesa?</h2>
+        <select name="potencia" id="potencia">
+          <option value="baja">Menor a 25 hp</option>
+          <option value="media">25–50 hp</option>
+          <option value="alta">50–100 hp</option>
+          <option value="muy_alta">Más de 100 hp</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 8: Torque -->
+      <section class="pregunta" id="pregunta-8" data-type="select" data-key="torque">
+        <h2>8. ¿Qué nivel de torque prefieres?</h2>
+        <select name="torque" id="torque">
+          <option value="bajo">Bajo</option>
+          <option value="medio">Medio</option>
+          <option value="alto">Alto</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 9: Peso -->
+      <section class="pregunta" id="pregunta-9" data-type="select" data-key="peso">
+        <h2>9. ¿Qué peso prefieres en la moto?</h2>
+        <select name="peso" id="peso">
+          <option value="muy_liviana">Muy liviana (&lt;150 kg)</option>
+          <option value="liviana">Media (150–180 kg)</option>
+          <option value="robusta">Robusta (180–220 kg)</option>
+          <option value="muy_robusta">Muy robusta (&gt;220 kg)</option>
+        </select>
+      </section>
+
+      <!-- Pregunta 10: Presupuesto -->
+      <section class="pregunta" id="pregunta-10" data-type="select" data-key="presupuesto">
+        <h2>10. ¿Cuál es tu presupuesto estimado?</h2>
+        <select name="presupuesto" id="presupuesto">
+          <option value="<2000">Menos de $2,000</option>
+          <option value="2000-5000">$2,000–$5,000</option>
+          <option value="5000-10000">$5,000–$10,000</option>
+          <option value=">10000">Más de $10,000</option>
+        </select>
+      </section>
+
+      <div class="nav-buttons">
+        <button id="prev-btn" class="nav-button" disabled><i class="fas fa-arrow-left"></i> Anterior</button>
+        <button id="next-btn" class="nav-button">Siguiente <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de finalización -->
+  <div class="completion-modal" id="completion-modal">
+    <div class="modal-content">
+      <h2>¡Test completado con éxito!</h2>
+      <p>Gracias por completar el test de preferencias. Con esta información podremos recomendarte las mejores motos que se ajusten a tus gustos.</p>
+      <button id="finish-btn" class="nav-button">Ver mis recomendaciones</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
+  </footer>
+</body>
+</html>

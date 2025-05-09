@@ -99,3 +99,10 @@ def eliminar_amigo():
 @main.route('/populares')
 def populares():
     return render_template('populares.html', motos_populares=motos_populares)
+
+@main.route('/test')
+def test_preferencias():
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('main.login'))
+    return render_template('test.html')
