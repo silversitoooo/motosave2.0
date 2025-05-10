@@ -35,7 +35,8 @@ const MouseConstraint = Matter.MouseConstraint;
 
 // Configurar física - UN SOLO MOTOR para todo
 const engine = Engine.create({
-  gravity: { x: 0, y: 0 } // Sin gravedad para que floten
+  gravity: { x: 0, y: 0 }, // Sin gravedad para que floten
+  enableSleeping: false // Mantener activos los cuerpos siempre
 });
 const world = engine.world;
 
@@ -79,10 +80,12 @@ function inicializarCanvasDivs() {
     return false;
   }
   
+  console.log('Canvas divs inicializados correctamente:');
+  console.log('estilos-canvas:', canvasDivs.estilos);
+  console.log('marcas-canvas:', canvasDivs.marcas);
+  
   return true;
-}
-
-// Inicializar renders para cada canvas
+}  // Inicializar renders para cada canvas
 function inicializarRenders() {
   if (!inicializarCanvasDivs()) return;
   
@@ -93,48 +96,58 @@ function inicializarRenders() {
     if (renders[key] && renders[key].canvas) {
       // Limpiar el render existente
       Render.stop(renders[key]);
-      World.clear(world, false);
       canvasDiv.innerHTML = '';
     }
     
+    // Obtener dimensiones del canvas
+    const width = canvasDiv.clientWidth || canvasDiv.offsetWidth || 800;
+    const height = canvasDiv.clientHeight || canvasDiv.offsetHeight || 400;
+    
+    console.log(`Dimensiones del div ${key}: ${width}x${height}`);
+    
+    // Crear render
     renders[key] = Render.create({
       element: canvasDiv,
       engine: engine,
       options: {
-        width: canvasDiv.offsetWidth,
-        height: Math.max(canvasDiv.offsetHeight, 300),
+        width: width,
+        height: height,
         wireframes: false,
         background: 'transparent',
         pixelRatio: window.devicePixelRatio || 1
       }
     });
     
-    // Inicialmente pausamos todos los renders
+    console.log(`Render creado para ${key} con dimensiones: ${renders[key].options.width}x${renders[key].options.height}`);
+    
+    // Inicialmente detenemos los renders, se activarán cuando sea necesario
     Render.run(renders[key]);
-    Render.stop(renders[key]);
+    
+    // Asegurarse de que el canvas tenga el estilo correcto para recibir eventos
+    if (renders[key].canvas) {
+      renders[key].canvas.style.width = '100%';
+      renders[key].canvas.style.height = '100%';
+    }
   });
 }
 
 
 // Función para crear círculos aleatorios - VERSIÓN MODIFICADA
 function crearCirculos(tipo, lista) {
+  console.log(`Iniciando creación de círculos para ${tipo}`);
   if (!canvasDivs[tipo]) {
     console.error(`Canvas para ${tipo} no encontrado`);
     return;
   }
 
   const canvas = canvasDivs[tipo];
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
+  const width = canvas.offsetWidth || 800;
+  const height = canvas.offsetHeight || 400;
+  
+  console.log(`Canvas dimensiones: ${width}x${height}`);
 
-  // Limpiar círculos anteriores
-  if (circulos[tipo] && circulos[tipo].length > 0) {
-    circulos[tipo].forEach(circulo => {
-      if (circulo.body && world.bodies.includes(circulo.body)) {
-        World.remove(world, circulo.body);
-      }
-    });
-  }
+  // Limpiar TODOS los cuerpos del mundo antes de crear nuevos
+  World.clear(world, false);
   
   // Reiniciar la lista de círculos para este tipo
   circulos[tipo] = [];
@@ -162,9 +175,9 @@ function crearCirculos(tipo, lista) {
     const x = Math.random() * (width - radius * 2) + radius;
     const y = Math.random() * (height - radius * 2) + radius;
 
-    // Velocidad inicial aleatoria
-    const vx = (Math.random() - 0.5) * 2;
-    const vy = (Math.random() - 0.5) * 2;
+    // Velocidad inicial aleatoria (incrementada para más movimiento)
+    const vx = (Math.random() - 0.5) * 4; // Velocidad incrementada
+    const vy = (Math.random() - 0.5) * 4; // Velocidad incrementada
 
     // Crear el cuerpo físico
     const circulo = Bodies.circle(x, y, radius, {
@@ -239,12 +252,14 @@ const mouseConstraints = {};
 
 // Configurar los eventos de mouse para cada render
 function setupMouseInteraction(tipo) {
+  console.log(`Configurando interacción del mouse para ${tipo}`);
   if (!renders[tipo] || !renders[tipo].canvas) {
     console.error(`Render para ${tipo} no inicializado correctamente`);
     return;
   }
   
   const canvas = renders[tipo].canvas;
+  console.log(`Canvas encontrado para ${tipo}: ${canvas.width}x${canvas.height}`);
   
   // Eliminar mouse constraint anterior si existe
   if (mouseConstraints[tipo]) {
@@ -252,13 +267,18 @@ function setupMouseInteraction(tipo) {
     delete mouseConstraints[tipo];
   }
   
+  // Crear un nuevo mouse usando el canvas específico
   const mouse = Mouse.create(canvas);
+  
+  // Ajustar el escalado del mouse para que coincida con el canvas
+  mouse.pixelRatio = window.devicePixelRatio || 1;
+  
   const mouseConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
     constraint: {
       stiffness: 0.2,
       render: {
-        visible: false
+        visible: true // Hacer visible la restricción del mouse
       }
     }
   });
@@ -266,10 +286,14 @@ function setupMouseInteraction(tipo) {
   mouseConstraints[tipo] = mouseConstraint;
   World.add(world, mouseConstraint);
   
+  console.log(`Mouse constraint creado para ${tipo}`);
+  
   // Al hacer clic en un círculo
   Events.on(mouseConstraint, 'mousedown', (event) => {
     const mousePosition = event.mouse.position;
     const circulosActivos = circulos[tipo];
+    
+    console.log(`Click detectado en ${tipo}, posición: (${mousePosition.x}, ${mousePosition.y})`);
     
     circulosActivos.forEach(circuloInfo => {
       const body = circuloInfo.body;
@@ -278,8 +302,13 @@ function setupMouseInteraction(tipo) {
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance < circuloInfo.radio) {
+        console.log(`Click en círculo: ${circuloInfo.nombre}`);
         // Cambiar nivel de selección (0-4 y luego vuelve a 0)
         circuloInfo.nivel = (circuloInfo.nivel + 1) % 5;
+        
+        // Cambiar color según nivel
+        const colors = ['#333333', '#444444', '#555555', '#666666', '#777777'];
+        body.render.fillStyle = colors[circuloInfo.nivel];
         
         // Determinar el factor de escala para el círculo
         const escalaActual = body.circleRadius / circuloInfo.radioOriginal;
@@ -301,16 +330,33 @@ function setupMouseInteraction(tipo) {
         
         // Aplicar una fuerza para que el círculo se mueva al cambiar
         Body.applyForce(body, body.position, {
-          x: (Math.random() - 0.5) * 0.05,
-          y: (Math.random() - 0.5) * 0.05
+          x: (Math.random() - 0.5) * 0.1, // Mayor fuerza 
+          y: (Math.random() - 0.5) * 0.1  // Mayor fuerza
         });
       }
     });
   });
   
+  // Asegurarse de que el mouse se actualice con el movimiento
+  Events.on(mouseConstraint, 'mousemove', () => {
+    // Esto asegura que el mouse constraint esté activo
+    console.log("Mouse moviendo");
+  });
+  
   // Desactivar el evento right click del navegador
   canvas.addEventListener('contextmenu', function(e) {
     e.preventDefault();
+  });
+  
+  // Hacer que los círculos también se muevan al hacer clic en el fondo
+  canvas.addEventListener('click', function(e) {
+    // Aplicar fuerzas aleatorias a todos los círculos
+    circulos[tipo].forEach(circuloInfo => {
+      Body.applyForce(circuloInfo.body, circuloInfo.body.position, {
+        x: (Math.random() - 0.5) * 0.05,
+        y: (Math.random() - 0.5) * 0.05
+      });
+    });
   });
   
   // Actualizar el mouse del render
@@ -382,8 +428,7 @@ function initNavigation() {
     const percentage = ((currentPregunta - 1) / totalPreguntas) * 100;
     progressBar.style.width = `${percentage}%`;
   }
-  
-  // Cambiar a la siguiente pregunta
+    // Cambiar a la siguiente pregunta
   nextBtn.addEventListener('click', () => {
     // Buscar la pregunta actual
     const preguntaActual = document.getElementById(`pregunta-${currentPregunta}`);
@@ -391,20 +436,8 @@ function initNavigation() {
       console.error(`Elemento pregunta-${currentPregunta} no encontrado`);
       return;
     }
-    if (currentPregunta === 2) {
-      // Limpia los cuerpos antes de crear los nuevos
-      World.clear(world, false);
-      crearCirculos('marcas', marcas);
-      // También asegurarse de actualizar los límites para marcas
-      updateWorldBoundaries();
-      // Detener y reiniciar el render de marcas explícitamente
-      if (renders['marcas']) {
-        Render.stop(renders['marcas']);
-        Render.run(renders['marcas']);
-      }
-      // Configurar mouse interaction solo después de crear los círculos de marcas
-      setupMouseInteraction('marcas');
-    }
+    
+    console.log(`Cambiando de pregunta ${currentPregunta} a ${currentPregunta + 1}`);
     
     const tipo = preguntaActual.dataset.type;
     const key = preguntaActual.dataset.key;
@@ -426,6 +459,17 @@ function initNavigation() {
     
     // Incrementar contador
     currentPregunta++;
+    
+    // Preparar la siguiente pregunta si es la de las marcas
+    if (currentPregunta === 2) {
+      console.log('Preparando pregunta de marcas...');
+      // Crear los círculos para la pregunta de marcas
+      crearCirculos('marcas', marcas);
+      // Configurar interacción del mouse para marcas
+      setupMouseInteraction('marcas');
+      // Actualizar límites para marcas
+      updateWorldBoundaries();
+    }
     
     if (currentPregunta > totalPreguntas) {
       // Mostrar modal de finalización
@@ -499,10 +543,16 @@ function initNavigation() {
     }
     
     preguntaAnterior.classList.add('active');
-    
-    // Si la pregunta anterior es de tipo círculos, iniciar su render
+      // Si la pregunta anterior es de tipo círculos, volver a crear los círculos e iniciar su render
     if (preguntaAnterior.dataset.type === 'circles') {
       const tipoAnterior = preguntaAnterior.dataset.key;
+      
+      // Si regresamos a la pregunta 1, volver a crear los círculos de estilos
+      if (currentPregunta === 1) {
+        crearCirculos('estilos', estilos);
+        setupMouseInteraction('estilos');
+      }
+      
       updateWorldBoundaries();
       if (renders[tipoAnterior]) {
         Render.run(renders[tipoAnterior]);
@@ -657,45 +707,64 @@ function initPhysicsBackground() {
 // Función principal de inicialización
 function init() {
   try {
+    console.log('Iniciando sistema...');
+    
+    // Verificamos que Matter.js esté disponible
+    if (typeof Matter === 'undefined') {
+      console.error('Error: Matter.js no está cargado');
+      alert('Error al cargar la librería de física. Por favor, recarga la página.');
+      return;
+    }
+    
+    // Reiniciar el mundo para asegurar que esté limpio
+    World.clear(world, false);
+    
     // Inicializar renders
     inicializarRenders();
-    
-    // Inicializar círculos para la primera pregunta
-    crearCirculos('estilos', estilos);
-    // World.clear(world, false); // Ya no se limpia ni crea los círculos de marcas aquí
-    // crearCirculos('marcas', marcas);
-    
-    // Configurar interacciones
-    setupMouseInteraction('estilos');
-    // No configurar mouse interaction para marcas aquí, se hará en initNavigation cuando corresponda
     
     // Añadir función para dibujar texto en círculos
     dibujarTextoEnCirculos();
     
-    // Inicializar navegación
-    initNavigation();
-    
     // Actualizar paredes del mundo físico
     updateWorldBoundaries();
     
-    // Iniciar el render para la primera pregunta que sea de círculos
+    // Inicializar círculos para la primera pregunta
+    crearCirculos('estilos', estilos);
+    
+    // Configurar interacciones para la primera pregunta
+    setupMouseInteraction('estilos');
+    
+    // Inicializar navegación
+    initNavigation();
+    
+    // Iniciar el render para la primera pregunta
     const primeraPregunta = document.getElementById('pregunta-1');
     if (primeraPregunta && primeraPregunta.dataset.type === 'circles') {
       const tipo = primeraPregunta.dataset.key;
       if (renders[tipo]) {
         Render.run(renders[tipo]);
+        console.log(`Render activado para ${tipo}`);
       }
     }
-    
-    // Inicializar fondo con física (motor independiente)
-    initPhysicsBackground();
     
     // Iniciar el motor de física principal
     Engine.run(engine);
     
+    // Inicializar fondo con física (motor independiente) - esto debe ir después
+    initPhysicsBackground();
+    
+    // Dar un impulso inicial a todos los círculos para que se muevan
+    circulos['estilos'].forEach(circuloInfo => {
+      Body.applyForce(circuloInfo.body, circuloInfo.body.position, {
+        x: (Math.random() - 0.5) * 0.1,
+        y: (Math.random() - 0.5) * 0.1
+      });
+    });
+    
     console.log('Sistema inicializado correctamente');
   } catch (error) {
     console.error('Error al inicializar el sistema:', error);
+    alert('Ha ocurrido un error al inicializar el test. Por favor, recarga la página.');
   }
 }
 

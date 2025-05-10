@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script>
-        window.motosPopulares = {{ motos_populares|tojson|safe }};
+        window.motosPopulares = JSON.parse('{{ motos_populares|tojson|escapejs }}');
     </script>
     <script src="{{ url_for('static', filename='js/populares.js') }}" defer></script>
 </head>

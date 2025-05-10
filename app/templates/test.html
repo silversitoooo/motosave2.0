@@ -7,6 +7,70 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.17.1/matter.min.js"></script>
   <script src="{{ url_for('static', filename='js/test.js') }}" defer></script>
+  <style>
+    .circle-canvas {
+      min-height: 400px;
+      height: 50vh;
+      border: 2px solid rgba(249, 115, 22, 0.5);
+      border-radius: 10px;
+      margin-bottom: 15px;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+    }
+    
+    .options-wrapper {
+      width: 100%;
+      height: 100%;
+      padding: 0; /* Eliminamos el padding para que el canvas ocupe todo el espacio */
+    }
+    
+    #physics-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+    
+    /* Estilos para asegurar que los canvas sean visibles y reciban eventos */
+    #estilos-canvas, #marcas-canvas {
+      width: 100% !important;
+      height: 100% !important;
+      pointer-events: auto;
+      touch-action: none; /* Mejora interacción en dispositivos táctiles */
+    }
+    
+    /* Estilos para asegurar que los canvas reciban los eventos del mouse */
+    canvas {
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Estilos para los círculos seleccionados */
+    .circulo-seleccionado {
+      filter: brightness(1.5);
+      box-shadow: 0 0 15px #f97316;
+    }
+    
+    /* Mejorar visibilidad de textos */
+    h2 {
+      color: #f97316;
+      text-shadow: 0 0 2px rgba(0,0,0,0.5);
+    }
+    
+    /* Estilo para ayudar a los usuarios a entender la interacción */
+    .interaction-help {
+      font-size: 14px;
+      font-style: italic;
+      color: #f97316;
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
   <a href="{{ url_for('main.dashboard') }}" class="back-dashboard-btn">
@@ -21,11 +85,11 @@
       <div class="progress-container">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-      
-      <!-- Pregunta 1: Estilo de moto -->
+        <!-- Pregunta 1: Estilo de moto -->
       <section class="pregunta active" id="pregunta-1" data-type="circles" data-key="estilos">
         <h2>1. ¿Qué estilo(s) de moto te gustan más?</h2>
-        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 2 clics: me encanta)</p>
+        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 4 clics: me encanta)</p>
+        <p class="interaction-help">Puedes hacer clic en cualquier parte para que las burbujas se muevan</p>
         <div class="options-wrapper">
           <div class="circle-canvas" id="estilos-canvas"></div>
         </div>
@@ -34,7 +98,8 @@
       <!-- Pregunta 2: Marca favorita -->
       <section class="pregunta" id="pregunta-2" data-type="circles" data-key="marcas">
         <h2>2. ¿Qué marca(s) prefieres?</h2>
-        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 2 clics: me encanta)</p>
+        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 4 clics: me encanta)</p>
+        <p class="interaction-help">Puedes hacer clic en cualquier parte para que las burbujas se muevan</p>
         <div class="options-wrapper">
           <div class="circle-canvas" id="marcas-canvas"></div>
         </div>
