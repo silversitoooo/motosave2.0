@@ -106,3 +106,20 @@ def test_preferencias():
     if not username:
         return redirect(url_for('main.login'))
     return render_template('test.html')
+
+@main.route('/recomendaciones')
+def recomendaciones():
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('main.login'))
+    
+    # Simulación de recomendaciones basadas en gustos (puedes personalizar esto)
+    motos_recomendadas = [
+        {"modelo": "MT-07", "marca": "Yamaha", "precio": 72000, "estilo": "Naked", "imagen": "https://www.motofichas.com/images/phocagallery/Yamaha_Motor_Corporation/nmax-125-2021/01-yamaha-nmax-125-2021-estudio-rojo.jpg"},
+        {"modelo": "Multistrada V2", "marca": "Ducati", "precio": 98000, "estilo": "Adventure", "imagen": "https://www.motofichas.com/images/phocagallery/ducati/diavel-for-bentley/01-ducati-diavel-for-bentley-02.jpg"},
+        {"modelo": "Z650", "marca": "Kawasaki", "precio": 69000, "estilo": "Naked", "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/w800-2025/10-kawasaki-w800-2025-estudio-gold-01.jpg"},
+        {"modelo": "Z650", "marca": "Kawasaki", "precio": 69000, "estilo": "Naked", "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/w800-2025/10-kawasaki-w800-2025-estudio-gold-01.jpg"},
+        {"modelo": "Z650", "marca": "Kawasaki", "precio": 69000, "estilo": "Naked", "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/w800-2025/10-kawasaki-w800-2025-estudio-gold-01.jpg"},
+    ]
+    
+    return render_template('recomendaciones.html', motos_recomendadas=motos_recomendadas)
