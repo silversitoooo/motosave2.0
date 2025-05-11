@@ -5,18 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recomendaciones - MotoMatch</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        window.motosRecomendadas = {{ motos_recomendadas|tojson|safe }};
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    <script>
+        window.motosRecomendadas = "{{ motos_recomendadas|tojson|safe }}";
     </script>
     <script src="{{ url_for('static', filename='js/recomendaciones.js') }}" defer></script>
+    <style>
+        .test-results-summary {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid #f97316;
+            box-shadow: 0 0 15px rgba(249, 115, 22, 0.3);
+        }
+        
+        .test-results-summary h2 {
+            color: #f97316;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .preferences-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .preference-section {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .preference-section h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background-color: rgba(249, 115, 22, 0.8);
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .tag[data-nivel="1"] {
+            background-color: rgba(249, 115, 22, 0.6);
+        }
+        
+        .tag[data-nivel="2"] {
+            background-color: rgba(249, 115, 22, 0.7);
+        }
+        
+        .tag[data-nivel="3"] {
+            background-color: rgba(249, 115, 22, 0.8);
+        }
+        
+        .tag[data-nivel="4"] {
+            background-color: rgba(249, 115, 22, 1);
+            font-weight: bold;
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 <body>
-    <div class="main-container neon-glass">
-        <a href="{{ url_for('main.dashboard') }}" id="regresoRecomedaciones" class="back-dashboard-btn">
+    <div class="main-container neon-glass">        <a href="{{ url_for('main.dashboard') }}" id="regresoRecomedaciones" class="back-dashboard-btn">
             <i class="fas fa-arrow-left"></i> Regresar al Dashboard
         </a>
         <h1 class="tituloFriends">Tus Recomendaciones</h1>
+        
+        {% if test_data %}
+        <div class="test-results-summary">
+            <h2>Basado en tus preferencias:</h2>
+            <div class="preferences-container">
+                {% if test_data.get('estilos') %}
+                <div class="preference-section">
+                    <h3>Estilos que te gustan:</h3>
+                    <div class="tags">
+                        {% for estilo, nivel in test_data['estilos'].items() %}
+                        <span class="tag" data-nivel="{{ nivel }}">{{ estilo }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if test_data.get('marcas') %}
+                <div class="preference-section">
+                    <h3>Marcas de tu preferencia:</h3>
+                    <div class="tags">
+                        {% for marca, nivel in test_data['marcas'].items() %}
+                        <span class="tag" data-nivel="{{ nivel }}">{{ marca }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if test_data.get('experiencia') %}
+                <div class="preference-section">
+                    <h3>Nivel de experiencia:</h3>
+                    <p>{{ test_data['experiencia'] }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         <div class="grid-container">
             {% for moto in motos_recomendadas %}
             <div class="moto-card">

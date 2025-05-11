@@ -10,10 +10,6 @@ const marcas = [
   "Aprilia", "Vespa", "Moto Guzzi", "Indian", "Husqvarna"
 ];
 
-// Exponemos los arrays al scope global
-window.estilos = estilos;
-window.marcas = marcas;
-
 // Variables globales para el componente MagneticBubbles
 let bubbleInstances = {};
 let activeCanvas = null;
@@ -35,81 +31,43 @@ window.respuestas = window.respuestas || {
   precio_experto: ""
 };
 
+// Al cargar el documento
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("DOM cargado, inicializando test con MagneticBubbles...");
+  
+  // Asegurarse de que solo la primera pregunta esté visible
+  document.querySelectorAll('.pregunta').forEach(element => {
+    if (element.id === 'pregunta-1') {
+      element.style.display = 'block';
+      element.classList.add('active');
+    } else {
+      element.style.display = 'none';
+      element.classList.remove('active');
+    }
+  });
+  
+  // Actualizar barra de progreso inicial
+  updateProgressBar();
+  
+  // Inicializar test con MagneticBubbles
+  initializeTest();
+  
+  // Configurar eventos de la interfaz
+  setupEventListeners();
+});
+
 // Función para inicializar el test
 function initializeTest() {
   try {
     console.log("Inicializando test con MagneticBubbles");
     
-    // Ocultar botón de reintentar si está visible
-    const retryButton = document.getElementById('retry-button');
-    if (retryButton) {
-      retryButton.style.display = 'none';
-    }
-    
-    // Comprobar que MagneticBubbles está disponible
-    if (!window.MagneticBubbles) {
-      console.error('Error: MagneticBubbles no está cargado correctamente');
-      if (retryButton) retryButton.style.display = 'block';
-      return;
-    }
-    
-    // Asegurarse de que solo la primera pregunta esté visible
-    const preguntas = document.querySelectorAll('.pregunta');
-    
-    if (preguntas.length === 0) {
-      console.error('Error: No se encontraron elementos con la clase .pregunta');
-      if (retryButton) retryButton.style.display = 'block';
-      return;
-    }
-    
-    console.log(`Encontradas ${preguntas.length} preguntas en el DOM`);
-    
-    preguntas.forEach(element => {
-      if (element.id === 'pregunta-1') {
-        element.style.display = 'block';
-        element.classList.add('active');
-        console.log('Pregunta 1 activada');
-      } else {
-        element.style.display = 'none';
-        element.classList.remove('active');
-      }
-    });
-    
-    // Actualizar barra de progreso inicial
-    updateProgressBar();
-    
     // Inicializar la primera pregunta con MagneticBubbles
-    console.log('Inicializando burbujas de estilos...');
+    initBubbles('estilos');
     
-    // Verificar que el elemento canvas exista
-    const estilosCanvas = document.getElementById('estilos-canvas');
-    if (!estilosCanvas) {
-      console.error('Error: No se encontró el contenedor para las burbujas #estilos-canvas');
-      if (retryButton) retryButton.style.display = 'block';
-      return;
-    }
-    
-    // Limpiar cualquier contenido previo
-    estilosCanvas.innerHTML = '';
-    if (retryButton) estilosCanvas.appendChild(retryButton);
-    
-    // Inicializar con un pequeño retraso
-    setTimeout(() => {
-      try {
-        initBubbles('estilos');
-        // Configurar eventos de la interfaz
-        setupEventListeners();
-        console.log("MagneticBubbles inicializado correctamente");
-      } catch (error) {
-        console.error("Error al inicializar burbujas:", error);
-        if (retryButton) retryButton.style.display = 'block';
-      }
-    }, 200);
-    
+    console.log("MagneticBubbles inicializado correctamente");
   } catch (error) {
     console.error("Error al inicializar MagneticBubbles:", error);
-    const retryButton = document.getElementById('retry-button');
-    if (retryButton) retryButton.style.display = 'block';
+    alert("Ha ocurrido un error al inicializar el test. Por favor, recarga la página.");
   }
 }
 
@@ -120,50 +78,31 @@ function initBubbles(type) {
   // Obtener el canvas adecuado
   const canvasId = `${type}-canvas`;
   const canvasElement = document.getElementById(canvasId);
-  
   if (!canvasElement) {
-    console.error(`Error: Canvas element "${canvasId}" no encontrado`);
+    console.error(`Canvas element ${canvasId} not found`);
     return;
   }
   
-  console.log(`Canvas encontrado: ${canvasId}`, canvasElement);
   activeCanvas = type;
   
   try {
     // Determinar los datos a usar
     let items = [];
     if (type === 'estilos') {
-      items = window.estilos || estilos || [
-        "Deportiva", "Naked", "Adventure", "Cruiser", "Touring", 
-        "Scooter", "Custom", "Trail", "Enduro", "Clásica"
-      ];
+      items = window.estilos || estilos;
     } else if (type === 'marcas') {
-      items = window.marcas || marcas || [
-        "Honda", "Yamaha", "Kawasaki", "Suzuki", "BMW", "KTM", 
-        "Ducati", "Triumph", "Harley-Davidson", "Royal Enfield", 
-        "Aprilia", "Vespa", "Moto Guzzi", "Indian", "Husqvarna"
-      ];
+      items = window.marcas || marcas;
     }
     
-    console.log(`Usando ${items.length} elementos para ${type}:`, items);
+    console.log(`Usando ${items.length} elementos para ${type}`);
     
-    if (!window.MagneticBubbles) {
-      console.error('Error: La clase MagneticBubbles no está disponible en el scope global');
-      return;
-    }    // Crear instancia de MagneticBubbles
+    // Crear instancia de MagneticBubbles
     bubbleInstances[type] = new MagneticBubbles(canvasId, items, {
-      minRadius: 40,              // Burbujas más grandes (era 30)
-      maxRadius: 65,              // Burbujas más grandes (era 55)
-      padding: 15,                // Espacio entre burbujas
-      repulsionForce: 0.15,       // Fuerza de repulsión optimizada
-      dampening: 0.9,             // Amortiguación para movimiento fluido
-      attractionForce: 0,         // Sin atracción al centro
-      initialImpulse: 1.5,        // Impulso inicial moderado
-      textFont: '14px Arial, sans-serif', // Texto más grande para mejor legibilidad
-      colorPalette: [             // Paleta de colores: gris para todas
-        '#707070', '#707070', '#707070', '#707070', '#707070',
-        '#707070', '#707070', '#707070', '#707070', '#707070'
-      ]
+      minRadius: 30,
+      maxRadius: 45,
+      attractionForce: 0,
+      initialImpulse: 1.5,
+      textFont: '12px Arial, sans-serif'
     });
     
     // Configurar evento para capturar selecciones
@@ -182,48 +121,17 @@ function initBubbles(type) {
 
 // Reinicializar burbujas para una pregunta
 function reinitBubbles(type) {
-  cleanupAndInitializeBubbles(type)
-    .then(() => console.log(`Burbujas de ${type} reinicializadas correctamente`))
-    .catch(error => console.error(`Error al reinicializar burbujas de ${type}:`, error));
-}
-
-// Helper para limpiar y reinicializar burbujas de forma estandarizada
-function cleanupAndInitializeBubbles(type) {
-  // Destruir instancia existente
   if (bubbleInstances[type]) {
     bubbleInstances[type].destroy();
-    delete bubbleInstances[type];
+    initBubbles(type);
+    console.log(`Burbujas de ${type} reinicializadas`);
   }
-  
-  // Limpiar el contenedor antes de reinicializar
-  const canvasContainer = document.getElementById(`${type}-canvas`);
-  if (canvasContainer) {
-    // Solo conservar el botón de reintentar si existe
-    const retryButton = canvasContainer.querySelector('#retry-button');
-    canvasContainer.innerHTML = '';
-    if (retryButton) canvasContainer.appendChild(retryButton);
-  }
-  
-  // Inicializar con un retraso para asegurar que el DOM esté listo
-  return new Promise(resolve => {
-    setTimeout(() => {
-      initBubbles(type);
-      resolve();
-    }, 500);
-  });
 }
 
 // Aplicar impulso a las burbujas
 function applyImpulseToBubbles(type, strength = 1.0) {
-  if (bubbleInstances[type] && typeof bubbleInstances[type].applyImpulse === 'function') {
-    try {
-      bubbleInstances[type].applyImpulse(strength);
-      console.log(`Impulso aplicado a las burbujas de ${type} con fuerza ${strength}`);
-    } catch (error) {
-      console.error(`Error al aplicar impulso a las burbujas de ${type}:`, error);
-    }
-  } else {
-    console.warn(`No se puede aplicar impulso: no existe instancia para ${type} o no tiene método applyImpulse`);
+  if (bubbleInstances[type]) {
+    bubbleInstances[type].applyImpulse(strength);
   }
 }
 
@@ -298,23 +206,33 @@ function navigatePrev() {
     // Preguntas iniciales 1-3
     if (questionNum > 1) {
       prevQuestionId = `pregunta-${questionNum-1}`;
+      
+      // Si volvemos a la pregunta 1, inicializar burbujas de estilos
+      if (questionNum - 1 === 1) {
+        setTimeout(() => {
+          initBubbles('estilos');
+        }, 100);
+      }
     }
   }
-    // Mostrar pregunta anterior
+  
+  // Mostrar pregunta anterior
   if (prevQuestionId) {
     const prevQuestion = document.getElementById(prevQuestionId);
     if (prevQuestion) {
       prevQuestion.classList.add('active');
       prevQuestion.style.display = 'block';
-        // Reinicializar burbujas según la pregunta
-      if (prevQuestionId === 'pregunta-1') {
-        cleanupAndInitializeBubbles('estilos');
-      } else if (prevQuestionId === 'pregunta-2') {
-        cleanupAndInitializeBubbles('marcas');
+      
+      // Si la pregunta anterior es la 2, inicializar burbujas de marcas
+      if (prevQuestionId === 'pregunta-2') {
+        setTimeout(() => {
+          initBubbles('marcas');
+        }, 100);
       }
     }
   }
-    // Actualizar estado del botón anterior
+  
+  // Actualizar estado del botón anterior
   document.getElementById('prev-btn').disabled = (prevQuestionId === 'pregunta-1');
   
   // Actualizar barra de progreso
@@ -360,12 +278,17 @@ function navigateNext() {
       // Final del test
       showCompletionModal();
       return;
-    }  } else {
+    }
+  } else {
     // Preguntas iniciales 1-3
     if (questionNum < 3) {
-      nextQuestionId = `pregunta-${questionNum+1}`;      // Si pasamos a la pregunta 2, inicializar burbujas de marcas
+      nextQuestionId = `pregunta-${questionNum+1}`;
+      
+      // Si pasamos a la pregunta 2, inicializar burbujas de marcas
       if (questionNum + 1 === 2) {
-        cleanupAndInitializeBubbles('marcas');
+        setTimeout(() => {
+          initBubbles('marcas');
+        }, 100);
       }
     }
   }
@@ -543,49 +466,3 @@ window.finalizarTest = function() {
   document.body.appendChild(form);
   form.submit();
 };
-
-// Exponer funciones globalmente
-window.initBubbles = initBubbles;
-window.initializeTest = initializeTest;
-window.updateProgressBar = updateProgressBar;
-window.reinitBubbles = reinitBubbles;
-window.launchConfetti = launchConfetti;
-window.cleanupAndInitializeBubbles = cleanupAndInitializeBubbles;
-window.applyImpulseToBubbles = applyImpulseToBubbles;
-
-// Función para recuperar el test si falla la inicialización
-window.recuperarTest = function() {
-  console.log("Intentando recuperar test...");
-  
-  // Verificar si existen los elementos necesarios
-  const estilosCanvas = document.getElementById('estilos-canvas');
-  
-  if (!estilosCanvas) {
-    console.error("No se encontró el contenedor para las burbujas");
-    return false;
-  }
-  
-  // Limpiar cualquier canvas o elemento existente
-  estilosCanvas.innerHTML = '';
-  
-  // Reintentar inicialización
-  try {
-    // Asegurar disponibilidad de MagneticBubbles
-    if (!window.MagneticBubbles) {
-      console.error("MagneticBubbles no está disponible");
-      return false;
-    }
-    
-    // Inicializar burbujas manualmente
-    if (typeof window.initBubbles === 'function') {
-      window.initBubbles('estilos');
-      return true;
-    }
-  } catch (error) {
-    console.error("Error al recuperar test:", error);
-  }
-  
-  return false;
-};
-
-// Nota: La inicialización ahora se maneja desde el HTML para garantizar el orden de carga

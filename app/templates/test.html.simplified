@@ -5,82 +5,12 @@
   <title>Test de Preferencias - MotoMatch</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  
-  <!-- Script para garantizar la inicialización correcta -->
-  <script>
-    // Función para cargar scripts secuencialmente
-    function loadScriptsSequentially(scripts, callback) {
-      if (scripts.length === 0) {
-        if (callback) callback();
-        return;
-      }
-      
-      var script = document.createElement('script');
-      script.src = scripts[0] + "?v=" + Date.now(); // Evitar caché
-      script.onload = function() {
-        console.log('Script cargado: ' + scripts[0]);
-        // Cargar el siguiente script
-        loadScriptsSequentially(scripts.slice(1), callback);
-      };
-      script.onerror = function() {
-        console.error('Error al cargar: ' + scripts[0]);
-        // Intentar cargar el siguiente script
-        loadScriptsSequentially(scripts.slice(1), callback);
-      };
-      document.head.appendChild(script);
-    }
-    
-    // Al cargar el documento, cargamos todos los scripts en orden
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM cargado, cargando scripts...');
-      
-      // Rutas de los scripts (en el orden correcto)
-      var scripts = [
-        "{{ url_for('static', filename='js/magnetic-bubbles.js') }}",
-        "{{ url_for('static', filename='js/test.js') }}",
-        "{{ url_for('static', filename='js/test_finalizacion.js') }}"
-      ];
-      
-      // Cargar scripts en orden
-      loadScriptsSequentially(scripts, function() {
-        console.log('Todos los scripts cargados, inicializando test...');
-        // Inicializar test
-        if (typeof window.initializeTest === 'function') {
-          setTimeout(function() {
-            window.initializeTest();
-          }, 100); // Pequeño retraso para asegurar que todo está listo
-        } else {
-          console.error('Error: La función initializeTest no está disponible');
-          alert('Error al inicializar el test. Por favor, recarga la página.');
-        }
-      });
-    });
-  </script>
-  
-  <!-- Script para manejar errores y mostrar botón de reintentar -->
-  <script>
-    // Función para mostrar el botón de reintentar después de un tiempo
-    function mostrarBotonReintentar() {
-      setTimeout(function() {
-        // Verificar si las burbujas se inicializaron correctamente
-        var estilosCanvas = document.getElementById('estilos-canvas');
-        var hayCanvas = estilosCanvas && estilosCanvas.querySelector('canvas');
-        
-        if (!hayCanvas) {
-          console.error("No se detectó inicialización correcta, mostrando botón de reintentar");
-          var retryButton = document.getElementById('retry-button');
-          if (retryButton) {
-            retryButton.style.display = 'block';
-          }
-        }
-      }, 3000); // Esperar 3 segundos antes de mostrar el botón
-    }
-    
-    // Registrar función para ejecutar después de cargar scripts
-    document.addEventListener('DOMContentLoaded', function() {
-      mostrarBotonReintentar();
-    });
-  </script>
+  <!-- Cargamos nuestro nuevo script de MagneticBubbles directamente -->
+  <script src="{{ url_for('static', filename='js/magnetic-bubbles.js') }}?v={{ cache_bust|default('1') }}"></script>
+  <!-- Cargamos el script principal del test -->
+  <script src="{{ url_for('static', filename='js/test.js') }}?v={{ cache_bust|default('1') }}"></script>
+  <!-- Cargamos test_finalizacion.js para funcionalidades finales -->
+  <script src="{{ url_for('static', filename='js/test_finalizacion.js') }}?v={{ cache_bust|default('1') }}"></script>
   <style>
     .circle-canvas {
       min-height: 400px;
@@ -93,27 +23,6 @@
       width: 100%;
       background-color: rgba(0, 0, 0, 0.8);
       box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
-    }
-    
-    /* Estilos para el botón de reintentar */
-    .retry-button {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: #f97316;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-      z-index: 100;
-    }
-    
-    .retry-button:hover {
-      background-color: #ea580c;
     }
     
     .pregunta {
@@ -328,10 +237,7 @@
         <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 4 clics: me encanta)</p>
         <p class="interaction-help">Puedes hacer clic en cualquier parte para que las burbujas se muevan</p>
         <div class="options-wrapper">
-          <div class="circle-canvas" id="estilos-canvas">
-            <!-- Botón de reintentar en caso de error -->
-            <button id="retry-button" class="retry-button" onclick="window.recuperarTest()">Error al cargar. Reintentar</button>
-          </div>
+          <div class="circle-canvas" id="estilos-canvas"></div>
         </div>
       </section>
 
