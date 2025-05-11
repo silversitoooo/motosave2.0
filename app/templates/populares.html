@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
+<head>    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Motos Populares - MotoMatch</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Variables CSS dinámicas -->
+    <style>
+        :root {
+            --hue1: 20;
+            --hue2: 30;
+            --radius: 12px;
+            --border: 1px;
+            --ease: cubic-bezier(0.5, 1, 0.89, 1);
+        }
+    </style>
     <script>
-        window.motosPopulares = JSON.parse('{{ motos_populares|tojson|escapejs }}');
+        window.motosPopulares = JSON.parse('{{ motos_populares|tojson|safe }}');
     </script>
     <script src="{{ url_for('static', filename='js/populares.js') }}" defer></script>
 </head>
@@ -15,11 +24,39 @@
     <div class="main-container neon-glass">
         <a href="{{ url_for('main.dashboard') }}" class="back-dashboard-btn">
             <i class="fas fa-arrow-left"></i> Regresar al Dashboard
-        </a>
-        <h1 class="tituloFriends">Motos Populares</h1>
+        </a>        <h1 class="tituloFriends">
+            <span class="title-letter">M</span>
+            <span class="title-letter">o</span>
+            <span class="title-letter">t</span>
+            <span class="title-letter">o</span>
+            <span class="title-letter">s</span>
+            <span class="title-letter"> </span>
+            <span class="title-letter">P</span>
+            <span class="title-letter">o</span>
+            <span class="title-letter">p</span>
+            <span class="title-letter">u</span>
+            <span class="title-letter">l</span>
+            <span class="title-letter">a</span>
+            <span class="title-letter">r</span>
+            <span class="title-letter">e</span>
+            <span class="title-letter">s</span>
+        </h1>
+        
+        <div class="trends-container">
+            <h3 class="trends-title"><i class="fas fa-chart-line"></i> Tendencias de esta semana</h3>
+            <div class="trends-badges">
+                <span class="trend-badge up">🔥 CBR 600RR</span>
+                <span class="trend-badge up">🚀 Duke 390</span>
+                <span class="trend-badge neutral">⭐ V-Strom 650</span>
+                <span class="trend-badge up">🔥 R nineT</span>
+            </div>
+        </div>
+        
         <div class="grid-container">
             {% for moto in motos_populares %}
             <div class="moto-card">
+                <div class="shine"></div>
+                <div class="popular-badge">🔥 Popular</div>
                 <img src="{{ moto.imagen }}" alt="Imagen de {{ moto.modelo }}" class="moto-img">
                 <h3>{{ moto.modelo }}</h3>
                 <p><strong>Marca:</strong> {{ moto.marca }}</p>
@@ -35,6 +72,11 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+        <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+            <button id="reload-btn" class="reload-btn">
+                <i class="fas fa-sync-alt"></i> Recargar motos
+            </button>
         </div>
     </div>
     <footer>

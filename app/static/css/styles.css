@@ -1,5 +1,3 @@
-
-
 /* Index */
 body {
     margin: 0;
@@ -708,16 +706,30 @@ body {
     overflow: visible;
 }
 
-/* Título con estilo neon */
+/* Título con un efecto más llamativo */
 .tituloFriends {
+    font-size: 2.5rem;
+    margin-bottom: 30px;
     text-align: center;
-    font-size: 36px;
-    margin-bottom: 40px;
-    color: white;
-    text-shadow: 0 0 5px hsl(var(--hue1), 90%, 60%), 
-                 0 0 15px hsl(var(--hue1), 90%, 60%), 
-                 0 0 30px hsl(var(--hue1), 90%, 50%);
+    background: linear-gradient(90deg, #ff6600, #ff9933);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 15px rgba(255, 102, 0, 0.5);
     position: relative;
+}
+
+.tituloFriends::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 3px;
+    background: linear-gradient(90deg, #ff6600, #ff9933);
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
 }
 
 /* Botón de regreso con efecto NeonGlass */
@@ -764,13 +776,15 @@ body {
 
 /* Contenedor de tarjetas */
 .grid-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 30px; /* Aumentado el espacio entre tarjetas */
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Exactamente 2 columnas */
+    gap: 25px;
+    padding: 20px 0;
     width: 100%;
-    overflow: visible; /* Crucial para permitir que el contenido sea visible */
-    padding-bottom: 40px; /* Espacio adicional abajo */
+    max-width: 1200px;
+    margin: 0 auto;
+    justify-content: center;
+    margin-bottom: 20px;
 }
 
 /* Tarjetas de moto con estilo NeonGlass */
@@ -781,7 +795,7 @@ body {
     backdrop-filter: blur(8px);
     border-radius: var(--radius);
     padding: 20px;
-    width: calc(50% - 20px);
+    width: 100%;
     box-sizing: border-box;
     position: relative;
     border: var(--border) solid hsl(var(--hue1), 20%, 20%, 0.5);
@@ -789,6 +803,10 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+    transition: transform 0.5s ease, box-shadow 0.5s ease;
 }
 
 /* Efecto de resplandor superior para las tarjetas */
@@ -831,6 +849,7 @@ body {
     transform: translateY(-5px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3),
                 0 0 15px hsl(var(--hue1), 90%, 40%, 0.5);
+    transform: perspective(1000px) rotateX(5deg) rotateY(5deg);
 }
 
 .moto-card:hover::before,
@@ -1004,6 +1023,97 @@ footer a:hover {
         margin: 20px auto 40px auto; /* Márgenes más pequeños en móvil */
         padding: 20px;
     }
+    .grid-container {
+        grid-template-columns: 1fr; /* En dispositivos móviles, mostrar una columna */
+    }
+}
+
+/* Botón para recargar la página de motos populares */
+.reload-btn {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 18px;
+    background: linear-gradient(90deg, hsl(var(--hue1), 90%, 40%), hsl(var(--hue2), 90%, 40%));
+    color: white;
+    text-decoration: none;
+    border-radius: var(--radius);
+    font-weight: bold;
+    transition: all 0.3s var(--ease);
+    text-align: center;
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.3);
+    border: none;
+    cursor: pointer;
+}
+
+.reload-btn:hover {
+    background: linear-gradient(90deg, hsl(var(--hue1), 90%, 50%), hsl(var(--hue2), 90%, 50%));
+    box-shadow: 0 0 15px rgba(255, 102, 0, 0.6);
+    transform: translateY(-2px);
+}
+
+/* Clase para efectos de animación */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+/* Estilos para las tarjetas de tendencias */
+.trends-container {
+    margin-bottom: 30px;
+    padding: 15px;
+    background: rgba(20, 20, 20, 0.5);
+    border-radius: var(--radius);
+    box-shadow: 0 0 20px rgba(255, 150, 0, 0.2);
+    text-align: center;
+}
+
+.trends-title {
+    color: white;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.trends-badges {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.trend-badge {
+    padding: 8px 15px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+}
+
+.trend-badge:hover {
+    transform: translateY(-3px);
+    cursor: pointer;
+}
+
+.trend-badge.up {
+    background: linear-gradient(90deg, hsl(120, 80%, 25%), hsl(120, 80%, 35%));
+    color: white;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+.trend-badge.down {
+    background: linear-gradient(90deg, hsl(0, 80%, 30%), hsl(0, 80%, 40%));
+    color: white;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);
+}
+
+.trend-badge.neutral {
+    background: linear-gradient(90deg, hsl(220, 70%, 30%), hsl(220, 70%, 40%));
+    color: white;
+    box-shadow: 0 0 10px rgba(100, 100, 255, 0.2);
 }
 
 /* Test */
@@ -1232,3 +1342,192 @@ select {
   100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
+/* Estilo para el efecto de brillo (shine) */
+.shine {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(
+        circle,
+        hsl(var(--hue1), 100%, 70%, 0.8) 0%,
+        hsl(var(--hue1), 100%, 60%, 0.3) 40%,
+        transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    filter: blur(8px);
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s var(--ease);
+    z-index: 1;
+}
+
+/* Clase para efecto de tarjeta cuando se da like */
+.moto-card.liked {
+    box-shadow: 0 0 15px hsl(var(--hue1), 90%, 50%),
+                0 0 30px hsl(var(--hue1), 90%, 40%, 0.7);
+}
+
+/* Estilo para botón de like cuando está activo */
+.like-btn.liked {
+    background-color: #f34c4c; /* Un color más intenso para el botón activo */
+    box-shadow: 0 0 10px #f34c4c, 0 0 20px #f34c4c70;
+}
+
+/* Contador de likes con más destaque visual */
+.like-info {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: hsl(var(--hue2), 70%, 80%);
+    transition: all 0.3s var(--ease);
+}
+
+.like-count {
+    font-weight: bold;
+    margin-right: 5px;
+    font-size: 16px;
+    color: hsl(var(--hue1), 90%, 80%);
+    text-shadow: 0 0 4px hsl(var(--hue1), 90%, 50%, 0.7);
+}
+
+/* Badge de popular */
+.popular-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(90deg, hsl(340, 90%, 40%), hsl(370, 90%, 45%));
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+    z-index: 10;
+    animation: pulse 2s infinite;
+    transform-origin: center;
+}
+
+/* Título con efecto de gradiente y sombra */
+.tituloFriends {
+    font-size: 2.5em;
+    text-align: center;
+    margin-bottom: 1.5em;
+    color: white;
+    text-shadow: 0 0 10px rgba(255, 150, 0, 0.8);    background: linear-gradient(90deg, hsl(var(--hue1), 90%, 50%), hsl(var(--hue2), 90%, 50%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    padding: 10px;
+    margin-top: 20px;
+    animation: glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    0% {
+        text-shadow: 0 0 10px rgba(255, 150, 0, 0.8);
+    }
+    100% {
+        text-shadow: 0 0 20px rgba(255, 150, 0, 0.8), 0 0 30px rgba(255, 100, 0, 0.6);
+    }
+}
+
+/* Efecto de brillo para las tarjetas de motos */
+.shine {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+    filter: blur(4px);
+    transition: opacity 0.2s ease;
+}
+
+/* Animación al dar like */
+@keyframes likeEffect {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.2); }
+    50% { transform: scale(0.95); }
+    75% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.like-btn.liked {
+    animation: likeEffect 0.5s ease-in-out;
+}
+
+/* Animación de título por letra */
+.title-letter {
+    display: inline-block;
+    animation: letterWave 3s ease-in-out infinite;
+    animation-fill-mode: both;
+}
+
+/* Animar cada letra con un retraso diferente */
+.title-letter:nth-child(1) { animation-delay: 0.0s; }
+.title-letter:nth-child(2) { animation-delay: 0.1s; }
+.title-letter:nth-child(3) { animation-delay: 0.2s; }
+.title-letter:nth-child(4) { animation-delay: 0.3s; }
+.title-letter:nth-child(5) { animation-delay: 0.4s; }
+.title-letter:nth-child(6) { animation-delay: 0.5s; }
+.title-letter:nth-child(7) { animation-delay: 0.6s; }
+.title-letter:nth-child(8) { animation-delay: 0.7s; }
+.title-letter:nth-child(9) { animation-delay: 0.8s; }
+.title-letter:nth-child(10) { animation-delay: 0.9s; }
+.title-letter:nth-child(11) { animation-delay: 1.0s; }
+.title-letter:nth-child(12) { animation-delay: 1.1s; }
+.title-letter:nth-child(13) { animation-delay: 1.2s; }
+.title-letter:nth-child(14) { animation-delay: 1.3s; }
+.title-letter:nth-child(15) { animation-delay: 1.4s; }
+
+@keyframes letterWave {
+    0%, 100% { 
+        transform: translateY(0); 
+        text-shadow: 0 0 10px rgba(255, 150, 0, 0.8); 
+    }
+    50% { 
+        transform: translateY(-5px); 
+        text-shadow: 0 0 20px rgba(255, 150, 0, 1); 
+    }
+}
+
+/* Animación de título por letra */
+.title-letter {
+    display: inline-block;
+    animation: letterWave 3s ease-in-out infinite;
+    animation-fill-mode: both;
+}
+
+/* Animar cada letra con un retraso diferente */
+.title-letter:nth-child(1) { animation-delay: 0.0s; }
+.title-letter:nth-child(2) { animation-delay: 0.1s; }
+.title-letter:nth-child(3) { animation-delay: 0.2s; }
+.title-letter:nth-child(4) { animation-delay: 0.3s; }
+.title-letter:nth-child(5) { animation-delay: 0.4s; }
+.title-letter:nth-child(6) { animation-delay: 0.5s; }
+.title-letter:nth-child(7) { animation-delay: 0.6s; }
+.title-letter:nth-child(8) { animation-delay: 0.7s; }
+.title-letter:nth-child(9) { animation-delay: 0.8s; }
+.title-letter:nth-child(10) { animation-delay: 0.9s; }
+.title-letter:nth-child(11) { animation-delay: 1.0s; }
+.title-letter:nth-child(12) { animation-delay: 1.1s; }
+.title-letter:nth-child(13) { animation-delay: 1.2s; }
+.title-letter:nth-child(14) { animation-delay: 1.3s; }
+.title-letter:nth-child(15) { animation-delay: 1.4s; }
+
+@keyframes letterWave {
+    0%, 100% { 
+        transform: translateY(0); 
+        text-shadow: 0 0 10px rgba(255, 150, 0, 0.8); 
+    }
+    50% { 
+        transform: translateY(-5px); 
+        text-shadow: 0 0 20px rgba(255, 150, 0, 1); 
+    }
+}

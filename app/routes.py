@@ -1,14 +1,14 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, json
+from flask import Blueprint, render_template, request, redirect, url_for, session, json, jsonify
 
 main = Blueprint('main', __name__)
 
 # Simulación de base de datos
 
 motos_populares = [
-    {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", "likes": 22, "imagen":"https://www.motofichas.com/images/phocagallery/Alpina/Loreto_125/125/alpina-loreto-125.jpg"},
-    {"modelo": "Duke 390", "marca": "KTM", "precio": 46000, "estilo": "Naked", "likes": 18, "imagen":"https://www.motofichas.com/images/phocagallery/yamaha/tmax-2023/001-yamaha-tmax-2024-estudio-negro-01.jpg"},
-    {"modelo": "V-Strom 650", "marca": "Suzuki", "precio": 68000, "estilo": "Adventure", "likes": 25, "imagen":"https://www.motofichas.com/images/phocagallery/Honda/forza-125-2023/001-honda-forza-125-2024-estudio-rojo-01.jpg"},
-    {"modelo": "R nineT", "marca": "BMW", "precio": 115000, "estilo": "Clásica", "likes": 30, "imagen": "https://www.motofichas.com/images/phocagallery/Honda/sh300i-2016/01-honda-sh300i-2016-rojo-siena.jpg"}
+    {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", "likes": 22, "imagen":"https://img.remediosdigitales.com/2fe8cb/honda-cbr600rr-2021-5-/1366_2000.jpeg"},
+    {"modelo": "Duke 390", "marca": "KTM", "precio": 46000, "estilo": "Naked", "likes": 18, "imagen":"https://www.ktm.com/ktmgroup-storage/PHO_BIKE_90_RE_390-Duke-orange-MY22-Front-Right-49599.png"},
+    {"modelo": "V-Strom 650", "marca": "Suzuki", "precio": 68000, "estilo": "Adventure", "likes": 25, "imagen":"https://suzukicycles.com/content/dam/public/SuzukiCycles/Models/Bikes/Adventure/2023/DL650XAM3_YU1_RIGHT.png"},
+    {"modelo": "R nineT", "marca": "BMW", "precio": 115000, "estilo": "Clásica", "likes": 30, "imagen": "https://cdp.azureedge.net/products/USA/BM/2023/MC/STANDARD/R_NINE_T/50/BLACKSTORM_METALLIC-BRUSHED_ALUMINUM/2000000001.jpg"}
 ]
 
 usuarios = {
@@ -103,7 +103,20 @@ def eliminar_amigo():
 
 @main.route('/populares')
 def populares():
-    return render_template('populares.html', motos_populares=motos_populares)
+    import random
+    # Obtener parámetro de recarga
+    should_shuffle = request.args.get('shuffle', 'false') == 'true'
+    
+    # Crear una copia para no modificar la lista original
+    motos_lista = motos_populares.copy()
+    
+    # Aleatorizar el orden si se solicitó (cuando se usa el botón de recarga)
+    if should_shuffle:
+        random.shuffle(motos_lista)
+    
+    # Asegurarnos de enviar exactamente 4 motos
+    motos_para_mostrar = motos_lista[:4]
+    return render_template('populares.html', motos_populares=motos_para_mostrar)
 
 @main.route('/test')
 def test_preferencias():
@@ -201,3 +214,31 @@ def moto_ideal():
                            marcas=marcas, 
                            estilos=estilos,
                            mensaje=mensaje)
+
+@main.route('/like_moto', methods=['POST'])
+def like_moto():
+    """Ruta para manejar los likes de las motos populares"""
+    if request.method == 'POST':
+        try:
+            data = request.json
+            modelo = data.get('modelo')
+            
+            # Encontrar la moto en la lista
+            for moto in motos_populares:
+                if moto['modelo'] == modelo:
+                    moto['likes'] += 1
+                    
+                    # En una aplicación real, aquí se guardaría en la base de datos
+                    
+                    return jsonify({
+                        'success': True,
+                        'likes': moto['likes'],
+                        'message': f'Like para {modelo} registrado con éxito'
+                    })
+            
+            return jsonify({'success': False, 'message': 'Modelo no encontrado'}), 404
+            
+        except Exception as e:
+            return jsonify({'success': False, 'message': str(e)}), 500
+    
+    return jsonify({'success': False, 'message': 'Método no permitido'}), 405
