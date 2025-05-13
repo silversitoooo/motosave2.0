@@ -1,4 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, json, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, json, jsonify, current_app
+from .algoritmo.pagerank import MotoPageRank
+from .algoritmo.label_propagation import MotoLabelPropagation
+from .algoritmo.moto_ideal import MotoIdealRecommender
+from .algoritmo.advanced_hybrid import AdvancedHybridRecommender
+from .algoritmo.utils import DatabaseConnector
+from .utils import get_populares_motos, get_friend_recommendations, get_moto_ideal, get_advanced_recommendations
+import datetime
 
 main = Blueprint('main', __name__)
 
@@ -35,6 +42,124 @@ motos_ideales = {
 @main.route('/')
 def home():
     return render_template('index.html')
+
+@main.route('/recomendaciones', methods=['GET', 'POST'])
+def recomendaciones():
+    """
+    Muestra recomendaciones de motos personalizadas para el usuario.
+    Puede recibir datos del test de preferencias o usar datos del perfil del usuario.
+    """
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('main.login'))
+        
+    # Inicializar variables
+    test_data = {}
+    motos_recomendadas = []
+    
+    if request.method == 'POST':
+        # Procesar datos del test
+        test_data = {
+            'estilos': {},
+            'marcas': {},
+            'experiencia': request.form.get('experiencia', 'Intermedio')
+        }
+        
+        # Procesar estilos
+        estilos_str = request.form.get('estilos', '{}')
+        try:
+            test_data['estilos'] = json.loads(estilos_str.replace("'", '"'))
+        except:
+            # Fallback si hay error en el JSON
+            pass
+            
+        # Procesar marcas
+        marcas_str = request.form.get('marcas', '{}')
+        try:
+            test_data['marcas'] = json.loads(marcas_str.replace("'", '"'))
+        except:
+            # Fallback si hay error en el JSON
+            pass
+            
+        # Guardar datos del test en la sesión para futuras visitas
+        session['test_data'] = test_data
+        
+    elif 'test_data' in session:
+        # Usar datos guardados de una sesión anterior
+        test_data = session['test_data']
+    
+    try:
+        # Intentar obtener recomendaciones personalizadas de la base de datos
+        if test_data:
+            # Crear un perfil de usuario basado en los datos del test
+            current_app.logger.info(f"Generando recomendaciones para {username} con datos del test")
+            
+            # Intentar usar el algoritmo avanzado para recomendaciones
+            advanced_recs = get_advanced_recommendations(username, top_n=4)
+            
+            if advanced_recs:
+                # Formatear las recomendaciones para la plantilla
+                motos_recomendadas = []
+                for moto in advanced_recs:
+                    # Adaptar el formato de la recomendación al esperado por la plantilla
+                    moto_data = {
+                        'modelo': moto.get('modelo', f"Moto {moto.get('moto_id')}"),
+                        'marca': moto.get('marca', 'Desconocida'),
+                        'estilo': moto.get('tipo', 'Estándar'),
+                        'precio': moto.get('precio', 0),
+                        'imagen': moto.get('imagen', 'https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg'),
+                        'score': moto.get('score', 0),
+                        'razones': moto.get('reasons', [])
+                    }
+                    motos_recomendadas.append(moto_data)
+        
+        # Si no hay recomendaciones de la base de datos, usar datos simulados
+        if not motos_recomendadas:
+            current_app.logger.info("Usando recomendaciones simuladas")
+            
+            # Motos simuladas basadas en las preferencias del usuario
+            estilos_preferidos = list(test_data.get('estilos', {}).keys())
+            marcas_preferidas = list(test_data.get('marcas', {}).keys())
+            
+            # Motos simuladas
+            motos_simuladas = [
+                {"modelo": "Ninja ZX-10R", "marca": "Kawasaki", "precio": 92000, "estilo": "Deportiva", 
+                 "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg"},
+                {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", 
+                 "imagen": "https://img.remediosdigitales.com/2fe8cb/honda-cbr600rr-2021-5-/1366_2000.jpeg"},
+                {"modelo": "Duke 390", "marca": "KTM", "precio": 46000, "estilo": "Naked", 
+                 "imagen": "https://www.ktm.com/ktmgroup-storage/PHO_BIKE_90_RE_390-Duke-orange-MY22-Front-Right-49599.png"},
+                {"modelo": "Burgman 400", "marca": "Suzuki", "precio": 65000, "estilo": "Scooter", 
+                 "imagen": "https://www.motofichas.com/images/phocagallery/Suzuki_Motor/burgman-400-2022/01-suzuki-burgman-400-2022-estudio-plata.jpg"}
+            ]
+            
+            # Filtrar por preferencias si existen
+            if estilos_preferidos:
+                # Ordenar motos por estilo preferido
+                motos_simuladas.sort(key=lambda x: 1 if x['estilo'] in estilos_preferidos else 0, reverse=True)
+                
+            if marcas_preferidas:
+                # Priorizar marcas preferidas
+                motos_simuladas.sort(key=lambda x: 1 if x['marca'] in marcas_preferidas else 0, reverse=True)
+                
+            motos_recomendadas = motos_simuladas
+    except Exception as e:
+        current_app.logger.error(f"Error al generar recomendaciones: {str(e)}")
+        # En caso de error, usar datos simulados básicos
+        motos_recomendadas = [
+            {"modelo": "Ninja ZX-10R", "marca": "Kawasaki", "precio": 92000, "estilo": "Deportiva", 
+             "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg"},
+            {"modelo": "CBR 600RR", "marca": "Honda", "precio": 75000, "estilo": "Deportiva", 
+             "imagen": "https://img.remediosdigitales.com/2fe8cb/honda-cbr600rr-2021-5-/1366_2000.jpeg"},
+            {"modelo": "Street Triple", "marca": "Triumph", "precio": 85000, "estilo": "Naked", 
+             "imagen": "https://www.motofichas.com/images/phocagallery/Triumph/street-triple-765-rs-2023/01-triumph-street-triple-765-rs-2023-estudio-gris.jpg"},
+            {"modelo": "R nineT", "marca": "BMW", "precio": 115000, "estilo": "Clásica", 
+             "imagen": "https://cdp.azureedge.net/products/USA/BM/2023/MC/STANDARD/R_NINE_T/50/BLACKSTORM_METALLIC-BRUSHED_ALUMINUM/2000000001.jpg"}
+        ]
+        
+    return render_template('recomendaciones.html', 
+                          motos_recomendadas=motos_recomendadas,
+                          test_data=test_data)
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
@@ -107,8 +232,15 @@ def populares():
     # Obtener parámetro de recarga
     should_shuffle = request.args.get('shuffle', 'false') == 'true'
     
-    # Crear una copia para no modificar la lista original
-    motos_lista = motos_populares.copy()
+    # Intentar obtener motos populares de la base de datos
+    motos_db = get_populares_motos(top_n=8)
+    
+    # Si hay motos en la base de datos, usarlas
+    if motos_db:
+        motos_lista = motos_db
+    else:
+        # Si no hay motos en la base de datos, usar datos simulados
+        motos_lista = motos_populares.copy()
     
     # Aleatorizar el orden si se solicitó (cuando se usa el botón de recarga)
     if should_shuffle:
@@ -141,12 +273,11 @@ def test_preferencias():
              "Aprilia", "Vespa", "Moto Guzzi", "Indian", "Husqvarna"]
     
     return render_template('test.html', 
-                          cache_bust=timestamp, 
-                          estilos_json=json.dumps(estilos),
+                          cache_bust=timestamp,                          estilos_json=json.dumps(estilos),
                           marcas_json=json.dumps(marcas))
 
-@main.route('/recomendaciones', methods=['GET', 'POST'])
-def recomendaciones():
+@main.route('/recomendaciones_test', methods=['GET', 'POST'])
+def recomendaciones_test():
     username = session.get('username')
     if not username:
         return redirect(url_for('main.login'))
@@ -242,3 +373,97 @@ def like_moto():
             return jsonify({'success': False, 'message': str(e)}), 500
     
     return jsonify({'success': False, 'message': 'Método no permitido'}), 405
+
+@main.route('/guardar-preferencias', methods=['POST'])
+def guardar_preferencias():
+    """
+    Guarda las preferencias del usuario en la base de datos.
+    Esta ruta recibe datos de preferencias de motos (estilos, marcas, etc.)
+    y los almacena en Neo4j para usarlos en futuras recomendaciones.
+    """
+    username = session.get('username')
+    if not username:
+        return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
+    
+    try:
+        # Obtener datos del formulario
+        preferences = {
+            'estilos': {},
+            'marcas': {},
+            'experiencia': request.form.get('experiencia', 'Intermedio')
+        }
+        
+        # Procesar estilos
+        estilos_str = request.form.get('estilos', '{}')
+        try:
+            preferences['estilos'] = json.loads(estilos_str.replace("'", '"'))
+        except:
+            current_app.logger.error("Error al procesar JSON de estilos")
+            
+        # Procesar marcas
+        marcas_str = request.form.get('marcas', '{}')
+        try:
+            preferences['marcas'] = json.loads(marcas_str.replace("'", '"'))
+        except:
+            current_app.logger.error("Error al procesar JSON de marcas")
+        
+        # Guardar en la sesión
+        session['test_data'] = preferences
+        
+        # Guardar en Neo4j usando la función mejorada
+        from .utils import store_user_test_results
+        result = store_user_test_results(username, preferences)
+        
+        if result:
+            current_app.logger.info(f"Preferencias guardadas correctamente para {username}")
+            return jsonify({"success": True, "message": "Preferencias guardadas correctamente"})
+        else:
+            current_app.logger.warning(f"No se pudieron guardar las preferencias para {username}")
+            return jsonify({"success": False, "message": "No se pudieron guardar las preferencias en la base de datos"}), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Error al guardar preferencias: {str(e)}")
+        return jsonify({"success": False, "message": f"Error al procesar la solicitud: {str(e)}"}), 500
+
+@main.route('/recomendaciones-amigos')
+def recomendaciones_amigos():
+    """
+    Muestra recomendaciones de motos basadas en los gustos de los amigos del usuario.
+    Utiliza el algoritmo de propagación de etiquetas para generar recomendaciones.
+    """
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('main.login'))
+    
+    try:
+        # Obtener recomendaciones basadas en amigos
+        from .utils import get_friend_recommendations
+        friend_recommendations = get_friend_recommendations(username, top_n=4)
+        
+        if not friend_recommendations:
+            # Si no hay recomendaciones de la base de datos, usar datos simulados
+            friend_recommendations = [
+                {"modelo": "R3", "marca": "Yamaha", "precio": 48000, "estilo": "Deportiva", 
+                 "imagen": "https://yamaha-motor.com.ar/uploads/product_images/R3.png",
+                 "score": 0.85, "amigo": "maria"},
+                {"modelo": "Monster", "marca": "Ducati", "precio": 89000, "estilo": "Naked", 
+                 "imagen": "https://www.motofichas.com/images/phocagallery/Ducati/monster-2021/01-ducati-monster-2021-estudio-rojo.jpg",
+                 "score": 0.78, "amigo": "pedro"},
+                {"modelo": "Street Triple", "marca": "Triumph", "precio": 85000, "estilo": "Naked", 
+                 "imagen": "https://www.motofichas.com/images/phocagallery/Triumph/street-triple-765-rs-2023/01-triumph-street-triple-765-rs-2023-estudio-gris.jpg",
+                 "score": 0.72, "amigo": "jose"},
+                {"modelo": "Z900", "marca": "Kawasaki", "precio": 82000, "estilo": "Naked", 
+                 "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/z900-2023/01-kawasaki-z900-2023-estudio-verde.jpg",
+                 "score": 0.65, "amigo": "maria"}
+            ]
+        
+        return render_template('recomendaciones_amigos.html', 
+                              recomendaciones=friend_recommendations,
+                              username=username)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener recomendaciones de amigos: {str(e)}")
+        # En caso de error, mostrar un mensaje
+        return render_template('error.html', 
+                              error="No se pudieron cargar las recomendaciones basadas en amigos",
+                              username=username)

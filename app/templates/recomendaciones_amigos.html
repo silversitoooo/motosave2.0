@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recomendaciones de amigos - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .friends-title {
+            color: #f97316;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        
+        .friends-description {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 30px auto;
+            color: #e2e2e2;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+        
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .recommendation-card {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #f97316;
+            position: relative;
+        }
+        
+        .recommendation-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.5);
+        }
+        
+        .recommendation-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 1px solid rgba(249, 115, 22, 0.5);
+        }
+        
+        .recommendation-details {
+            padding: 20px;
+        }
+        
+        .recommendation-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #f97316;
+        }
+        
+        .recommendation-info {
+            margin-bottom: 15px;
+            color: #e2e2e2;
+        }
+        
+        .recommendation-score {
+            display: flex;
+            align-items: center;
+            margin-top: 15px;
+            color: #f97316;
+            font-weight: bold;
+        }
+        
+        .recommendation-score .score-value {
+            margin-left: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .friend-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #f97316;
+            color: black;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .friend-badge i {
+            font-size: 0.9rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background-color: #f97316;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .action-button:hover {
+            background-color: #ea580c;
+        }
+        
+        .no-recommendations {
+            text-align: center;
+            color: #e2e2e2;
+            padding: 50px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            margin-top: 30px;
+            border: 1px dashed #f97316;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <main class="container">
+        <h1 class="friends-title">Recomendaciones basadas en amigos</h1>
+        
+        <p class="friends-description">
+            Nuestro algoritmo ha analizado las preferencias de tus amigos 
+            y ha identificado motos que podrían gustarte basadas en las que 
+            ellos valoran positivamente. Las motos se muestran según la relevancia 
+            para ti, considerando la fuerza de tus conexiones sociales y similitudes de preferencias.
+        </p>
+        
+        {% if recomendaciones %}
+            <div class="recommendations-grid">
+                {% for moto in recomendaciones %}
+                <div class="recommendation-card">
+                    <img src="{{ moto.imagen }}" alt="{{ moto.marca }} {{ moto.modelo }}" class="recommendation-image">
+                    
+                    <div class="friend-badge">
+                        <i class="fas fa-user-friends"></i> {{ moto.amigo if moto.amigo else 'Amigo' }}
+                    </div>
+                    
+                    <div class="recommendation-details">
+                        <h2 class="recommendation-name">{{ moto.marca }} {{ moto.modelo }}</h2>
+                        
+                        <div class="recommendation-info">
+                            <p><strong>Estilo:</strong> {{ moto.estilo }}</p>
+                            <p><strong>Precio:</strong> ${{ moto.precio|int }}</p>
+                        </div>
+                        
+                        <div class="recommendation-score">
+                            <div class="stars">
+                                {% set score_int = (moto.score * 5)|int %}
+                                {% for i in range(5) %}
+                                    {% if i < score_int %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif i == score_int and (moto.score * 5) - score_int >= 0.5 %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="score-value">{{ (moto.score * 100)|int }}% relevancia</span>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="action-button">
+                                <i class="fas fa-heart"></i> Me gusta
+                            </button>
+                            <button class="action-button">
+                                <i class="fas fa-info-circle"></i> Detalles
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-recommendations">
+                <h2>No se encontraron recomendaciones basadas en amigos</h2>
+                <p>Esto puede deberse a que no tienes conexiones con otros usuarios o a que tus amigos no han valorado motos aún.</p>
+                <p>¡Añade amigos y explora nuevas motos para obtener recomendaciones más personalizadas!</p>
+            </div>
+        {% endif %}
+    </main>
+    
+    {% include 'footer.html' %}
+</body>
+</html>

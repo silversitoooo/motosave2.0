@@ -108,11 +108,10 @@ function finalizarTest() {
   if (!datosTest.marcas || Object.keys(datosTest.marcas).length === 0) {
     console.warn('Advertencia: No se seleccionaron marcas de moto');
   }
-  
-  // Crear un formulario oculto para enviar los datos
+    // Crear un formulario oculto para enviar los datos
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = '/recomendaciones';
+  form.action = '/recomendaciones_test';
   
   // Añadir los datos como campos ocultos
   for (const key in datosTest) {

@@ -518,31 +518,95 @@ window.finalizarTest = function() {
   const datosTest = window.respuestas || {};
   console.log('Enviando datos del test:', datosTest);
   
-  // Crear un formulario oculto para enviar los datos
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = '/recomendaciones';
-  
-  // Añadir los datos como campos ocultos
-  for (const key in datosTest) {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = key;
+  // Guardar preferencias en Neo4j
+  guardarPreferenciasEnBD(datosTest).then(result => {
+    console.log('Resultado de guardar preferencias:', result);
     
-    // Si es un objeto, convertir a JSON
-    if (typeof datosTest[key] === 'object') {
-      input.value = JSON.stringify(datosTest[key]);
-    } else {
-      input.value = datosTest[key] || '';
+    // Crear un formulario oculto para enviar los datos
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/recomendaciones';
+    
+    // Añadir los datos como campos ocultos
+    for (const key in datosTest) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      
+      // Si es un objeto, convertir a JSON
+      if (typeof datosTest[key] === 'object') {
+        input.value = JSON.stringify(datosTest[key]);
+      } else {
+        input.value = datosTest[key] || '';
+      }
+      
+      form.appendChild(input);
     }
     
-    form.appendChild(input);
-  }
-  
-  // Añadir el formulario al documento y enviarlo
-  document.body.appendChild(form);
-  form.submit();
+    // Añadir el formulario al documento y enviarlo
+    document.body.appendChild(form);
+    form.submit();
+  }).catch(error => {
+    console.error('Error al guardar preferencias:', error);
+    
+    // Continuar con el envío del formulario aunque falle el guardado
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/recomendaciones';
+    
+    for (const key in datosTest) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      
+      if (typeof datosTest[key] === 'object') {
+        input.value = JSON.stringify(datosTest[key]);
+      } else {
+        input.value = datosTest[key] || '';
+      }
+      
+      form.appendChild(input);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+  });
 };
+
+// Función para guardar preferencias en la base de datos
+async function guardarPreferenciasEnBD(datosTest) {
+  try {
+    // Crear FormData para enviar la solicitud
+    const formData = new FormData();
+    
+    // Añadir datos de estilos
+    formData.append('estilos', JSON.stringify(datosTest.estilos || {}));
+    
+    // Añadir datos de marcas
+    formData.append('marcas', JSON.stringify(datosTest.marcas || {}));
+    
+    // Añadir experiencia
+    formData.append('experiencia', datosTest.experiencia || 'Intermedio');
+    
+    // Otros datos relevantes del test
+    if (datosTest.uso) formData.append('uso', datosTest.uso);
+    if (datosTest.precio) formData.append('presupuesto', datosTest.precio);
+    
+    // Enviar solicitud al servidor
+    const response = await fetch('/guardar-preferencias', {
+      method: 'POST',
+      body: formData
+    });
+    
+    // Analizar respuesta
+    const result = await response.json();
+    
+    return result;
+  } catch (error) {
+    console.error('Error al guardar preferencias:', error);
+    return { success: false, message: error.message };
+  }
+}
 
 // Exponer funciones globalmente
 window.initBubbles = initBubbles;
