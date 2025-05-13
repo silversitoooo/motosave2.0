@@ -1,0 +1,26 @@
+# Entorno virtual
+venv/
+__pycache__/
+*.py[cod]
+*.pyc
+*.so
+*.egg
+*.egg-info/
+
+# Archivos de configuración local
+*.env
+
+# Archivos de registro
+*.log
+
+# Archivos temporales y de salida
+app_output.txt
+import_test_results.txt
+neo4j_test_result.txt
+
+# Archivos específicos de IDE
+.vscode/
+.idea/
+
+# Archivos de caché
+.DS_Store
