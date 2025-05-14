@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Motos - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li><a href="{{ url_for('perfil') }}">Perfil</a></li>
+            <li><a href="{{ url_for('motos') }}" class="active">Motos</a></li>
+            <li><a href="{{ url_for('recomendaciones') }}">Recomendaciones</a></li>
+            <li><a href="{{ url_for('diagnostico') }}">Diagnóstico</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <h1>Catálogo de Motocicletas</h1>
+        
+        <div class="diagnostico">
+            <h2>Motos disponibles</h2>
+            
+            {% for moto in motos %}
+            <div class="moto-item">
+                <h3>{{ moto.marca }} {{ moto.modelo }}</h3>
+                <p><strong>Tipo:</strong> {{ moto.tipo }}</p>
+                <p><strong>Potencia:</strong> {{ moto.potencia }} CV</p>
+                <p><strong>Cilindrada:</strong> {{ moto.cilindrada }} cc</p>
+                <p><strong>Precio:</strong> {{ moto.precio }} €</p>
+            </div>
+            {% endfor %}
+            
+            <div class="actions">
+                <a href="{{ url_for('recomendaciones') }}" class="boton">Ver recomendaciones</a>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>MotoMatch &copy; 2025 - Sistema de Recomendación de Motocicletas</p>
+    </footer>
+</body>
+</html>

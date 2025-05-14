@@ -78,60 +78,60 @@ function launchConfetti() {
 
 // Función para finalizar el test y enviar datos al servidor
 function finalizarTest() {
-  // Detener cualquier animación o proceso pendiente
-  const listaIntervalos = ['estilosInterval', 'marcasInterval'];
-  listaIntervalos.forEach(intervalo => {
-    if (window[intervalo]) {
-      clearInterval(window[intervalo]);
-      window[intervalo] = null;
-    }
-  });
-  
-  // Detener Matter.js para liberar recursos
-  if (typeof Matter !== 'undefined' && window.render) {
-    Matter.Render.stop(window.render);
+    // Recopilar todos los datos del test
+    var testData = window.testResults || {};
     
-    if (window.engine) {
-      Matter.Engine.clear(window.engine);
-    }
-  }
-  
-  // Recopilar todas las respuestas
-  const datosTest = window.respuestas || {};
-  console.log('Enviando datos del test:', datosTest);
-  
-  // Verificar datos mínimos
-  if (!datosTest.estilos || Object.keys(datosTest.estilos).length === 0) {
-    console.warn('Advertencia: No se seleccionaron estilos de moto');
-  }
-  
-  if (!datosTest.marcas || Object.keys(datosTest.marcas).length === 0) {
-    console.warn('Advertencia: No se seleccionaron marcas de moto');
-  }
-    // Crear un formulario oculto para enviar los datos
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = '/recomendaciones_test';
-  
-  // Añadir los datos como campos ocultos
-  for (const key in datosTest) {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = key;
+    // Añadir experiencia y presupuesto
+    let experiencia = document.getElementById('experiencia').value || 'inexperto';
+    testData.experiencia = experiencia;
     
-    // Si es un objeto, convertir a JSON
-    if (typeof datosTest[key] === 'object') {
-      input.value = JSON.stringify(datosTest[key]);
+    // Obtener presupuesto según la rama
+    if (experiencia === 'inexperto') {
+        testData.presupuesto = document.getElementById('presupuesto').value || '8000';
     } else {
-      input.value = datosTest[key] || '';
+        // Convertir rango de precio a valor
+        let precioExperto = document.getElementById('precio-experto').value || 'medio';
+        let valorPresupuesto = '8000'; // Valor por defecto
+        switch (precioExperto) {
+            case 'bajo': valorPresupuesto = '5000'; break;
+            case 'medio_bajo': valorPresupuesto = '8000'; break;
+            case 'medio': valorPresupuesto = '12000'; break;
+            case 'alto': valorPresupuesto = '18000'; break;
+            case 'muy_alto': valorPresupuesto = '25000'; break;
+        }
+        testData.presupuesto = valorPresupuesto;
     }
     
-    form.appendChild(input);
-  }
-  
-  // Añadir el formulario al documento y enviarlo
-  document.body.appendChild(form);
-  form.submit();
+    // Obtener uso según la rama
+    if (experiencia === 'inexperto') {
+        testData.uso = document.getElementById('uso').value || '';
+    } else {
+        testData.uso = document.getElementById('uso_experto').value || '';
+    }
+    
+    // NUEVO: Añadir flag de reset para forzar nueva recomendación
+    testData.reset_recommendation = 'true';
+    
+    console.log("Datos finales del test:", testData);
+    
+    // Enviar datos mediante POST
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/guardar_test';  // Una nueva ruta específica para guardar
+    
+    // Añadir los datos como campos ocultos
+    for (var key in testData) {
+        if (testData.hasOwnProperty(key)) {
+            var hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.name = key;
+            hiddenField.value = testData[key];
+            form.appendChild(hiddenField);
+        }
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // Hacer la función disponible globalmente

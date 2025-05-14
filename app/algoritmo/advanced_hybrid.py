@@ -1137,77 +1137,249 @@ def get_best_recommendations(user_id, db_config, top_n=5, context=None):
     Returns:
         list: Lista de recomendaciones
     """
-    from .utils import DatabaseConnector
+    # Importar DatabaseConnector de manera segura
+    try:
+        from .utils import DatabaseConnector
+        # Conectar a la base de datos
+        connector = DatabaseConnector(
+            uri=db_config.get('uri', 'bolt://localhost:7687'),
+            user=db_config.get('user', 'neo4j'),
+            password=db_config.get('password', 'password')
+        )
+        
+        try:
+            # Obtener datos necesarios
+            user_df = connector.get_user_data()
+            moto_df = connector.get_moto_data()
+            ratings_df = connector.get_ratings_data()
+            friendship_df = connector.get_friendship_data()
+            interaction_df = connector.get_interaction_data()
+            
+            # Combinar datos de interacción con valoraciones
+            if 'rating' not in interaction_df.columns and not ratings_df.empty:
+                # Agregar valoraciones como un tipo de interacción
+                ratings_interactions = ratings_df.copy()
+                ratings_interactions['interaction_type'] = 'rating'
+                ratings_interactions['weight'] = ratings_interactions['rating']
+                
+                # Unir con otras interacciones
+                if 'interaction_type' in interaction_df.columns:
+                    interaction_df = pd.concat([interaction_df, ratings_interactions])
+                else:
+                    interaction_df = ratings_interactions
+            
+            # Inicializar y configurar recomendador avanzado
+            config = {
+                'learning_rate': 0.001,
+                'regularization': 0.02,  # Aumentar regularización para prevenir overfitting
+                'embedding_size': 32,    # Tamaño moderado para evitar overfitting
+                'hidden_layers': [64, 32],
+                'epochs': 15,
+                'batch_size': 32,
+                'collaborative_weight': 0.35,
+                'feature_weight': 0.45,  # Mayor peso a características por precisión
+                'contextual_weight': 0.2,
+                'model_path': 'models/'
+            }
+            
+            recommender = AdvancedHybridRecommender(config)
+            
+            # Cargar datos
+            recommender.load_data(
+                user_features=user_df,
+                moto_features=moto_df,
+                user_interactions=interaction_df,
+                user_context=None  # Datos contextuales se pasan en context
+            )
+            
+            # Entrenar modelos
+            recommender.train_models()
+            
+            # Obtener recomendaciones
+            recommendations = recommender.get_recommendations(
+                user_id=user_id,
+                context=context,
+                top_n=top_n,
+                diversity_factor=0.3
+            )
+            
+            return recommendations
+            
+        finally:
+            connector.close()
     
-    # Conectar a la base de datos
-    connector = DatabaseConnector(
-        uri=db_config.get('uri', 'bolt://localhost:7687'),
-        user=db_config.get('user', 'neo4j'),
-        password=db_config.get('password', 'password')
-    )
+    except ImportError as e:
+        # Si hay un error al importar DatabaseConnector, usar el adaptador corregido
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"No se pudo importar DatabaseConnector original: {str(e)}. Usando adaptador corregido.")
+        
+        # Importar el adaptador corregido
+        try:
+            from moto_adapter_fixed import MotoRecommenderAdapter
+            
+            # Crear instancia del adaptador
+            adapter = MotoRecommenderAdapter(
+                uri=db_config.get('uri', 'bolt://localhost:7687'),
+                user=db_config.get('user', 'neo4j'),
+                password=db_config.get('password', 'password')
+            )
+            
+            # Intentar obtener recomendaciones
+            return adapter.get_recommendations(user_id, top_n=top_n)
+            
+        except Exception as adapter_error:
+            logger.error(f"Error al usar el adaptador corregido: {str(adapter_error)}")
+            return []
+
+# Función para integrar con el adaptador corregido directamente
+def get_recommendations_with_fixed_adapter(user_id, db_config=None, top_n=5, use_simulated_data=False):
+    """
+    Obtiene recomendaciones usando el adaptador corregido.
+    
+    Args:
+        user_id: ID del usuario
+        db_config (dict, optional): Configuración de la base de datos
+        top_n (int): Número de recomendaciones a generar
+        use_simulated_data (bool): Si es True, usa datos simulados en lugar de intentar conectar a Neo4j
+        
+    Returns:
+        list: Lista de tuplas (moto_id, score, reasons) con recomendaciones
+    """
+    import logging
+    logger = logging.getLogger(__name__)
     
     try:
-        # Obtener datos necesarios
-        user_df = connector.get_user_data()
-        moto_df = connector.get_moto_data()
-        ratings_df = connector.get_ratings_data()
-        friendship_df = connector.get_friendship_data()
-        interaction_df = connector.get_interaction_data()
+        # Importar el adaptador corregido
+        from moto_adapter_fixed import MotoRecommenderAdapter
         
-        # Combinar datos de interacción con valoraciones
-        if 'rating' not in interaction_df.columns and not ratings_df.empty:
-            # Agregar valoraciones como un tipo de interacción
-            ratings_interactions = ratings_df.copy()
-            ratings_interactions['interaction_type'] = 'rating'
-            ratings_interactions['weight'] = ratings_interactions['rating']
+        # Configuración por defecto si no se proporciona
+        if db_config is None:
+            db_config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+        
+        # Crear instancia del adaptador
+        adapter = MotoRecommenderAdapter(
+            uri=db_config.get('uri'),
+            user=db_config.get('user'),
+            password=db_config.get('password')
+        )
+        
+        # Si se solicitan datos simulados, los creamos
+        if use_simulated_data:
+            import pandas as pd
             
-            # Unir con otras interacciones
-            if 'interaction_type' in interaction_df.columns:
-                interaction_df = pd.concat([interaction_df, ratings_interactions])
-            else:
-                interaction_df = ratings_interactions
+            # Datos simulados de usuarios
+            users = [
+                {'user_id': user_id, 'experiencia': 'intermedio', 'uso_previsto': 'carretera', 'presupuesto': 10000},
+                {'user_id': 'user_test1', 'experiencia': 'principiante', 'uso_previsto': 'urbano', 'presupuesto': 5000},
+                {'user_id': 'user_test2', 'experiencia': 'experto', 'uso_previsto': 'offroad', 'presupuesto': 15000}
+            ]
+            user_df = pd.DataFrame(users)
+            
+            # Datos simulados de motos
+            motos = [
+                {'moto_id': 'moto1', 'modelo': 'Honda CB125R', 'marca': 'Honda', 'tipo': 'naked', 'potencia': 15, 'precio': 4500},
+                {'moto_id': 'moto2', 'modelo': 'Kawasaki ZX-10R', 'marca': 'Kawasaki', 'tipo': 'sport', 'potencia': 200, 'precio': 18000},
+                {'moto_id': 'moto3', 'modelo': 'BMW R1250GS', 'marca': 'BMW', 'tipo': 'adventure', 'potencia': 136, 'precio': 20000},
+                {'moto_id': 'moto4', 'modelo': 'Yamaha MT-07', 'marca': 'Yamaha', 'tipo': 'naked', 'potencia': 73, 'precio': 8000},
+                {'moto_id': 'moto5', 'modelo': 'KTM Duke 390', 'marca': 'KTM', 'tipo': 'naked', 'potencia': 43, 'precio': 5500}
+            ]
+            moto_df = pd.DataFrame(motos)
+            
+            # Datos simulados de valoraciones
+            ratings = [
+                {'user_id': user_id, 'moto_id': 'moto1', 'rating': 4.5},
+                {'user_id': user_id, 'moto_id': 'moto4', 'rating': 4.0},
+                {'user_id': 'user_test1', 'moto_id': 'moto1', 'rating': 5.0},
+                {'user_id': 'user_test2', 'moto_id': 'moto2', 'rating': 4.5}
+            ]
+            ratings_df = pd.DataFrame(ratings)
+            
+            # Cargar datos simulados
+            adapter.load_data(user_df, moto_df, ratings_df)
+            logger.info("Usando datos simulados para recomendaciones")
+        else:
+            # Intentar cargar datos desde Neo4j
+            data_loaded = adapter.load_data()
+            if not data_loaded:
+                logger.warning("No se pudieron cargar datos desde Neo4j")
+                return []
         
-        # Inicializar y configurar recomendador avanzado
-        config = {
-            'learning_rate': 0.001,
-            'regularization': 0.02,  # Aumentar regularización para prevenir overfitting
-            'embedding_size': 32,    # Tamaño moderado para evitar overfitting
-            'hidden_layers': [64, 32],
-            'epochs': 15,
-            'batch_size': 32,
-            'collaborative_weight': 0.35,
-            'feature_weight': 0.45,  # Mayor peso a características por precisión
-            'contextual_weight': 0.2,
-            'model_path': 'models/'
-        }
-        
-        recommender = AdvancedHybridRecommender(config)
-        
-        # Cargar datos
-        recommender.load_data(
-            user_features=user_df,
-            moto_features=moto_df,
-            user_interactions=interaction_df,
-            user_context=None  # Datos contextuales se pasan en context
-        )
-        
-        # Entrenar modelos
-        recommender.train_models()
-        
-        # Obtener recomendaciones
-        recommendations = recommender.get_recommendations(
-            user_id=user_id,
-            context=context,
-            top_n=top_n,
-            diversity_factor=0.3
-        )
-        
+        # Generar recomendaciones
+        recommendations = adapter.get_recommendations(user_id, top_n=top_n)
         return recommendations
         
-    finally:
-        connector.close()
+    except Exception as e:
+        logger.error(f"Error al generar recomendaciones con el adaptador corregido: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+# Función de ejemplo para demostrar el uso del adaptador corregido
+def ejemplo_uso_adaptador_corregido():
+    """
+    Función de ejemplo que muestra cómo usar el adaptador corregido
+    con datos simulados para generar recomendaciones.
+    """
+    import pandas as pd
+    from moto_adapter_fixed import MotoRecommenderAdapter
+    
+    # Crear instancia del adaptador sin conexión a Neo4j
+    adapter = MotoRecommenderAdapter()
+    
+    # Datos simulados de usuarios
+    users = [
+        {'user_id': 'admin', 'experiencia': 'intermedio', 'uso_previsto': 'carretera', 'presupuesto': 10000},
+        {'user_id': 'maria', 'experiencia': 'principiante', 'uso_previsto': 'urbano', 'presupuesto': 5000},
+    ]
+    user_df = pd.DataFrame(users)
+    
+    # Datos simulados de motos
+    motos = [
+        {'moto_id': 'moto1', 'modelo': 'Honda CB125R', 'marca': 'Honda', 'tipo': 'naked', 'potencia': 15, 'precio': 4500},
+        {'moto_id': 'moto2', 'modelo': 'Yamaha MT-07', 'marca': 'Yamaha', 'tipo': 'naked', 'potencia': 73, 'precio': 8000},
+        {'moto_id': 'moto3', 'modelo': 'BMW R1250GS', 'marca': 'BMW', 'tipo': 'adventure', 'potencia': 136, 'precio': 20000},
+    ]
+    moto_df = pd.DataFrame(motos)
+    
+    # Datos simulados de valoraciones (opcional)
+    ratings = [
+        {'user_id': 'admin', 'moto_id': 'moto2', 'rating': 4.5},
+        {'user_id': 'maria', 'moto_id': 'moto1', 'rating': 5.0},
+    ]
+    ratings_df = pd.DataFrame(ratings)
+    
+    # Cargar datos
+    adapter.load_data(user_df, moto_df, ratings_df)
+    
+    # Generar recomendaciones
+    print("\nGenerando recomendaciones para 'admin':")
+    recs_admin = adapter.get_recommendations('admin', top_n=2)
+    for moto_id, score, reasons in recs_admin:
+        moto = moto_df[moto_df['moto_id'] == moto_id].iloc[0]
+        print(f"- {moto['modelo']} ({moto['marca']})")
+        print(f"  Score: {score:.2f}")
+        print(f"  Razones: {', '.join(reasons)}")
+    
+    print("\nGenerando recomendaciones para 'maria':")
+    recs_maria = adapter.get_recommendations('maria', top_n=2)
+    for moto_id, score, reasons in recs_maria:
+        moto = moto_df[moto_df['moto_id'] == moto_id].iloc[0]
+        print(f"- {moto['modelo']} ({moto['marca']})")
+        print(f"  Score: {score:.2f}")
+        print(f"  Razones: {', '.join(reasons)}")
 
 if __name__ == "__main__":
-    # Ejemplo de uso
-    # Esto sería para pruebas, no para uso en producción
-    pass
+    # Ejemplo de uso para pruebas
+    print("Ejecutando ejemplo de uso del adaptador corregido:")
+    try:
+        ejemplo_uso_adaptador_corregido()
+        print("\nEjemplo ejecutado correctamente.")
+    except Exception as e:
+        print(f"\nError al ejecutar el ejemplo: {str(e)}")
+        import traceback
+        traceback.print_exc()

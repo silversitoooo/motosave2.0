@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Inicio</a></li>
+            <li><a href="{{ url_for('perfil') }}" class="active">Perfil</a></li>
+            <li><a href="{{ url_for('motos') }}">Motos</a></li>
+            <li><a href="{{ url_for('recomendaciones') }}">Recomendaciones</a></li>
+            <li><a href="{{ url_for('diagnostico') }}">Diagnóstico</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <h1>Mi Perfil</h1>
+        
+        <div class="diagnostico">
+            <h2>Información personal</h2>
+            
+            <form method="POST" action="{{ url_for('perfil') }}">
+                <p>
+                    <strong>Nombre de usuario:</strong>
+                    <input type="text" name="nombre" value="{{ nombre }}" required>
+                </p>
+                
+                <p>
+                    <strong>Nivel de experiencia:</strong>
+                    <select name="experiencia">
+                        <option value="principiante" {% if experiencia == 'principiante' %}selected{% endif %}>Principiante</option>
+                        <option value="intermedio" {% if experiencia == 'intermedio' %}selected{% endif %}>Intermedio</option>
+                        <option value="avanzado" {% if experiencia == 'avanzado' %}selected{% endif %}>Avanzado</option>
+                    </select>
+                </p>
+                
+                <p>
+                    <strong>Uso previsto:</strong>
+                    <select name="uso_previsto">
+                        <option value="urbano" {% if uso_previsto == 'urbano' %}selected{% endif %}>Urbano</option>
+                        <option value="carretera" {% if uso_previsto == 'carretera' %}selected{% endif %}>Carretera</option>
+                        <option value="todoterreno" {% if uso_previsto == 'todoterreno' %}selected{% endif %}>Todoterreno</option>
+                    </select>
+                </p>
+                
+                <p>
+                    <strong>Presupuesto (€):</strong>
+                    <input type="number" name="presupuesto" value="{{ presupuesto }}" min="1000" step="1000" required>
+                </p>
+                
+                <div class="actions">
+                    <button type="submit" class="boton">Guardar perfil</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <footer>
+        <p>MotoMatch &copy; 2025 - Sistema de Recomendación de Motocicletas</p>
+    </footer>
+</body>
+</html>

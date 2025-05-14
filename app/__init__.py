@@ -33,12 +33,27 @@ def create_app():
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
-    # Importar y registrar el blueprint
-    from .routes import main
-    app.register_blueprint(main)
+    # Importar y registrar el blueprint principal
+    try:
+        from .routes import main
+        app.register_blueprint(main)
+        app.logger.info("Rutas principales registradas correctamente")
+    except ImportError as e:
+        app.logger.error(f"Error al importar rutas principales: {str(e)}")
+    
+    # Importar y registrar el blueprint de rutas corregidas
+    try:
+        from .routes_fixed import fixed_routes
+        app.register_blueprint(fixed_routes)
+        app.logger.info("Rutas corregidas registradas correctamente")
+    except ImportError as e:
+        app.logger.error(f"Error al importar rutas corregidas: {str(e)}")
     
     # Registrar función para cerrar la conexión a la base de datos
-    from .utils import close_db_connection
-    app.teardown_appcontext(close_db_connection)
+    try:
+        from .utils import close_db_connection
+        app.teardown_appcontext(close_db_connection)
+    except ImportError as e:
+        app.logger.error(f"Error al importar utils: {str(e)}")
 
     return app

@@ -20,31 +20,46 @@ logger = logging.getLogger(__name__)
 
 def get_db_connection():
     """
-    Obtiene una conexión a la base de datos Neo4j.
-    Si ya existe una conexión en el contexto actual, la reutiliza.
+    Obtiene una conexión a Neo4j.
     
     Returns:
-        DatabaseConnector: Conector a la base de datos
+        DatabaseConnector: Conector a Neo4j
     """
-    if 'db_connection' not in g:
-        config = current_app.config.get('NEO4J_CONFIG', {})
-        g.db_connection = DatabaseConnector(
-            uri=config.get('uri', 'bolt://localhost:7687'),
-            user=config.get('user', 'neo4j'),
-            password=config.get('password', 'password')
-        )
-        logger.info("Nueva conexión a Neo4j creada")
-    return g.db_connection
+    from flask import current_app, g
+    
+    # Verificar si ya hay una conexión
+    if '_database_connector' not in g:
+        # Crear nueva conexión
+        try:
+            from app.algoritmo.utils import DatabaseConnector
+            
+            neo4j_config = current_app.config.get('NEO4J_CONFIG', {})
+            g._database_connector = DatabaseConnector(
+                uri=neo4j_config.get('uri', 'bolt://localhost:7687'),
+                user=neo4j_config.get('user', 'neo4j'),
+                password=neo4j_config.get('password', '22446688')
+            )
+        except Exception as e:
+            logger.error(f"Error al crear conexión a Neo4j: {str(e)}")
+            g._database_connector = None
+        
+    return g._database_connector
 
-def close_db_connection(e=None):
-    """
-    Cierra la conexión a la base de datos al finalizar la solicitud.
-    Esta función debe registrarse como 'teardown_appcontext'.
-    """
-    db_connection = g.pop('db_connection', None)
-    if db_connection is not None:
-        db_connection.close()
-        logger.info("Conexión a Neo4j cerrada")
+def close_db_connection(exception=None):
+    """Cierra la conexión a Neo4j."""
+    from flask import g
+    connector = g.pop('_database_connector', None)
+    if connector:
+        connector.close()
+
+def get_db_connector():
+    """Obtiene un conector a la base de datos."""
+    try:
+        from .algoritmo.utils import DatabaseConnector
+        return DatabaseConnector()
+    except Exception:
+        logger.warning("No se pudo crear el conector de base de datos")
+        return None
 
 def get_context_data():
     """
@@ -77,7 +92,7 @@ def get_populares_motos(top_n=10):
         interaction_df = connector.get_interaction_data()
         
         # Si no hay datos de interacción, devolver lista vacía
-        if interaction_df.empty:
+        if (interaction_df.empty):
             logger.warning("No hay datos de interacción para calcular motos populares")
             return []
             
@@ -192,54 +207,101 @@ def get_friend_recommendations(user_id, top_n=5):
         logger.error(f"Error al obtener recomendaciones basadas en amigos: {str(e)}")
         return []
 
-def get_moto_ideal(user_id, top_n=5):
+def get_moto_ideal(user_id, top_n=5, force_random=False):
     """
-    Obtiene la moto ideal para un usuario.
+    Obtiene la moto ideal para un usuario con opción de forzar variabilidad.
+    """
+    logger.info(f"Iniciando búsqueda de moto ideal para usuario: {user_id} (force_random={force_random})")
     
-    Args:
-        user_id (str): ID del usuario
-        top_n (int): Número de recomendaciones a generar
-        
-    Returns:
-        list: Lista de motos recomendadas con puntuaciones y razones
-    """
     try:
-        connector = get_db_connection()
+        # Obtener adaptador
+        adapter = current_app.config.get('ADAPTER')
         
-        # Obtener datos necesarios
-        user_df = connector.get_user_data()
-        moto_df = connector.get_moto_data()
-        ratings_df = connector.get_ratings_data()
-        
-        # Si no hay datos, devolver lista vacía
-        if user_df.empty or moto_df.empty:
-            logger.warning(f"No hay suficientes datos para encontrar la moto ideal para {user_id}")
-            return []
-        
-        # Inicializar el recomendador
-        recommender = MotoIdealRecommender()
-        recommender.load_data(user_df, moto_df, ratings_df)
-        
-        # Obtener recomendaciones
-        recommendations = recommender.get_moto_ideal(user_id, top_n=top_n)
-        
-        # Formatear resultados
-        recommended_motos_info = []
-        for moto_id, score, reasons in recommendations:
-            # Buscar la moto en el DataFrame
-            moto_info = moto_df[moto_df['moto_id'] == moto_id]
-            if not moto_info.empty:
-                # Convertir la primera fila a diccionario
-                moto_dict = moto_info.iloc[0].to_dict()
-                # Agregar puntuación y razones
-                moto_dict['score'] = score
-                moto_dict['reasons'] = reasons
-                recommended_motos_info.append(moto_dict)
-        
-        return recommended_motos_info
+        if adapter:
+            # Si es forzado random o es una solicitud post-test, generar recomendación aleatoria
+            if force_random:
+                # Técnica: Usar recomendaciones alternadas para variarlas
+                import random
+                
+                # Crear o recuperar historial de recomendaciones
+                if not hasattr(adapter, 'recommendation_history'):
+                    adapter.recommendation_history = {}
+                
+                if user_id not in adapter.recommendation_history:
+                    adapter.recommendation_history[user_id] = []
+                
+                # Obtener todas las motos disponibles
+                all_motos = adapter.motos['moto_id'].unique().tolist()
+                
+                # Evitar repetir recomendaciones recientes
+                recent_recommendations = adapter.recommendation_history.get(user_id, [])
+                available_motos = [m for m in all_motos if m not in recent_recommendations] 
+                
+                # Si no quedan motos disponibles, reiniciar
+                if not available_motos or len(available_motos) < 2:
+                    available_motos = all_motos
+                
+                # Seleccionar moto aleatoria
+                selected_moto = random.choice(available_motos)
+                
+                # Actualizar historial
+                adapter.recommendation_history[user_id] = adapter.recommendation_history.get(user_id, [])[:2] + [selected_moto]
+                
+                # Encontrar los datos de la moto
+                moto_info = adapter.motos[adapter.motos['moto_id'] == selected_moto]
+                if not moto_info.empty:
+                    moto_info = moto_info.iloc[0]
+                    
+                    # Generar puntuación y razones personalizadas
+                    score = round(7.0 + random.random() * 2.5, 1)  # Entre 7.0 y 9.5
+                    
+                    # Obtener datos del usuario para personalizar razones
+                    user_data = adapter.users[adapter.users['user_id'] == user_id]
+                    reasons = []
+                    
+                    if not user_data.empty:
+                        user_info = user_data.iloc[0]
+                        
+                        # Razones basadas en experiencia
+                        experiencia = user_info['experiencia']
+                        if experiencia == 'experto':
+                            if moto_info['potencia'] > 80:
+                                reasons.append(f"Alta potencia de {moto_info['potencia']} CV ideal para expertos")
+                            else:
+                                reasons.append("Potencia adecuada que satisface tu experiencia")
+                        else:
+                            if moto_info['potencia'] < 70:
+                                reasons.append("Potencia moderada ideal para principiantes")
+                            else:
+                                reasons.append("Potencia que te permitirá mejorar tus habilidades")
+                        
+                        # Razones basadas en presupuesto
+                        presupuesto = float(user_info['presupuesto'])
+                        if moto_info['precio'] <= presupuesto:
+                            reasons.append(f"Se ajusta a tu presupuesto de {int(presupuesto)}€")
+                        else:
+                            diff_percent = (moto_info['precio'] - presupuesto) / presupuesto * 100
+                            if diff_percent < 20:
+                                reasons.append(f"Ligeramente por encima de tu presupuesto ({int(diff_percent)}%)")
+                            else:
+                                reasons.append(f"Es una inversión superior a tu presupuesto inicial")
+                    
+                    # Añadir una razón genérica siempre
+                    reasons.append(f"Su diseño {moto_info['tipo']} se adapta a tu estilo")
+                    
+                    logger.info(f"Nueva recomendación generada para {user_id}: {selected_moto} ({score})")
+                    return [(selected_moto, score, reasons)]
+            
+            # Usar método estándar para obtener recomendaciones
+            return adapter.get_recommendations(user_id, top_n=top_n)
+        else:
+            logger.warning(f"Adaptador no disponible para {user_id}")
+            return None
     except Exception as e:
         logger.error(f"Error al obtener moto ideal: {str(e)}")
-        return []
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
 
 def get_advanced_recommendations(user_id, top_n=5):
     """
@@ -319,25 +381,44 @@ def get_advanced_recommendations(user_id, top_n=5):
 
 def store_user_test_results(user_id, test_data):
     """
-    Almacena los resultados del test de preferencias del usuario.
-    
-    Args:
-        user_id (str): ID del usuario
-        test_data (dict): Datos del test (estilos, marcas, experiencia, etc.)
-        
-    Returns:
-        bool: True si se almacenaron correctamente, False en caso contrario
+    Almacena los resultados del test de preferencias del usuario en Neo4j.
     """
+    logger.info(f"Guardando resultados del test para {user_id}: {test_data}")
+    
     try:
-        connector = get_db_connection()
-        result = connector.store_user_preferences(user_id, test_data)
+        # Verificar si se solicitó reinicio de recomendaciones
+        reset_requested = test_data.get('reset_recommendation') == 'true'
         
-        if result:
-            logger.info(f"Preferencias de {user_id} almacenadas correctamente")
-        else:
-            logger.warning(f"No se pudieron almacenar las preferencias de {user_id}")
+        # Obtener conexión a Neo4j
+        connector = get_db_connection()
+        
+        if connector and connector.is_connected:
+            # Si se solicitó reinicio, borrar recomendaciones anteriores
+            if reset_requested:
+                logger.info(f"Reiniciando recomendaciones para {user_id}")
+                # Eliminar relaciones de recomendación anteriores
+                reset_query = """
+                MATCH (u:User {user_id: $user_id})-[r:RATED|:LIKES_STYLE|:LIKES_BRAND]->() 
+                DELETE r
+                """
+                connector.execute_query(reset_query, {'user_id': user_id})
             
-        return result
+            # Resto del código existente...
+            params = {
+                'user_id': user_id,
+                'experiencia': test_data.get('experiencia', 'principiante'),
+                'uso_previsto': test_data.get('uso', 'urbano') or 'urbano',  # Evitar valores vacíos
+                'presupuesto': float(test_data.get('presupuesto', 8000))
+            }
+            
+            result = connector.store_user_preferences(user_id, test_data)
+            
+            if result:
+                logger.info(f"Preferencias de {user_id} almacenadas correctamente")
+            else:
+                logger.warning(f"No se pudieron almacenar las preferencias de {user_id}")
+                
+            return result
     except Exception as e:
         logger.error(f"Error al almacenar resultados del test: {str(e)}")
         return False

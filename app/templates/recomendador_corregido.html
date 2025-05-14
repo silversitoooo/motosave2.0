@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recomendaciones Corregidas - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .recommendations-container {
+            margin: 30px auto;
+            max-width: 1200px;
+        }
+        
+        .recommendation-card {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            margin-bottom: 25px;
+            display: flex;
+            transition: transform 0.3s ease;
+        }
+        
+        .recommendation-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .recommendation-image {
+            width: 300px;
+            height: 220px;
+            object-fit: cover;
+        }
+        
+        .recommendation-content {
+            padding: 20px;
+            flex: 1;
+        }
+        
+        .recommendation-title {
+            font-size: 1.8rem;
+            color: #f97316;
+            margin-bottom: 10px;
+        }
+        
+        .recommendation-details {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .detail-item {
+            background-color: #333;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-right: 10px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .score-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .stars {
+            color: #f97316;
+            margin-right: 10px;
+        }
+        
+        .score-value {
+            font-weight: bold;
+            color: #f97316;
+        }
+        
+        .reasons-container {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #444;
+        }
+        
+        .reasons-title {
+            font-size: 1.1rem;
+            color: #f97316;
+            margin-bottom: 8px;
+        }
+        
+        .reason-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .reason-icon {
+            color: #4ade80;
+            margin-right: 8px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .action-button {
+            background-color: #2a2a2a;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+        
+        .action-button:hover {
+            background-color: #f97316;
+        }
+        
+        .action-button i {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <main class="container">
+        <h1>Recomendaciones de Motos Personalizadas (Algoritmo Corregido)</h1>
+        
+        <p class="description">
+            Estas recomendaciones se han generado utilizando nuestro nuevo algoritmo optimizado 
+            que combina filtrado colaborativo, análisis de preferencias y características técnicas
+            para encontrar las motos que mejor se adaptan a tus necesidades.
+        </p>
+        
+        <div class="recommendations-container">
+            {% if motos_recomendadas %}
+                {% for moto in motos_recomendadas %}
+                <div class="recommendation-card">
+                    <img class="recommendation-image" src="{{ moto.imagen if moto.imagen else 'https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg' }}" alt="{{ moto.modelo if moto.modelo else moto.id }}">
+                    
+                    <div class="recommendation-content">
+                        <h2 class="recommendation-title">{{ moto.modelo if moto.modelo else moto.id }}</h2>
+                        
+                        <div class="recommendation-details">
+                            <span class="detail-item">{{ moto.marca if moto.marca else 'Marca desconocida' }}</span>
+                            <span class="detail-item">{{ moto.estilo if moto.estilo else moto.tipo if moto.tipo else 'Estilo desconocido' }}</span>
+                            <span class="detail-item">{{ moto.precio }}€</span>
+                            {% if moto.potencia %}
+                            <span class="detail-item">{{ moto.potencia }} CV</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="score-container">
+                            <div class="stars">
+                                {% set score_int = (moto.score * 5)|int %}
+                                {% set score_half = (moto.score * 5) - score_int >= 0.5 %}
+                                
+                                {% for i in range(5) %}
+                                    {% if i < score_int %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif score_half and i == score_int %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="score-value">{{ (moto.score * 100)|int }}% relevancia</span>
+                        </div>
+                        
+                        <div class="reasons-container">
+                            <h3 class="reasons-title">Por qué te la recomendamos:</h3>
+                            {% for reason in moto.reasons %}
+                            <div class="reason-item">
+                                <span class="reason-icon"><i class="fas fa-check-circle"></i></span>
+                                <span>{{ reason }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="action-button">
+                                <i class="fas fa-heart"></i> Me gusta
+                            </button>
+                            <button class="action-button">
+                                <i class="fas fa-info-circle"></i> Detalles
+                            </button>
+                            <button class="action-button">
+                                <i class="fas fa-motorcycle"></i> Probar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-recommendations">
+                    <h2>No se encontraron recomendaciones</h2>
+                    <p>Lo sentimos, no pudimos generar recomendaciones personalizadas en este momento.</p>
+                    <p>Prueba a actualizar tu perfil o valorar algunas motos para ayudarnos a entender tus preferencias.</p>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+    
+    {% include 'footer.html' %}
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
