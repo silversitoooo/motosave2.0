@@ -607,87 +607,92 @@ def test():
 
 @main.route('/guardar_test', methods=['POST'])
 def guardar_test():
+    """Procesa y guarda los resultados del test de preferencias."""
     if 'username' not in session:
         return redirect(url_for('main.login'))
     
     username = session.get('username')
-    
-    # Recopilar datos del test
-    test_data = {
-        'experiencia': request.form.get('experiencia', 'principiante'),
-        'presupuesto': request.form.get('presupuesto', '8000'),
-        'uso': request.form.get('uso', ''),
-        'reset_recommendation': 'true'  # Forzar reinicio siempre
-    }
-    
-    # Procesar datos de estilos y marcas (que vienen como JSON)
-    if 'estilos' in request.form:
-        try:
-            test_data['estilos'] = json.loads(request.form.get('estilos', '{}'))
-        except:
-            test_data['estilos'] = {}
-            
-    if 'marcas' in request.form:
-        try:
-            test_data['marcas'] = json.loads(request.form.get('marcas', '{}'))
-        except:
-            test_data['marcas'] = {}
-    
-    logger.info(f"Guardando resultados del test: {test_data}")
-    
-    # Guardar preferencias en la base de datos
-    from app.utils import store_user_test_results
-    success = store_user_test_results(username, test_data)
-    
-    # Guardar en sesión para usar en recomendaciones
-    session['test_data'] = test_data
-    
-    # Redirigir a recomendaciones en lugar de moto_ideal
-    return redirect(url_for('main.recomendaciones'))
-
-@main.route('/process_test', methods=['POST'])
-def process_test():
-    """Procesa los datos del test avanzado y redirige a recomendaciones."""
-    if 'username' not in session:
-        return redirect(url_for('main.login'))
-    
-    username = session.get('username')
-    user_id = session.get('user_id')
     
     try:
-        # Recopilar datos del formulario
+        # Recopilar datos básicos del test
         test_data = {
-            'experiencia': request.form.get('experiencia', 'intermedio'),
-            'presupuesto': request.form.get('presupuesto', '10000'),
-            'uso': request.form.get('uso', 'mixto')
+            'experiencia': request.form.get('experiencia', 'principiante'),
+            'presupuesto': request.form.get('presupuesto', '8000'),
+            'uso': request.form.get('uso', 'mixto'),
+            'uso_previsto': request.form.get('uso_previsto', '')
         }
         
-        # Procesar datos de estilos y marcas (que vienen como JSON)
-        if 'estilos' in request.form:
-            try:
-                test_data['estilos'] = json.loads(request.form.get('estilos', '{}'))
-            except:
-                test_data['estilos'] = {}
-                
-        if 'marcas' in request.form:
-            try:
-                test_data['marcas'] = json.loads(request.form.get('marcas', '{}'))
-            except:
-                test_data['marcas'] = {}
+        # Debug logging
+        logger.info(f"Datos recibidos en guardar_test: {request.form}")
         
-        # Guardar en sesión
+        # Procesar y validar JSON de estilos
+        estilos_raw = request.form.get('estilos', '{}')
+        try:
+            # Si es un string, intentar convertirlo a diccionario
+            if isinstance(estilos_raw, str):
+                estilos = json.loads(estilos_raw)
+            else:
+                estilos = estilos_raw
+                
+            if not estilos:
+                logger.warning(f"No se recibieron selecciones de estilos para {username}, usando predeterminados")
+                # Asignar estilos predeterminados según uso
+                if test_data['uso'] == 'ciudad':
+                    estilos = {'naked': 0.8, 'scooter': 0.9}
+                elif test_data['uso'] == 'paseo':
+                    estilos = {'naked': 0.7, 'touring': 0.9, 'trail': 0.6}
+                else:  # uso mixto
+                    estilos = {'naked': 0.8, 'trail': 0.7, 'sport': 0.6}
+            test_data['estilos'] = estilos
+            logger.info(f"Estilos procesados: {estilos}")
+        except Exception as e:
+            logger.error(f"Error al procesar estilos ({estilos_raw}): {str(e)}")
+            test_data['estilos'] = {'naked': 0.8}  # Valor predeterminado seguro
+        
+        # Procesar y validar JSON de marcas
+        marcas_raw = request.form.get('marcas', '{}')
+        try:
+            # Si es un string, intentar convertirlo a diccionario
+            if isinstance(marcas_raw, str):
+                marcas = json.loads(marcas_raw)
+            else:
+                marcas = marcas_raw
+                
+            if not marcas:
+                logger.warning(f"No se recibieron selecciones de marcas para {username}, usando predeterminadas")
+                # Asignar marcas predeterminadas
+                marcas = {'honda': 0.8, 'yamaha': 0.7, 'kawasaki': 0.6}
+            test_data['marcas'] = marcas
+            logger.info(f"Marcas procesadas: {marcas}")
+        except Exception as e:
+            logger.error(f"Error al procesar marcas ({marcas_raw}): {str(e)}")
+            test_data['marcas'] = {'honda': 0.8}  # Valor predeterminado seguro
+        
+        # Añadir reset_recommendation
+        test_data['reset_recommendation'] = 'true'
+        
+        # Log detallado
+        logger.info(f"Guardando resultados del test para {username}: {test_data}")
+        
+        # Guardar preferencias en la base de datos
+        from app.utils import store_user_test_results
+        success = store_user_test_results(username, test_data)
+        
+        if not success:
+            logger.warning(f"No se pudieron guardar preferencias para {username}")
+        
+        # Guardar en sesión para usar en recomendaciones
         session['test_data'] = test_data
         
-        # Registrar datos
-        current_app.logger.info(f"Test completado por {username}: {test_data}")
-        
-        # Enviar usuario a página de recomendaciones
+        # Redirigir a recomendaciones
         return redirect(url_for('main.recomendaciones'))
         
     except Exception as e:
-        current_app.logger.error(f"Error al procesar test: {str(e)}")
+        logger.error(f"Error en guardar_test: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         flash("Ocurrió un error al procesar tus respuestas. Por favor intenta nuevamente.", "error")
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.test'))
 
 # Añadir esta función para integrar el recomendador
 

@@ -5,8 +5,7 @@
   <title>Test de Preferencias - MotoMatch</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  
-  <!-- Script para garantizar la inicialización correcta -->
+    <!-- Modificar el orden de carga de scripts -->
   <script>
     // Función para cargar scripts secuencialmente
     function loadScriptsSequentially(scripts, callback) {
@@ -18,7 +17,7 @@
       var script = document.createElement('script');
       script.src = scripts[0] + "?v=" + Date.now(); // Evitar caché
       script.onload = function() {
-        console.log('Script cargado: ' + scripts[0]);
+        console.log('Script cargado exitosamente: ' + scripts[0]);
         // Cargar el siguiente script
         loadScriptsSequentially(scripts.slice(1), callback);
       };
@@ -33,22 +32,33 @@
     // Al cargar el documento, cargamos todos los scripts en orden
     document.addEventListener('DOMContentLoaded', function() {
       console.log('DOM cargado, cargando scripts...');
-      
-      // Rutas de los scripts (en el orden correcto)
+        // IMPORTANTE: Asegurarse de que magnetic-bubbles.js se cargue PRIMERO
+      // Añadimos el debug-panel.js para diagnóstico
       var scripts = [
         "{{ url_for('static', filename='js/magnetic-bubbles.js') }}",
+        "{{ url_for('static', filename='js/debug-panel.js') }}",
+        "{{ url_for('static', filename='js/bubbles-recovery.js') }}",
         "{{ url_for('static', filename='js/test.js') }}",
         "{{ url_for('static', filename='js/test_finalizacion.js') }}"
       ];
       
-      // Cargar scripts en orden
+      // Cargar scripts en orden y luego inicializar
       loadScriptsSequentially(scripts, function() {
-        console.log('Todos los scripts cargados, inicializando test...');
-        // Inicializar test
+        console.log('Todos los scripts cargados, verificando MagneticBubbles...');
+        
+        // Verificar que MagneticBubbles está disponible
+        if (typeof window.MagneticBubbles !== 'function') {
+          console.error('MagneticBubbles no está disponible como función después de cargar scripts');
+          alert('Error al cargar componentes necesarios. Por favor, recarga la página.');
+          return;
+        }
+        
+        // Inicializar test si la función está disponible
         if (typeof window.initializeTest === 'function') {
+          console.log('Función initializeTest encontrada, inicializando...');
           setTimeout(function() {
             window.initializeTest();
-          }, 100); // Pequeño retraso para asegurar que todo está listo
+          }, 100);
         } else {
           console.error('Error: La función initializeTest no está disponible');
           alert('Error al inicializar el test. Por favor, recarga la página.');
@@ -523,23 +533,40 @@
     console.log("Enviando datos del test:", testData);
     form.submit();
   }
-  
-  // Modificar el comportamiento del botón de finalización en el modal
+    // Modificar el comportamiento del botón de finalización en el modal
   document.addEventListener('DOMContentLoaded', function() {
     // Buscar el botón de finalización en el modal
     const finishButton = document.querySelector('.completion-modal .modal-content button');
     
     if (finishButton) {
       finishButton.addEventListener('click', function() {
+        // IMPORTANTE: Primero aseguramos que los datos de las burbujas se transfieran a testResults
+        if (!window.testResults) {
+          window.testResults = {};
+        }
+        
+        // Asegurar que las selecciones de burbujas se transfieran a testResults
+        window.testResults.estilos = window.respuestas ? window.respuestas.estilos : {};
+        window.testResults.marcas = window.respuestas ? window.respuestas.marcas : {};
+        
         // Recolectar todos los datos del test
         const testData = {
-          // Añadir los datos que ya tengas en tu test
+          // Datos básicos del test
           experiencia: window.testResults ? window.testResults.experiencia : 'intermedio',
           presupuesto: window.testResults ? window.testResults.presupuesto : '10000',
           uso: window.testResults ? window.testResults.uso : 'mixto',
+          
+          // Usar window.testResults para las selecciones de burbujas 
           estilos: window.testResults ? window.testResults.estilos : {},
           marcas: window.testResults ? window.testResults.marcas : {}
         };
+        
+        // Log para depuración
+        console.log("Datos completos del test:", {
+          ...testData,
+          "Fuente estilos": window.respuestas ? "window.respuestas" : "vacío",
+          "Contenido respuestas": window.respuestas
+        });
         
         // Enviar los datos a la ruta de procesamiento
         finalizarTest(testData);

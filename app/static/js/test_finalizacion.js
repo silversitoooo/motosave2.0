@@ -1,150 +1,118 @@
 /**
- * test_finalizacion.js
- * Script para manejar la finalización del test de preferencias
- * y enviar los datos al servidor.
+ * Controlador de finalización del test - Gestiona la transición final del test
+ * y el envío de resultados al servidor para generar recomendaciones.
  */
 
-// Preparar confeti para el modal de finalización
-function launchConfetti() {
-  const canvas = document.createElement('canvas');
-  canvas.style.position = 'fixed';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '9999';
-  document.body.appendChild(canvas);
-  
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  
-  const pieces = [];
-  const numberOfPieces = 200;
-  const colors = [
-    '#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', 
-    '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', 
-    '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'
-  ];
-  
-  for (let i = 0; i < numberOfPieces; i++) {
-    pieces.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height * -1,
-      rotation: Math.random() * 360,
-      size: Math.random() * (8 - 2) + 2,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      velocity: {
-        x: Math.random() * 6 - 3,
-        y: Math.random() * 3 + 3
-      }
-    });
-  }
-  
-  function update() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    pieces.forEach(piece => {
-      piece.y += piece.velocity.y;
-      piece.x += piece.velocity.x;
-      piece.rotation += 2;
-      
-      if (piece.y > canvas.height) {
-        piece.y = -piece.size;
-        piece.x = Math.random() * canvas.width;
-      }
-      
-      ctx.save();
-      ctx.translate(piece.x, piece.y);
-      ctx.rotate(piece.rotation * Math.PI / 180);
-      ctx.fillStyle = piece.color;
-      ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size);
-      ctx.restore();
-    });
-    
-    requestAnimationFrame(update);
-  }
-  
-  update();
-  
-  // Remover confeti después de 5 segundos
-  setTimeout(() => {
-    canvas.remove();
-  }, 5000);
-  
-  return true;
-}
-
-// Función para finalizar el test y enviar datos al servidor
+// Función para finalizar el test y enviar resultados
 function finalizarTest() {
-    // Recopilar todos los datos del test
-    var testData = window.testResults || {};
+  console.log("Finalizando test y preparando envío de resultados...");
+  
+  // Asegurar que objetos globales existan
+  window.testResults = window.testResults || {};
+  window.respuestas = window.respuestas || { estilos: {}, marcas: {} };
+  
+  // VERIFICACIÓN PROACTIVA: Comprobar si hay datos en respuestas pero no en testResults
+  if (Object.keys(window.respuestas.estilos || {}).length > 0 && 
+      Object.keys(window.testResults.estilos || {}).length === 0) {
+    console.warn("Se detectaron selecciones en respuestas pero no en testResults. Sincronizando...");
+  }
+  
+  // ASEGURAR QUE LAS SELECCIONES DE BURBUJAS SE TRANSFIERAN A testResults (con verificación)
+  window.testResults.estilos = Object.keys(window.respuestas.estilos || {}).length > 0 ? 
+                               window.respuestas.estilos : 
+                               window.testResults.estilos || {};
+                               
+  window.testResults.marcas = Object.keys(window.respuestas.marcas || {}).length > 0 ? 
+                              window.respuestas.marcas : 
+                              window.testResults.marcas || {};
+  
+  // Guardar datos adicionales que pudieran existir en window.testResults
+  window.testResults.experiencia = window.testResults.experiencia || 'intermedio';
+  window.testResults.presupuesto = window.testResults.presupuesto || '10000';
+  window.testResults.uso = window.testResults.uso || 'mixto';
+  window.testResults.uso_previsto = window.testResults.uso_previsto || window.testResults.uso || 'mixto';
+  
+  // VALIDACIÓN FINAL DE DATOS
+  const estilosVacios = Object.keys(window.testResults.estilos).length === 0;
+  const marcasVacias = Object.keys(window.testResults.marcas).length === 0;
+  
+  if (estilosVacios || marcasVacias) {
+    console.warn("ADVERTENCIA: Algunas selecciones de burbujas están vacías:");
+    if (estilosVacios) console.warn("- Estilos vacíos");
+    if (marcasVacias) console.warn("- Marcas vacías");
     
-    // Añadir experiencia y presupuesto
-    let experiencia = document.getElementById('experiencia').value || 'inexperto';
-    testData.experiencia = experiencia;
-    
-    // Obtener presupuesto según la rama
-    if (experiencia === 'inexperto') {
-        testData.presupuesto = document.getElementById('presupuesto').value || '8000';
-    } else {
-        // Convertir rango de precio a valor
-        let precioExperto = document.getElementById('precio-experto').value || 'medio';
-        let valorPresupuesto = '8000'; // Valor por defecto
-        switch (precioExperto) {
-            case 'bajo': valorPresupuesto = '5000'; break;
-            case 'medio_bajo': valorPresupuesto = '8000'; break;
-            case 'medio': valorPresupuesto = '12000'; break;
-            case 'alto': valorPresupuesto = '18000'; break;
-            case 'muy_alto': valorPresupuesto = '25000'; break;
-        }
-        testData.presupuesto = valorPresupuesto;
+    // Generar valores predeterminados si hay secciones vacías
+    if (estilosVacios) {
+      if (window.testResults.uso === 'ciudad') {
+        window.testResults.estilos = {'naked': 0.8, 'scooter': 0.7};
+      } else if (window.testResults.uso === 'paseo') {
+        window.testResults.estilos = {'touring': 0.8, 'trail': 0.7};
+      } else {
+        window.testResults.estilos = {'naked': 0.8, 'sport': 0.6};
+      }
+      console.log("Se generaron estilos predeterminados:", window.testResults.estilos);
     }
     
-    // Obtener uso según la rama
-    if (experiencia === 'inexperto') {
-        testData.uso = document.getElementById('uso').value || '';
-    } else {
-        testData.uso = document.getElementById('uso_experto').value || '';
+    if (marcasVacias) {
+      window.testResults.marcas = {'honda': 0.8, 'yamaha': 0.7, 'kawasaki': 0.6};
+      console.log("Se generaron marcas predeterminadas:", window.testResults.marcas);
     }
+  }
+  
+  // LOG DE DIAGNÓSTICO INTENSIVO
+  console.log("=== DIAGNÓSTICO DE FINALIZACIÓN DE TEST ===");
+  console.log("window.testResults:", JSON.stringify(window.testResults, null, 2));
+  console.log("window.respuestas:", JSON.stringify(window.respuestas, null, 2));
+  
+  // Preparar datos para enviar al servidor
+  const testData = {
+    // Datos básicos del test
+    experiencia: window.testResults.experiencia || 'intermedio',
+    presupuesto: window.testResults.presupuesto || '10000',
+    uso: window.testResults.uso || 'mixto',
+    uso_previsto: window.testResults.uso_previsto || window.testResults.uso || 'mixto',
     
-    // NUEVO: Añadir flag de reset para forzar nueva recomendación
-    testData.reset_recommendation = 'true';
+    // IMPORTANTE: Usar testResults para estilos y marcas (que ahora incluye datos de window.respuestas)
+    estilos: window.testResults.estilos || {},
+    marcas: window.testResults.marcas || {},
     
-    console.log("Datos finales del test:", testData);
-    
-    // Enviar datos mediante POST
-    var form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/guardar_test';  // Una nueva ruta específica para guardar
-    
-    // Añadir los datos como campos ocultos
-    for (var key in testData) {
-        if (testData.hasOwnProperty(key)) {
-            var hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = key;
-            hiddenField.value = testData[key];
-            form.appendChild(hiddenField);
-        }
+    // Forzar reset de recomendación
+    reset_recommendation: 'true'
+  };
+  
+  console.log("Datos finales para enviar:", JSON.stringify(testData, null, 2));
+  
+  // Crear formulario para enviar datos
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = "/guardar_test";  // URL directa sin usar url_for para evitar errores
+  form.style.display = 'none';
+  
+  // Agregar campos al formulario
+  for (const key in testData) {
+    if (testData.hasOwnProperty(key)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      
+      // Convertir objetos a JSON string
+      if (typeof testData[key] === 'object') {
+        input.value = JSON.stringify(testData[key]);
+      } else {
+        input.value = testData[key];
+      }
+      
+      form.appendChild(input);
     }
-    
-    document.body.appendChild(form);
-    form.submit();
+  }
+  
+  // Agregar formulario al documento y enviarlo
+  document.body.appendChild(form);
+  console.log("Enviando formulario con datos del test...");
+  form.submit();
 }
 
-// Hacer la función disponible globalmente
+// Exportar para uso global
 window.finalizarTest = finalizarTest;
-window.launchConfetti = launchConfetti;
 
-// Al cargar el documento, verificar si hay datos de sesiones anteriores
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('test_finalizacion.js cargado correctamente');
-  
-  // Si hay un botón de finalización, asegurarnos de que tenga el evento correcto
-  const finishBtn = document.getElementById('finish-btn');
-  if (finishBtn) {
-    finishBtn.onclick = window.finalizarTest;
-  }
-});
+console.log("Módulo de finalización del test cargado correctamente");

@@ -4,14 +4,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recomendaciones - MotoMatch</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    
-      <script id="recommendations-data" type="application/json">{{ motos_recomendadas|default([])|tojson|safe }}</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">        <script id="recommendations-data" type="application/json">{{ motos_recomendadas|default([])|tojson|safe }}</script>
     
     <script type="text/javascript">
         // Simple assignment - our JavaScript will handle alternative loading if this fails
         window.motosRecomendadas = {{ motos_recomendadas|default([])|tojson|safe }};
     </script>
     <script src="{{ url_for('static', filename='js/recomendaciones.js') }}" defer></script>
+    <!-- Añadimos nuestro nuevo script para manejar las recomendaciones -->
+    <script src="{{ url_for('static', filename='js/recomendaciones-display.js') }}" defer></script>
     <style>
         .test-results-summary {
             background-color: rgba(0, 0, 0, 0.7);
