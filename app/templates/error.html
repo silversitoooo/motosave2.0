@@ -80,10 +80,88 @@
             color: #e2e2e2;
             margin-bottom: 5px;
         }
+        
+        /* Estilos para navbar inline */
+        .main-nav {
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid #f97316;
+        }
+        
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .nav-logo {
+            color: #f97316;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav-links a {
+            color: #e2e2e2;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #f97316;
+        }
+        
+        /* Estilos para footer inline */
+        .main-footer {
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px 0;
+            text-align: center;
+            border-top: 1px solid #f97316;
+            margin-top: 50px;
+        }
+        
+        .footer-links {
+            margin-top: 10px;
+        }
+        
+        .footer-links a {
+            color: #e2e2e2;
+            margin: 0 10px;
+            text-decoration: none;
+        }
+        
+        .footer-links a:hover {
+            color: #f97316;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    {% include 'navbar.html' %}
+    <!-- Navbar Inline -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="{{ url_for('main.dashboard') }}" class="nav-logo">MotoMatch</a>
+            <div class="nav-links">
+                <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('main.populares') }}">Motos Populares</a>
+                <a href="{{ url_for('main.test') }}">Test de Preferencias</a>
+                <a href="{{ url_for('main.moto_ideal') }}">Mi Moto Ideal</a>
+                <a href="{{ url_for('main.logout') }}">Cerrar Sesión</a>
+            </div>
+        </div>
+    </nav>
     
     <main class="container">
         <div class="error-container">
@@ -103,7 +181,8 @@
                 <p>Tus recomendaciones podrían no ser tan precisas hasta que se restablezca la conexión.</p>
             </div>
             
-            <div class="action-buttons">                <a href="{{ url_for('main.home') }}" class="action-button">
+            <div class="action-buttons">
+                <a href="{{ url_for('main.home') }}" class="action-button">
                     <i class="fas fa-home"></i> Ir al inicio
                 </a>
                 
@@ -114,6 +193,13 @@
         </div>
     </main>
     
-    {% include 'footer.html' %}
+    <!-- Footer Inline -->
+    <footer class="main-footer">
+        <p>&copy; 2025 MotoMatch. Todos los derechos reservados.</p>
+        <div class="footer-links">
+            <a href="{{ url_for('main.dashboard') }}">Inicio</a>
+            <a href="{{ url_for('main.populares') }}">Motos Populares</a>
+        </div>
+    </footer>
 </body>
 </html>

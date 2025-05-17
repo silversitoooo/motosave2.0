@@ -8,6 +8,11 @@ import argparse
 import os
 import sys
 import random
+import pandas as pd
+
+from app.algoritmo.label_propagation import MotoLabelPropagation
+from app.algoritmo.moto_ideal import MotoIdealRecommender
+from app.algoritmo.pagerank import MotoPageRank
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,30 +24,70 @@ DEFAULT_USER = "neo4j"
 DEFAULT_PASSWORD = "password"
 
 class Neo4jInitializer:
-    def __init__(self, uri, user, password):
+    def __init__(self, uri, user, password, use_mock_data=False):
         """
-        Inicializa el conector a Neo4j.
+        Inicializa el conector a Neo4j o con datos simulados.
         
         Args:
             uri (str): URI de la base de datos Neo4j
             user (str): Nombre de usuario
             password (str): Contraseña
+            use_mock_data (bool): Si es True, utiliza datos simulados en lugar de conectar a Neo4j
         """
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.use_mock_data = use_mock_data
         
+        # Inicialización de atributos
+        self.db_connected = False
+        self.neo4j_driver = None
+        
+        # Inicialización de recomendadores
+        self.pagerank = MotoPageRank()
+        self.label_propagation = MotoLabelPropagation()
+        self.recommender = MotoIdealRecommender()
+        
+        # Inicialización de datos
+        self.users = None
+        self.motos = None
+        self.ratings = None
+        self.friendships = None
+        
+        # Intentar conectar a Neo4j si no estamos usando datos simulados
+        if not use_mock_data:
+            self.connect_to_neo4j()
+        
+    def connect_to_neo4j(self):
+        """Establece la conexión con la base de datos Neo4j"""
+        try:
+            self.neo4j_driver = GraphDatabase.driver(DEFAULT_URI, auth=(DEFAULT_USER, DEFAULT_PASSWORD))
+            self.db_connected = True
+            logger.info("Conectado a Neo4j correctamente")
+        except Exception as e:
+            logger.error(f"Error al conectar a Neo4j: {str(e)}")
+            self.db_connected = False
+    
     def close(self):
         """Cierra la conexión a la base de datos"""
-        self.driver.close()
+        if self.db_connected and self.neo4j_driver:
+            self.neo4j_driver.close()
+            logger.info("Conexión a Neo4j cerrada")
         
     def clear_database(self):
         """Limpia todos los datos existentes en la base de datos"""
-        with self.driver.session() as session:
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se puede limpiar.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             session.run("MATCH (n) DETACH DELETE n")
             logger.info("Base de datos limpiada correctamente")
             
     def create_constraints(self):
         """Crea restricciones e índices para mejorar el rendimiento"""
-        with self.driver.session() as session:
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear restricciones.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Crear restricciones de unicidad para nodos principales
             try:
                 session.run("CREATE CONSTRAINT user_id IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE")
@@ -64,18 +109,25 @@ class Neo4jInitializer:
     
     def create_users(self):
         """Crea usuarios de ejemplo"""
-        with self.driver.session() as session:
-            # Datos de ejemplo para usuarios
-            users = [
+        if self.use_mock_data:
+            logger.info("Usando datos simulados para usuarios")
+            self.users = [
                 {"id": "admin", "experiencia": "Intermedio", "uso_previsto": "Paseo", "presupuesto": 80000, "edad": 35},
                 {"id": "maria", "experiencia": "Principiante", "uso_previsto": "Ciudad", "presupuesto": 50000, "edad": 28},
                 {"id": "pedro", "experiencia": "Avanzado", "uso_previsto": "Deportivo", "presupuesto": 120000, "edad": 42},
                 {"id": "lucia", "experiencia": "Intermedio", "uso_previsto": "Viajes", "presupuesto": 90000, "edad": 31},
                 {"id": "jose", "experiencia": "Avanzado", "uso_previsto": "Mixto", "presupuesto": 100000, "edad": 38}
             ]
-            
+            logger.info(f"Datos de usuarios simulados: {self.users}")
+            return  # No crear en la base de datos
+        
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear usuarios.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Crear nodos de usuarios
-            for user in users:
+            for user in self.users:
                 session.run("""
                     MERGE (u:User {id: $id})
                     SET u.experiencia = $experiencia,
@@ -84,13 +136,13 @@ class Neo4jInitializer:
                         u.edad = $edad
                 """, **user)
                 
-            logger.info(f"Creados {len(users)} usuarios de ejemplo")
+            logger.info(f"Creados {len(self.users)} usuarios de ejemplo")
     
     def create_motos(self):
         """Crea motos de ejemplo"""
-        with self.driver.session() as session:
-            # Datos de ejemplo para motos
-            motos = [
+        if self.use_mock_data:
+            logger.info("Usando datos simulados para motos")
+            self.motos = [
                 {"id": "moto1", "potencia": 190, "peso": 200, "cilindrada": 1000, "tipo": "Deportiva", "precio": 92000, 
                  "marca": "Kawasaki", "modelo": "Ninja ZX-10R", 
                  "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg"},
@@ -128,9 +180,16 @@ class Neo4jInitializer:
                  "marca": "Honda", "modelo": "PCX 125", 
                  "imagen": "https://www.motofichas.com/images/phocagallery/Honda/pcx-125-2021/01-honda-pcx-125-2021-estudio-rojo.jpg"}
             ]
-            
+            logger.info(f"Datos de motos simulados: {self.motos}")
+            return  # No crear en la base de datos
+        
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear motos.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Crear nodos de motos y relaciones con marcas y estilos
-            for moto in motos:
+            for moto in self.motos:
                 # Crear nodo de moto
                 session.run("""
                     MERGE (m:Moto {id: $id})
@@ -158,11 +217,15 @@ class Neo4jInitializer:
                     MERGE (m)-[:DE_ESTILO]->(e)
                 """, id=moto["id"], tipo=moto["tipo"])
                 
-            logger.info(f"Creadas {len(motos)} motos de ejemplo")
+            logger.info(f"Creadas {len(self.motos)} motos de ejemplo")
     
     def create_friendships(self):
         """Crea relaciones de amistad entre usuarios"""
-        with self.driver.session() as session:
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear amistades.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Datos de ejemplo para amistades
             friendships = [
                 ("admin", "maria"),
@@ -185,7 +248,11 @@ class Neo4jInitializer:
     
     def create_ratings(self):
         """Crea valoraciones de usuarios para motos"""
-        with self.driver.session() as session:
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear valoraciones.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Obtener IDs de usuarios y motos
             result_users = session.run("MATCH (u:User) RETURN u.id AS user_id")
             result_motos = session.run("MATCH (m:Moto) RETURN m.id AS moto_id")
@@ -230,7 +297,11 @@ class Neo4jInitializer:
     
     def create_interactions(self):
         """Crea interacciones entre usuarios y motos (vistas, likes, etc.)"""
-        with self.driver.session() as session:
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear interacciones.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Obtener IDs de usuarios y motos
             result_users = session.run("MATCH (u:User) RETURN u.id AS user_id")
             result_motos = session.run("MATCH (m:Moto) RETURN m.id AS moto_id")
@@ -275,7 +346,11 @@ class Neo4jInitializer:
     
     def create_user_preferences(self):
         """Crea preferencias de usuario para estilos y marcas"""
-        with self.driver.session() as session:
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden crear preferencias de usuario.")
+            return
+        
+        with self.neo4j_driver.session() as session:
             # Preferencias por usuario
             user_preferences = {
                 "admin": {
@@ -341,6 +416,69 @@ class Neo4jInitializer:
         self.create_user_preferences()
         
         logger.info("Inicialización de la base de datos completada")
+    
+    def import_motos_from_csv(self, csv_path):
+        """Importa motos desde un archivo CSV y las crea en Neo4j"""
+        if not self.db_connected:
+            logger.warning("No hay conexión a la base de datos. No se pueden importar motos.")
+            return
+        
+        try:
+            # Leer el archivo CSV
+            df = pd.read_csv(csv_path)
+            logger.info(f"CSV leído: {len(df)} motos encontradas")
+            
+            # Procesar cada moto
+            with self.neo4j_driver.session() as session:
+                for _, row in df.iterrows():
+                    # Crear identificador único
+                    moto_id = f"{row['Marca']}_{row['Modelo']}".replace(" ", "_").lower()
+                    
+                    # Crear propiedades
+                    properties = {
+                        'id': moto_id,
+                        'marca': row['Marca'],
+                        'modelo': row['Modelo'],
+                        'tipo': row['Tipo'].lower() if not pd.isna(row['Tipo']) else 'desconocido',
+                        'cilindrada': float(row['Cilindrada']) if not pd.isna(row['Cilindrada']) else 0,
+                        'precio': float(row['Precio']) if not pd.isna(row['Precio']) else 0,
+                        'potencia': float(row['Potencia']) if not pd.isna(row['Potencia']) else 0,
+                        'peso': float(row['Peso']) if not pd.isna(row['Peso']) else 0,
+                        'imagen': row['Imagen'] if not pd.isna(row['Imagen']) else '',
+                        'año': int(row['Año']) if not pd.isna(row['Año']) else 2023
+                    }
+                    
+                    # Crear nodo de moto
+                    session.run("""
+                        MERGE (m:Moto {id: $id})
+                        SET m.marca = $marca,
+                            m.modelo = $modelo,
+                            m.tipo = $tipo,
+                            m.cilindrada = $cilindrada,
+                            m.precio = $precio,
+                            m.potencia = $potencia,
+                            m.peso = $peso,
+                            m.imagen = $imagen,
+                            m.año = $año
+                    """, **properties)
+                    
+                    # Crear nodo de marca y relación
+                    session.run("""
+                        MERGE (m:Moto {id: $id})
+                        MERGE (ma:Marca {nombre: $marca})
+                        MERGE (m)-[:DE_MARCA]->(ma)
+                    """, id=moto_id, marca=row['Marca'])
+                    
+                    # Crear nodo de estilo y relación
+                    session.run("""
+                        MERGE (m:Moto {id: $id})
+                        MERGE (e:Estilo {nombre: $tipo})
+                        MERGE (m)-[:DE_ESTILO]->(e)
+                    """, id=moto_id, tipo=row['Tipo'].lower() if not pd.isna(row['Tipo']) else 'desconocido')
+                
+                logger.info(f"Importación de motos desde CSV completada")
+        except Exception as e:
+            logger.error(f"Error al importar motos desde CSV: {str(e)}")
 
 def main():
     parser = argparse.ArgumentParser(description="Inicializa la base de datos Neo4j para MotoMatch")

@@ -9,11 +9,11 @@
 <body>
     <nav>
         <ul>
-            <li><a href="{{ url_for('index') }}">Inicio</a></li>
-            <li><a href="{{ url_for('perfil') }}" class="active">Perfil</a></li>
-            <li><a href="{{ url_for('motos') }}">Motos</a></li>
-            <li><a href="{{ url_for('recomendaciones') }}">Recomendaciones</a></li>
-            <li><a href="{{ url_for('diagnostico') }}">Diagnóstico</a></li>
+            <li><a href="{{ url_for('main.index') }}">Inicio</a></li>
+            <li><a href="{{ url_for('main.perfil') }}" class="active">Perfil</a></li>
+            <li><a href="{{ url_for('main.motos') }}">Motos</a></li>
+            <li><a href="{{ url_for('main.recomendaciones') }}">Recomendaciones</a></li>
+            <li><a href="{{ url_for('main.diagnostico') }}">Diagnóstico</a></li>
         </ul>
     </nav>
     
@@ -23,7 +23,7 @@
         <div class="diagnostico">
             <h2>Información personal</h2>
             
-            <form method="POST" action="{{ url_for('perfil') }}">
+            <form method="POST" action="{{ url_for('main.perfil') }}">
                 <p>
                     <strong>Nombre de usuario:</strong>
                     <input type="text" name="nombre" value="{{ nombre }}" required>

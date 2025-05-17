@@ -1,12 +1,20 @@
 """
-Configuración para la conexión a la base de datos y otras configuraciones del sistema.
+Configuración de la aplicación
 """
+import os
 
-# Configuración para Neo4j (Base de datos de grafos)
+# Configuración de Neo4j
 NEO4J_CONFIG = {
-    'uri': 'bolt://localhost:7687',  # URI de conexión (reemplazar con la URL de tu instancia de Neo4j)
-    'user': 'neo4j',                 # Usuario de Neo4j (reemplazar con tu usuario)
-    'password': '333666999'           # Contraseña (reemplazar con tu contraseña)
+    'uri': os.environ.get('NEO4J_URI', 'bolt://localhost:7687'),
+    'user': os.environ.get('NEO4J_USER', 'neo4j'),
+    'password': os.environ.get('NEO4J_PASSWORD', '22446688')
+}
+
+# Configuración de la aplicación
+APP_CONFIG = {
+    'DEBUG': True,
+    'SECRET_KEY': os.environ.get('SECRET_KEY', 'clave-super-secreta-motomatch'),
+    'USE_MOCK_DATA': True  # Cambiar a False para usar datos reales
 }
 
 # Configuración para la recomendación

@@ -1,64 +1,75 @@
 """
-Script para ejecutar la aplicación principal con el algoritmo recomendador corregido.
-Este script inicializa la aplicación Flask y configura el adaptador del recomendador
-para que esté disponible en toda la aplicación.
+Script para ejecutar la aplicación
 """
 import os
+import sys
 import logging
-import pandas as pd
-from app import create_app
-from app.config import NEO4J_CONFIG
-from moto_adapter_fixed import MotoRecommenderAdapter
+from flask import Flask, render_template, session, render_template_string
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("motomatch_app.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger("MotoMatch.App")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def main():
-    """Función principal para ejecutar la aplicación completa integrada"""
-    logger.info("Iniciando aplicación MotoMatch con algoritmo corregido...")
+    """Función principal para ejecutar la aplicación"""
+    logger.info("Iniciando aplicación MotoMatch con carga anticipada de datos...")
+    
+    # Asegurar que los módulos son encontrados
+    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+    
+    # Importar la app y el factory de adaptador
+    from app import create_app
+    from app.adapter_factory import create_adapter
     
     # Crear la aplicación Flask
     app = create_app()
     
-    # Crear el adaptador del recomendador
-    adapter = MotoRecommenderAdapter(
-        uri=NEO4J_CONFIG.get('uri', 'bolt://localhost:7687'),
-        user=NEO4J_CONFIG.get('user', 'neo4j'),
-        password=NEO4J_CONFIG.get('password', '333666999')
-    )
+    # AÑADE ESTA CONFIGURACIÓN EXPLÍCITA DE NEO4J
+    app.config['NEO4J_URI'] = 'bolt://localhost:7687'
+    app.config['NEO4J_USER'] = 'neo4j'  # Usuario predeterminado de Neo4j
+    app.config['NEO4J_PASSWORD'] = '22446688'  # CAMBIA ESTO SI USAS OTRA CONTRASEÑA
     
-    # Registrar el adaptador para que esté disponible en toda la aplicación
+    # IMPORTANTE: Desactivar completamente los datos mock
+    app.config['USE_MOCK_DATA'] = False  # Nunca usar datos mock
+    
+    # Configuración de la sesión para que sea más estable
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_PERMANENT'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
+    
+    # Crear e inicializar el adaptador - cargará datos inmediatamente
+    adapter = create_adapter(app)
+    
+    # Verificar si se cargaron datos
+    if adapter and hasattr(adapter, 'motos_df') and adapter.motos_df is not None:
+        logger.info(f"Datos precargados: {len(adapter.motos_df)} motos, {len(adapter.users_df) if adapter.users_df is not None else 0} usuarios")
+    else:
+        logger.warning("No se pudieron cargar datos anticipadamente")
+    
+    # Registrar el adaptador en la aplicación
     app.config['MOTO_RECOMMENDER'] = adapter
     
-    # Verificar conexión a Neo4j
-    if adapter.test_connection():
-        logger.info("Conexión a Neo4j establecida correctamente")
-    else:
-        logger.warning("No se pudo conectar a Neo4j. El recomendador usará datos simulados")
-    
-    # Precargar datos para el recomendador
-    try:
-        adapter.load_data()
-        logger.info("Datos iniciales cargados correctamente")
-    except Exception as e:
-        logger.error(f"Error al precargar datos: {str(e)}")
-        logger.info("La aplicación cargará datos bajo demanda")
+    # Añade una ruta para diagnosticar conexión a Neo4j
+    @app.route('/check_neo4j')
+    def check_neo4j():
+        """Ruta para verificar la conexión a Neo4j"""
+        try:
+            if adapter and adapter.driver:
+                with adapter.driver.session() as session:
+                    result = session.run("RETURN 'Conexión a Neo4j exitosa' as mensaje")
+                    message = result.single()["mensaje"]
+                    return f"<h1>{message}</h1><p>La aplicación está conectada correctamente a Neo4j.</p>"
+            else:
+                return "<h1>Error de conexión</h1><p>No hay un adaptador válido o no tiene un driver de Neo4j.</p>"
+        except Exception as e:
+            return f"<h1>Error</h1><p>No se pudo conectar a Neo4j: {str(e)}</p>"
     
     # Ejecutar la aplicación
-    host = os.environ.get('HOST', '127.0.0.1')
     port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     
-    logger.info(f"Iniciando servidor en {host}:{port} (debug: {debug})")
-    app.run(host=host, port=port, debug=debug)
+    logger.info(f"Iniciando servidor en puerto {port} (debug={debug})")
+    app.run(host='0.0.0.0', port=port, debug=debug)
 
 if __name__ == "__main__":
     main()

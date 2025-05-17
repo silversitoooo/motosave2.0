@@ -109,9 +109,7 @@ class MotoIdealRecommender:
             logger.error(traceback.format_exc())
         
     def _calculate_similarities(self):
-        """
-        Calcula similitudes entre usuarios y entre motos.
-        """
+        """Calcula similitudes entre usuarios y entre motos."""
         try:
             # Calcular similitud entre motos basada en características
             if self.motos_features_processed is not None and not self.motos_features_processed.empty:
@@ -122,10 +120,12 @@ class MotoIdealRecommender:
                 if 'moto_id' in features_for_similarity.columns:
                     features_for_similarity = features_for_similarity.drop('moto_id', axis=1)
                 
+                # AÑADIR ESTO: Eliminar filas o columnas con NaN
+                features_for_similarity = features_for_similarity.fillna(0)  # Rellenar NaN con 0
+                
                 # Verificar que todos los datos sean numéricos
                 cat_columns = features_for_similarity.select_dtypes(include=['object']).columns
                 if not cat_columns.empty:
-                    logger.warning(f"Excluyendo columnas categóricas de similitud: {cat_columns.tolist()}")
                     features_for_similarity = features_for_similarity.select_dtypes(exclude=['object'])
                 
                 # Calcular matriz de similitud si hay datos
@@ -272,3 +272,192 @@ class MotoIdealRecommender:
             import traceback
             logger.error(traceback.format_exc())
             return []
+        
+    def get_recommendations_from_neo4j(self, user_data, neo4j_driver, top_n=20):
+        """
+        Obtiene recomendaciones de Neo4j basadas en preferencias del usuario.
+        
+        Args:
+            user_data (dict): Datos del usuario (experiencia, presupuesto, uso_previsto, marcas_preferidas)
+            neo4j_driver: Driver de conexión a Neo4j
+            top_n (int): Número de recomendaciones a devolver
+            
+        Returns:
+            list: Lista de diccionarios con las recomendaciones y sus puntuaciones
+        """
+        try:
+            # Extraer marcas preferidas (si existen)
+            selected_brands = user_data.get('marcas_preferidas', [])
+            if not selected_brands:
+                logger.info("No hay marcas seleccionadas, se usará lista vacía")
+                selected_brands = []
+                
+            # Determinar tipo preferido basado en uso_previsto
+            pref_tipo = ""
+            if user_data.get('uso_previsto') == 'urbano':
+                pref_tipo = "scooter"
+            elif user_data.get('uso_previsto') == 'carretera':
+                pref_tipo = "sport"
+            elif user_data.get('uso_previsto') == 'offroad':
+                pref_tipo = "adventure"
+                
+            # Obtener presupuesto máximo
+            max_price = float(user_data.get('presupuesto', 10000))
+            
+            # Consulta Cypher mejorada
+            query = """
+            // Consulta de recomendación mejorada
+            MATCH (m:Moto)-[:FABRICADA_POR]->(b:Marca)
+            WHERE b.nombre IN $selectedBrands OR size($selectedBrands) = 0
+
+            // Encontrar motos similares
+            WITH m AS startMoto
+            MATCH (startMoto)-[:SIMILAR_CILINDRADA|SIMILAR_PRECIO*1..2]-(recommended:Moto)
+            WHERE startMoto <> recommended
+
+            // Calcular puntuación
+            WITH recommended, COUNT(*) AS pathCount,
+                 CASE 
+                     WHEN recommended.marca IN $selectedBrands THEN 3.0 ELSE 0 
+                 END AS brandBonus,
+                 CASE 
+                     WHEN recommended.tipo = $prefTipo THEN 2.0 ELSE 0
+                 END AS tipoBonus,
+                 CASE
+                     WHEN recommended.precio <= $maxPrice THEN 1.0 ELSE -1.0
+                 END AS priceBonus
+            WITH recommended, 
+                 pathCount*0.5 + brandBonus + tipoBonus + priceBonus AS totalScore
+            WHERE totalScore > 0
+
+            // Devolver recomendaciones ordenadas por puntuación
+            RETURN recommended.marca AS marca,
+                   recommended.modelo AS modelo,
+                   recommended.anio AS anio,
+                   recommended.precio AS precio,
+                   recommended.tipo AS tipo,
+                   recommended.cilindrada AS cilindrada,
+                   recommended.potencia AS potencia,
+                   recommended.imagen AS imagen,
+                   recommended.url AS url,
+                   totalScore AS score
+            ORDER BY score DESC
+            LIMIT $topN
+            """
+            
+            # Parámetros para la consulta
+            params = {
+                "selectedBrands": selected_brands,
+                "prefTipo": pref_tipo,
+                "maxPrice": max_price,
+                "topN": top_n
+            }
+            
+            logger.info(f"Ejecutando consulta Neo4j con parámetros: {params}")
+            
+            # Ejecutar consulta
+            with neo4j_driver.session() as session:
+                result = session.run(query, params)
+                recommendations = [dict(record) for record in result]
+                
+            logger.info(f"Obtenidas {len(recommendations)} recomendaciones desde Neo4j")
+            return recommendations
+        
+        except Exception as e:
+            logger.error(f"Error al obtener recomendaciones desde Neo4j: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+
+    def get_hybrid_recommendations(self, user_id, neo4j_driver, top_n=10):
+        """
+        Combina las recomendaciones de moto ideal con las obtenidas de Neo4j.
+        
+        Args:
+            user_id (str): ID del usuario
+            neo4j_driver: Conexión a Neo4j
+            top_n (int): Número de recomendaciones
+            
+        Returns:
+            list: Lista de recomendaciones combinadas
+        """
+        # Verificar si el usuario existe
+        if user_id not in self.users_features['user_id'].values:
+            logger.warning(f"Usuario {user_id} no encontrado en la base de datos")
+            return []
+            
+        # Obtener datos del usuario
+        user_idx = self.users_features[self.users_features['user_id'] == user_id].index[0]
+        user_data = {
+            'experiencia': str(self.users_features.loc[user_idx, 'experiencia']).lower() 
+                if 'experiencia' in self.users_features.columns else 'principiante',
+            'presupuesto': float(self.users_features.loc[user_idx, 'presupuesto']) 
+                if 'presupuesto' in self.users_features.columns else 8000,
+            'uso_previsto': str(self.users_features.loc[user_idx, 'uso_previsto']).lower() 
+                if 'uso_previsto' in self.users_features.columns else 'urbano',
+            'marcas_preferidas': self.users_features.loc[user_idx, 'marcas_preferidas'].split(',') 
+                if 'marcas_preferidas' in self.users_features.columns and 
+                   isinstance(self.users_features.loc[user_idx, 'marcas_preferidas'], str) 
+                else []
+        }
+        
+        # 1. Obtener recomendaciones del algoritmo tradicional
+        traditional_recs = self.get_moto_ideal(user_id, top_n=top_n)
+        
+        # 2. Obtener recomendaciones basadas en Neo4j
+        graph_recs = self.get_recommendations_from_neo4j(user_data, neo4j_driver, top_n=top_n)
+        
+        # 3. Combinar resultados (dar mayor peso a Neo4j si hay marcas seleccionadas)
+        neo4j_weight = 0.7 if user_data['marcas_preferidas'] else 0.5
+        trad_weight = 1.0 - neo4j_weight
+        
+        # Preparar diccionario para combinar resultados
+        combined_scores = {}
+        
+        # Añadir recomendaciones tradicionales
+        for moto_id, score in traditional_recs:
+            combined_scores[moto_id] = {
+                'score': score * trad_weight,
+                'source': 'traditional'
+            }
+        
+        # Añadir recomendaciones de Neo4j
+        for rec in graph_recs:
+            # Crear un identificador único para la moto
+            neo4j_moto_id = f"{rec['marca']}_{rec['modelo']}"
+            
+            # Ver si ya existe en las recomendaciones tradicionales
+            matching_id = None
+            for moto_id in combined_scores:
+                # Buscar en motos_features la marca y modelo que corresponden a este moto_id
+                if moto_id in self.motos_features['moto_id'].values:
+                    moto_idx = self.motos_features[self.motos_features['moto_id'] == moto_id].index[0]
+                    marca = self.motos_features.loc[moto_idx, 'marca'] if 'marca' in self.motos_features.columns else ""
+                    modelo = self.motos_features.loc[moto_idx, 'modelo'] if 'modelo' in self.motos_features.columns else ""
+                    
+                    if marca == rec['marca'] and modelo == rec['modelo']:
+                        matching_id = moto_id
+                        break
+            
+            if matching_id:
+                # Si ya existe, combinar puntuaciones
+                combined_scores[matching_id]['score'] += rec['score'] * neo4j_weight
+                combined_scores[matching_id]['source'] = 'hybrid'
+                # Añadir datos adicionales de Neo4j si no existen
+                if 'imagen' not in combined_scores[matching_id] and 'imagen' in rec:
+                    combined_scores[matching_id]['imagen'] = rec['imagen']
+                if 'url' not in combined_scores[matching_id] and 'url' in rec:
+                    combined_scores[matching_id]['url'] = rec['url']
+            else:
+                # Si es nueva, añadir con todos sus datos
+                rec_copy = rec.copy()
+                rec_copy['score'] = rec['score'] * neo4j_weight
+                rec_copy['source'] = 'neo4j'
+                rec_copy['moto_id'] = neo4j_moto_id  # Usar ID generado
+                combined_scores[neo4j_moto_id] = rec_copy
+        
+        # Convertir a lista y ordenar por puntuación
+        final_recommendations = list(combined_scores.values())
+        final_recommendations.sort(key=lambda x: x['score'], reverse=True)
+        
+        return final_recommendations[:top_n]

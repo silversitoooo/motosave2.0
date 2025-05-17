@@ -1,33 +1,79 @@
-"""
-Test Neo4j connection
-"""
-from neo4j import GraphDatabase
 import sys
+import os
+import logging
 
-# Write to a file for guaranteed output
-with open('neo4j_test_result.txt', 'w') as f:
-    # Neo4j credentials from config.py
-    uri = "bolt://localhost:7687"
-    user = "neo4j"
-    password = "333666999"
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
+# Asegurar que los módulos son encontrados
+proyecto_dir = os.path.abspath(os.path.dirname(__file__))
+motosave_dir = os.path.join(proyecto_dir, 'motosave')
+sys.path.insert(0, motosave_dir)
+
+def test_neo4j_connection():
+    """Prueba básica de conexión a Neo4j y recuperación de datos."""
     try:
-        f.write(f"Trying to connect to Neo4j at {uri} with user '{user}'...\n")
+        from neo4j import GraphDatabase
+        
+        # Configuración
+        uri = "bolt://localhost:7687"
+        user = "neo4j"
+        password = "22446688"
+        
+        # Conectar
+        logger.info(f"Conectando a Neo4j: {uri}")
         driver = GraphDatabase.driver(uri, auth=(user, password))
         
-        # Test connection with a simple query
+        # Probar conexión
         with driver.session() as session:
-            result = session.run("RETURN 1 as test")
-            record = result.single()
-            f.write(f"Connection successful! Test query result: {record['test']}\n")
-        
-        driver.close()
-        f.write("Neo4j connection test passed!\n")
+            # Contar nodos
+            result = session.run("MATCH (n) RETURN count(n) as count")
+            total_nodes = result.single()["count"]
+            logger.info(f"Total de nodos en Neo4j: {total_nodes}")
+            
+            # Contar motos
+            result = session.run("MATCH (m:Moto) RETURN count(m) as count")
+            motos_count = result.single()["count"]
+            logger.info(f"Total de motos: {motos_count}")
+            
+            # Contar usuarios
+            result = session.run("MATCH (u:User) RETURN count(u) as count")
+            users_count = result.single()["count"]
+            logger.info(f"Total de usuarios: {users_count}")
+            
+            # Contar ratings
+            result = session.run("MATCH ()-[r:RATED]->() RETURN count(r) as count")
+            ratings_count = result.single()["count"]
+            logger.info(f"Total de ratings: {ratings_count}")
+            
+            # Probar adaptador
+            logger.info("Probando MotoRecommenderAdapter...")
+            from moto_adapter_fixed import MotoRecommenderAdapter
+            adapter = MotoRecommenderAdapter()
+            
+            # Obtener recomendaciones para usuario 1
+            recs = adapter.get_recommendations(1, algorithm='hybrid', top_n=3)
+            
+            if recs:
+                logger.info(f"Recomendaciones obtenidas: {len(recs)}")
+                for i, rec in enumerate(recs):
+                    logger.info(f"  {i+1}. {rec.get('marca')} {rec.get('modelo')} - Score: {rec.get('score'):.4f}")
+            else:
+                logger.warning("No se obtuvieron recomendaciones")
+            
+            return True
         
     except Exception as e:
-        f.write(f"Neo4j connection failed: {e}\n")
-        f.write("\nPossible issues:\n")
-        f.write("1. Neo4j database is not running\n")
-        f.write("2. Incorrect URI (currently using: bolt://localhost:7687)\n")
-        f.write("3. Incorrect username or password\n")
-        f.write("4. Neo4j is not configured to accept connections from this client\n")
+        logger.error(f"Error durante la prueba: {str(e)}", exc_info=True)
+        return False
+    finally:
+        if 'driver' in locals():
+            driver.close()
+
+if __name__ == "__main__":
+    success = test_neo4j_connection()
+    if success:
+        logger.info("✅ Prueba de Neo4j completada exitosamente")
+    else:
+        logger.error("❌ Prueba de Neo4j falló")

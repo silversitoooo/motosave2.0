@@ -476,7 +476,7 @@
           <option value="medio_bajo">Q30,000 - Q50,000</option>
           <option value="medio">Q50,000 - Q80,000</option>
           <option value="alto">Q80,000 - Q120,000</option>
-          <option value="muy_alto">Más de Q120,000</option>
+          <option value="muy_alta">Más de Q120,000</option>
           <option value="no_se">No tengo un presupuesto definido</option>
         </select>
       </section>
@@ -496,6 +496,73 @@
       <button id="finish-btn" class="nav-button" onclick="finalizarTest()">Ver mis recomendaciones</button>
     </div>
   </div>
+
+  <script>
+  // Función para finalizar el test y enviar datos a recomendaciones
+  function finalizarTest(testData) {
+    // Crear un formulario oculto para enviar los datos
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{{ url_for('main.guardar_test') }}";
+    form.style.display = 'none';
+    
+    // Agregar los datos del test como campos ocultos
+    for (const key in testData) {
+      if (testData.hasOwnProperty(key)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = typeof testData[key] === 'object' ? 
+          JSON.stringify(testData[key]) : testData[key];
+        form.appendChild(input);
+      }
+    }
+    
+    // Enviar el formulario
+    document.body.appendChild(form);
+    console.log("Enviando datos del test:", testData);
+    form.submit();
+  }
+  
+  // Modificar el comportamiento del botón de finalización en el modal
+  document.addEventListener('DOMContentLoaded', function() {
+    // Buscar el botón de finalización en el modal
+    const finishButton = document.querySelector('.completion-modal .modal-content button');
+    
+    if (finishButton) {
+      finishButton.addEventListener('click', function() {
+        // Recolectar todos los datos del test
+        const testData = {
+          // Añadir los datos que ya tengas en tu test
+          experiencia: window.testResults ? window.testResults.experiencia : 'intermedio',
+          presupuesto: window.testResults ? window.testResults.presupuesto : '10000',
+          uso: window.testResults ? window.testResults.uso : 'mixto',
+          estilos: window.testResults ? window.testResults.estilos : {},
+          marcas: window.testResults ? window.testResults.marcas : {}
+        };
+        
+        // Enviar los datos a la ruta de procesamiento
+        finalizarTest(testData);
+      });
+    }
+  });
+</script>
+
+  <!-- Asegúrate de que este código en recomendaciones.js procese todas las recomendaciones enviadas -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Obtener datos de recomendaciones
+        let motosRecomendadas = window.motosRecomendadas || [];
+        
+        // Limitaría a 4 si quisieras forzar ese número exacto
+        // motosRecomendadas = motosRecomendadas.slice(0, 4);
+        
+        // Generar tarjetas para cada moto
+        motosRecomendadas.forEach(moto => {
+            // Código para generar las tarjetas HTML
+        });
+    });
+  </script>
 
   <footer>
     <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>

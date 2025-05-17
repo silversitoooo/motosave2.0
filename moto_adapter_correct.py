@@ -4,6 +4,7 @@ import numpy as np
 import os
 import time
 import traceback
+import json
 from neo4j import GraphDatabase
 from app.algoritmo.pagerank import MotoPageRank
 from app.algoritmo.label_propagation import MotoLabelPropagation
@@ -58,7 +59,7 @@ class MotoRecommenderAdapter:
         
         # Cargar datos inmediatamente
         self.load_data()
-        
+    
     def connect_to_neo4j(self, max_retries=3, timeout=10):
         """Establecer conexión robusta a Neo4j."""
         from neo4j import GraphDatabase
@@ -66,6 +67,7 @@ class MotoRecommenderAdapter:
         for attempt in range(max_retries):
             try:
                 logger.info(f"Intento {attempt+1}/{max_retries} de conexión a Neo4j: {self.neo4j_uri}")
+                
                 self.driver = GraphDatabase.driver(
                     self.neo4j_uri, 
                     auth=(self.neo4j_user, self.neo4j_password)
@@ -90,7 +92,7 @@ class MotoRecommenderAdapter:
                     logger.error("Se agotaron los intentos de conexión a Neo4j.")
                     # Ahora fallamos si no hay conexión - nunca datos mock
                     return False
-                    
+    
     def test_connection(self):
         """Prueba la conexión a Neo4j y retorna True si es exitosa."""
         try:
@@ -155,6 +157,7 @@ class MotoRecommenderAdapter:
             logger.info(f"Datos cargados desde Neo4j: {len(self.motos_df)} motos, {len(self.users_df)} usuarios, {len(self.ratings_df)} ratings")
             
             # Inicializar algoritmos con los datos de Neo4j
+            # Para PageRank que no tiene método load_data
             if hasattr(self.pagerank, 'build_graph'):
                 # Preparar datos para PageRank
                 pagerank_data = []
@@ -166,7 +169,9 @@ class MotoRecommenderAdapter:
                     })
                 # Construir el grafo con los datos
                 self.pagerank.build_graph(pagerank_data)
-            
+            else:
+                logger.warning("PageRank no tiene método build_graph, no se inicializará correctamente")
+                
             # Inicializar otros algoritmos si tienen el método load_data
             if hasattr(self.label_propagation, 'load_data'):
                 self.label_propagation.load_data(self.users_df, self.motos_df, self.ratings_df)
@@ -215,115 +220,6 @@ class MotoRecommenderAdapter:
             logger.error(f"Error al cargar relaciones de amistad: {str(e)}")
             self.friendships_df = pd.DataFrame(columns=['user_id', 'friend_id'])
     
-    def get_recommendations(self, user_id, algorithm='hybrid', top_n=5, save_to_db=False, user_preferences=None, **kwargs):
-        """
-        Obtiene recomendaciones utilizando el algoritmo especificado.
-        """
-        logger.info(f"Obteniendo recomendaciones para user_id={user_id} usando {algorithm}")
-        logger.info(f"Preferencias recibidas: {user_preferences}")
-        
-        # Asegurar que los datos están cargados
-        if self.motos_df is None:
-            logger.error("No hay datos de motos cargados")
-            return []
-        
-        # Verificar si el usuario existe
-        if not self._user_exists(user_id):
-            logger.warning(f"Usuario {user_id} no encontrado")
-            # Si tenemos preferencias, podemos usarlas directamente aunque el usuario no exista
-            if user_preferences:
-                return self._get_recommendations_with_preferences(user_id, user_preferences, top_n)
-            return []
-        
-        # Obtener recomendaciones según el algoritmo
-        try:
-            if algorithm == 'pagerank':
-                # Usar PageRank
-                return self.pagerank.get_recommendations(user_id, top_n)
-            elif algorithm == 'label_propagation':
-                # Usar propagación de etiquetas
-                return self.label_propagation.get_recommendations(user_id, top_n)
-            elif algorithm == 'hybrid' or algorithm == 'moto_ideal':
-                # Si tenemos preferencias específicas del test, usarlas
-                if user_preferences:
-                    return self._get_recommendations_with_preferences(user_id, user_preferences, top_n)
-                # De lo contrario, usar el método normal
-                return self.moto_ideal.get_moto_ideal(user_id, top_n)
-            else:
-                logger.warning(f"Algoritmo desconocido: {algorithm}, usando moto_ideal")
-                return self.moto_ideal.get_moto_ideal(user_id, top_n)
-        except Exception as e:
-            logger.error(f"Error al generar recomendaciones: {str(e)}")
-            return []
-    
-    def _get_recommendations_with_preferences(self, user_id, preferences, top_n=5):
-        """Genera recomendaciones personalizadas basadas en preferencias específicas del test."""
-        logger.info(f"Calculando recomendaciones para {user_id} con preferencias: {preferences}")
-        
-        # Extraer parámetros de preferencias
-        experiencia = preferences.get('experiencia', 'inexperto')
-        presupuesto = float(preferences.get('presupuesto', 8000))
-        uso = preferences.get('uso', 'mixto')
-        marcas_preferidas = preferences.get('marcas', {})
-        estilos_preferidos = preferences.get('estilos', {})
-        
-        # MODIFICAR: Filtrar motos según presupuesto con mayor margen (30% en lugar de 20%)
-        presupuesto_max = presupuesto * 1.3
-        filtered_motos = self.motos_df[self.motos_df['precio'] <= presupuesto_max].copy()
-        
-        if filtered_motos.empty:
-            logger.warning(f"No hay motos dentro del presupuesto {presupuesto}. Usando todas las motos.")
-            filtered_motos = self.motos_df.copy()
-        
-        # Calcular score para cada moto
-        results = []
-        for _, moto in filtered_motos.iterrows():
-            score = 0.5  # CAMBIO: Empezar con score base positivo
-            reasons = []
-            
-            # SIMPLIFICAR evaluación por tipo/estilo
-            if 'tipo' in moto:
-                tipo = str(moto['tipo']).lower()
-                if estilos_preferidos and tipo in estilos_preferidos:
-                    nivel = estilos_preferidos[tipo]
-                    score += nivel * 0.25
-                    reasons.append(f"Estilo {tipo} entre tus preferidos")
-                elif uso == 'paseo' and tipo in ['naked', 'touring', 'sport']:
-                    score += 0.25
-                    reasons.append(f"Estilo {tipo} adecuado para paseo")
-                elif uso == 'ciudad' and tipo in ['naked', 'scooter']:
-                    score += 0.25
-                    reasons.append(f"Estilo {tipo} adecuado para ciudad")
-            
-            # SIMPLIFICAR evaluación por marca
-            if 'marca' in moto:
-                marca = str(moto['marca']).lower()
-                if marcas_preferidas and marca in marcas_preferidas:
-                    nivel = marcas_preferidas[marca]
-                    score += nivel * 0.25
-                    reasons.append(f"Marca {marca} entre tus preferidas")
-            
-            # Evaluar presupuesto
-            precio = moto.get('precio', 0)
-            if precio <= presupuesto:
-                score += 0.5
-                reasons.append(f"Precio ({precio}€) dentro de tu presupuesto ({presupuesto}€)")
-            
-            # Si no hay razones, agregar razón genérica
-            if not reasons:
-                reasons.append("Recomendación basada en tus criterios generales")
-            
-            # Obtener ID de la moto
-            moto_id = str(moto.get('moto_id', moto.get('id', '')))
-            results.append((moto_id, score, reasons))
-        
-        # Ordenar por score y obtener top_n
-        results.sort(key=lambda x: x[1], reverse=True)
-        
-        # AÑADIR log para confirmar resultados
-        logger.info(f"Generadas {len(results[:top_n])} recomendaciones para {user_id}")
-        return results[:top_n]
-        
     def _user_exists(self, user_id):
         """Comprueba si un usuario existe por su ID."""
         if self.users_df is None:

@@ -9,11 +9,11 @@
 <body>
     <nav>
         <ul>
-            <li><a href="{{ url_for('index') }}">Inicio</a></li>
-            <li><a href="{{ url_for('perfil') }}">Perfil</a></li>
-            <li><a href="{{ url_for('motos') }}" class="active">Motos</a></li>
-            <li><a href="{{ url_for('recomendaciones') }}">Recomendaciones</a></li>
-            <li><a href="{{ url_for('diagnostico') }}">Diagnóstico</a></li>
+            <li><a href="{{ url_for('main.index') }}">Inicio</a></li>
+            <li><a href="{{ url_for('main.perfil') }}">Perfil</a></li>
+            <li><a href="{{ url_for('main.motos') }}" class="active">Motos</a></li>
+            <li><a href="{{ url_for('main.recomendaciones') }}">Recomendaciones</a></li>
+            <li><a href="{{ url_for('main.diagnostico') }}">Diagnóstico</a></li>
         </ul>
     </nav>
     
@@ -34,7 +34,7 @@
             {% endfor %}
             
             <div class="actions">
-                <a href="{{ url_for('recomendaciones') }}" class="boton">Ver recomendaciones</a>
+                <a href="{{ url_for('main.recomendaciones') }}" class="boton">Ver recomendaciones</a>
             </div>
         </div>
     </div>

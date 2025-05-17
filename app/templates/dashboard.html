@@ -13,20 +13,20 @@
     </div>
     
     <div class="dashboard-options">
-      <a href="/friends" class="dashboard-box">
+      <a href="{{ url_for('main.friends') }}" class="dashboard-box">
         <div class="icon-container">
           <i class="fas fa-users"></i>
         </div>
         <p>Amigos</p>
       </a>
       
-      <a href="/populares" class="dashboard-box">
+      <a href="{{ url_for('main.populares') }}" class="dashboard-box">
         <div class="icon-container">
           <i class="fas fa-motorcycle"></i>
         </div>
         <p>Motos populares</p>
       </a>
-        <a href="/test" class="dashboard-box">
+        <a href="{{ url_for('main.test') }}" class="dashboard-box">
         <div class="icon-container">
           <i class="fas fa-brain"></i>
         </div>
@@ -43,7 +43,7 @@
   </div>
   
   <footer>
-    <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
+    <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="{{ url_for('main.home') }}" class="link">Inicio</a></p>
   </footer>
 </body>
 </html>

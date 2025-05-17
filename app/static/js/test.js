@@ -514,62 +514,43 @@ function launchConfetti() {
 
 // Manejar envío del formulario al completar
 window.finalizarTest = function() {
-  // Recopilar todas las respuestas
-  const datosTest = window.respuestas || {};
-  console.log('Enviando datos del test:', datosTest);
+  // Recopilar todos los datos del test
+  const testData = {
+    // Datos de burbujas (estilos y marcas)
+    estilos: window.testSelections.estilos || {},
+    marcas: window.testSelections.marcas || {},
+    
+    // Datos de experiencia y rama correspondiente
+    experiencia: document.getElementById('experiencia').value,
+    
+    // Datos comunes indistintamente de la rama
+    uso: document.getElementById('experiencia').value === 'experto' 
+      ? document.getElementById('uso_experto').value 
+      : document.getElementById('uso').value,
+    
+    // Obtener el presupuesto del input numérico (más preciso)
+    presupuesto: document.getElementById('presupuesto').value,
+  };
   
-  // Guardar preferencias en Neo4j
-  guardarPreferenciasEnBD(datosTest).then(result => {
-    console.log('Resultado de guardar preferencias:', result);
-    
-    // Crear un formulario oculto para enviar los datos
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/recomendaciones';
-    
-    // Añadir los datos como campos ocultos
-    for (const key in datosTest) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      
-      // Si es un objeto, convertir a JSON
-      if (typeof datosTest[key] === 'object') {
-        input.value = JSON.stringify(datosTest[key]);
-      } else {
-        input.value = datosTest[key] || '';
-      }
-      
-      form.appendChild(input);
-    }
-    
-    // Añadir el formulario al documento y enviarlo
-    document.body.appendChild(form);
-    form.submit();
-  }).catch(error => {
-    console.error('Error al guardar preferencias:', error);
-    
-    // Continuar con el envío del formulario aunque falle el guardado
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/recomendaciones';
-    
-    for (const key in datosTest) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      
-      if (typeof datosTest[key] === 'object') {
-        input.value = JSON.stringify(datosTest[key]);
-      } else {
-        input.value = datosTest[key] || '';
-      }
-      
-      form.appendChild(input);
-    }
-    
-    document.body.appendChild(form);
-    form.submit();
+  // Mostrar los datos en consola para debug
+  console.log('Datos del test a enviar:', testData);
+  
+  // Enviar datos mediante fetch
+  fetch('/guardar_test', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(testData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Respuesta del servidor:', data);
+    window.location.href = '/recomendaciones';
+  })
+  .catch(error => {
+    console.error('Error al enviar datos:', error);
+    alert('Error al procesar el test. Por favor intenta nuevamente.');
   });
 };
 
