@@ -283,31 +283,97 @@ def recomendaciones_test():
 
 @main.route('/like_moto', methods=['POST'])
 def like_moto():
-    """Ruta para manejar los likes de las motos populares"""
-    if request.method == 'POST':
-        try:
-            data = request.json
-            modelo = data.get('modelo')
-            
-            # Encontrar la moto en la lista
-            for moto in motos_populares:
-                if moto['modelo'] == modelo:
-                    moto['likes'] += 1
-                    
-                    # En una aplicación real, aquí se guardaría en la base de datos
-                    
-                    return jsonify({
-                        'success': True,
-                        'likes': moto['likes'],
-                        'message': f'Like para {modelo} registrado con éxito'
-                    })
-            
-            return jsonify({'success': False, 'message': 'Modelo no encontrado'}), 404
-            
-        except Exception as e:
-            return jsonify({'success': False, 'message': str(e)}), 500
+    """Ruta para registrar un like a una moto"""
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'Debes iniciar sesión para dar like'})
     
-    return jsonify({'success': False, 'message': 'Método no permitido'}), 405
+    data = request.get_json()
+    
+    if not data or 'moto_id' not in data:
+        return jsonify({'success': False, 'message': 'Datos incompletos'})
+    
+    moto_id = data['moto_id']
+    
+    # Obtener el adaptador
+    adapter = current_app.config.get('MOTO_RECOMMENDER')
+    if not adapter:
+        return jsonify({'success': False, 'message': 'Error del servidor: adaptador no disponible'})
+    
+    try:
+        # Registrar el like usando el adaptador
+        success, likes_count = adapter.register_like(current_user.id, moto_id)
+        
+        if success:
+            return jsonify({'success': True, 'likes': likes_count})
+        else:
+            return jsonify({'success': False, 'message': 'No se pudo registrar el like'})
+            
+    except Exception as e:
+        app.logger.error(f"Error al registrar like: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error interno del servidor'})
+
+@main.route('/set_ideal_moto', methods=['POST'])
+def set_ideal_moto():
+    """Ruta para establecer una moto como la ideal para el usuario"""
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'Debes iniciar sesión para guardar tu moto ideal'})
+    
+    data = request.get_json()
+    
+    if not data or 'moto_id' not in data:
+        return jsonify({'success': False, 'message': 'Datos incompletos'})
+    
+    moto_id = data['moto_id']
+    
+    # Obtener el adaptador
+    adapter = current_app.config.get('MOTO_RECOMMENDER')
+    if not adapter:
+        return jsonify({'success': False, 'message': 'Error del servidor: adaptador no disponible'})
+    
+    try:
+        # Registrar la moto como ideal para el usuario
+        success = adapter.set_ideal_moto(current_user.id, moto_id)
+        
+        if success:
+            # Guardar en la sesión para acceso rápido
+            session['ideal_moto_id'] = moto_id
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'message': 'No se pudo guardar tu moto ideal'})
+            
+    except Exception as e:
+        app.logger.error(f"Error al establecer moto ideal: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error interno del servidor'})
+
+@main.route('/moto_ideal')
+def moto_ideal():
+    """Página que muestra la moto ideal del usuario"""
+    if not current_user.is_authenticated:
+        flash('Debes iniciar sesión para ver tu moto ideal', 'warning')
+        return redirect(url_for('login'))
+    
+    # Obtener el adaptador
+    adapter = current_app.config.get('MOTO_RECOMMENDER')
+    
+    # Intentar obtener el ID de la moto ideal desde la sesión o la base de datos
+    moto_id = session.get('ideal_moto_id')
+    if not moto_id and adapter:
+        # Si no está en la sesión, buscar en la base de datos
+        moto_id = adapter.get_ideal_moto_id(current_user.id)
+        if moto_id:
+            # Guardar en la sesión para futuro acceso rápido
+            session['ideal_moto_id'] = moto_id
+    
+    # Si no hay moto ideal
+    if not moto_id:
+        return render_template('moto_ideal.html', moto=None)
+    
+    # Obtener los datos completos de la moto ideal
+    moto_data = None
+    if adapter:
+        moto_data = adapter.get_moto_by_id(moto_id)
+    
+    return render_template('moto_ideal.html', moto=moto_data)
 
 @main.route('/guardar-preferencias', methods=['POST'])
 def guardar_preferencias():

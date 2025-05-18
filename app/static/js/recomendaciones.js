@@ -30,7 +30,8 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Error al cargar datos de recomendaciones:", e);
         motosRecomendadas = [];
     }
-      // Referencia al contenedor de la cuadrícula
+      
+    // Referencia al contenedor de la cuadrícula
     const gridContainer = document.querySelector('.grid-container');
     
     if (!gridContainer) {
@@ -55,95 +56,185 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
     
-    // Generar el HTML para cada moto recomendada
-    motosRecomendadas.forEach(moto => {
-        // Verificar que todos los datos necesarios estén presentes
-        console.log("Procesando moto:", moto);
-        
-        // Crear el elemento de la tarjeta
+    // MODIFICACIÓN: Renderizar directamente en el formato de cuadrícula sin mostrar imágenes grandes primero
+    // Crear tarjetas de motos directamente en el contenedor de cuadrícula
+    motosRecomendadas.forEach((moto, index) => {
+        // Crear tarjeta para cada moto recomendada con tamaño controlado
         const motoCard = document.createElement('div');
         motoCard.className = 'moto-card';
+        motoCard.setAttribute('data-moto-id', moto.moto_id);
         
-        // Razones formateadas como lista
-        const reasonsList = moto.razones && moto.razones.length > 0 
-            ? `<ul class="reasons-list">
-                ${moto.razones.map(razon => `<li><i class="fas fa-check"></i> ${razon}</li>`).join('')}
-               </ul>`
-            : '<p>No hay razones específicas para esta recomendación.</p>';
-            
-        // Formato de puntuación
-        const scorePercentage = Math.round((moto.score || 0) * 100);
+        // Formatear el precio correctamente
+        const precio = moto.precio ? `€${moto.precio.toLocaleString()}` : 'N/D';
         
-        // Construir el HTML interno de la tarjeta
+        // Asegurar que los valores de año y cilindrada se muestren correctamente
+        const año = moto.año || 'N/D';
+        const cilindrada = moto.cilindrada ? `${moto.cilindrada} cc` : 'N/D';
+        
+        // Añadir el score de la recomendación (porcentaje de coincidencia)
+        const score = moto.score ? `${Math.round(moto.score * 100)}%` : 'N/D';
+        
+        // HTML interno de la tarjeta con imagen de tamaño controlado y nuevos campos
         motoCard.innerHTML = `
-            <img src="${moto.imagen || '/static/images/moto-placeholder.jpg'}" 
-                 alt="Imagen de ${moto.modelo}" 
-                 class="moto-img"
-                 onerror="this.onerror=null; this.src='/static/images/moto-placeholder.jpg';">
-            <h3>${moto.modelo || 'Modelo desconocido'}</h3>
-            <p><strong>Marca:</strong> ${moto.marca || 'Desconocida'}</p>
-            <p><strong>Estilo:</strong> ${moto.estilo || 'N/A'}</p>
-            <p><strong>Precio:</strong> Q${moto.precio ? moto.precio.toLocaleString() : 'Precio no disponible'}</p>
-            <div class="match-score">
+            <img src="${moto.imagen}" alt="${moto.marca} ${moto.modelo}" class="moto-img">
+            <h3>${moto.marca} ${moto.modelo}</h3>
+            <div class="moto-score">
                 <span class="score-label">Coincidencia:</span>
-                <div class="score-bar">
-                    <div class="score-fill" style="width: ${scorePercentage}%;"></div>
-                </div>
-                <span class="score-percentage">${scorePercentage}%</span>
+                <span class="score-value">${score}</span>
+                <div class="score-bar" style="width: ${moto.score ? moto.score * 100 : 0}%;"></div>
             </div>
-            <div class="reasons-container">
-                <h4>¿Por qué te la recomendamos?</h4>
-                ${reasonsList}
+            <p><strong>Año:</strong> ${año}</p>
+            <p><strong>Tipo:</strong> ${moto.tipo || 'N/D'}</p>
+            <p><strong>Cilindrada:</strong> ${cilindrada}</p>
+            <p><strong>Precio:</strong> ${precio}</p>
+            <div class="action-buttons">
+                <button class="like-btn" data-moto-id="${moto.moto_id}">
+                    <i class="fas fa-heart"></i> Me gusta
+                    <span class="like-count">${moto.likes || 0}</span>
+                </button>
+                <button class="ideal-btn" data-moto-id="${moto.moto_id}">
+                    <i class="fas fa-star"></i> Mi moto ideal
+                </button>
             </div>
-            <button class="favorita-btn" data-modelo="${moto.modelo}" data-id="${moto.moto_id || ''}">
-                <i class="fas fa-star"></i> Marcar como Favorita
-            </button>
         `;
         
         // Añadir la tarjeta al contenedor
         gridContainer.appendChild(motoCard);
+        
+        // Animar entrada con un pequeño retraso incremental para efecto visual
+        setTimeout(() => {
+            motoCard.style.opacity = "1";
+            motoCard.style.transform = "translateY(0)";
+        }, index * 100);
     });
-      // Configurar eventos para los botones de favoritos
-    const botones = document.querySelectorAll(".favorita-btn");
-    botones.forEach(boton => {
-        boton.addEventListener("click", () => {
-            // Remover selección previa
-            botones.forEach(b => b.classList.remove("seleccionada"));
+    
+    // Configurar listener para botones de like
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const motoId = this.getAttribute('data-moto-id');
+            const likeCountElement = this.querySelector('.like-count');
             
-            // Marcar actual
-            boton.classList.add("seleccionada");
-            
-            const modelo = boton.dataset.modelo;
-            const motoId = boton.dataset.id;
-            console.log(`Moto favorita seleccionada: ${modelo} (ID: ${motoId})`);
-            
-            // Recopilar razones de la moto seleccionada
-            const moto = window.motosRecomendadas.find(m => m.modelo === modelo);
-            const reasons = moto ? moto.razones : [];
-            
-            // Enviar al servidor
-            fetch('/guardar_moto_ideal', {
+            // Hacer la petición AJAX para dar like
+            fetch('/like_moto', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
-                body: new URLSearchParams({
-                    'moto_id': motoId,
-                    'reasons': JSON.stringify(reasons)
-                })
+                body: JSON.stringify({ moto_id: motoId }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    alert('¡Moto guardada como tu moto ideal!');
+                    // Actualizar el contador de likes
+                    likeCountElement.textContent = data.likes;
+                    
+                    // Añadir clase para indicar que el usuario ha dado like
+                    this.classList.add('liked');
+                    
+                    // Mostrar mensaje de éxito
+                    showNotification('¡Like registrado!', 'success');
                 } else {
-                    alert('Error al guardar: ' + (data.error || 'Ocurrió un problema desconocido'));
+                    showNotification(data.message || 'No se pudo registrar el like', 'error');
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Error al comunicarse con el servidor');
+                console.error('Error al dar like:', error);
+                showNotification('Error al procesar la petición', 'error');
             });
+        });
+    });
+    
+    // Configurar listener para botones de moto ideal
+    document.querySelectorAll('.ideal-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const motoId = this.getAttribute('data-moto-id');
+            
+            // Hacer la petición AJAX para marcar como moto ideal
+            fetch('/set_ideal_moto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ moto_id: motoId }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Mostrar mensaje de éxito
+                    showNotification('¡Moto ideal guardada! Redirigiendo...', 'success');
+                    
+                    // Redireccionar a la página de moto ideal después de un breve retardo
+                    setTimeout(() => {
+                        window.location.href = '/moto_ideal';
+                    }, 1500);
+                } else {
+                    showNotification(data.message || 'No se pudo guardar tu moto ideal', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error al guardar moto ideal:', error);
+                showNotification('Error al procesar la petición', 'error');
+            });
+        });
+    });
+    
+    // Función para mostrar notificaciones
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Mostrar la notificación
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Ocultar y eliminar la notificación después de un tiempo
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+    
+    // Añadir un botón para volver arriba
+    const backToTopBtn = document.createElement('button');
+    backToTopBtn.className = 'back-to-top-btn';
+    backToTopBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    document.body.appendChild(backToTopBtn);
+    
+    // Mostrar/ocultar botón según el scroll
+    window.addEventListener('scroll', () => {
+        if (window.pageYOffset > 300) {
+            backToTopBtn.classList.add('show');
+        } else {
+            backToTopBtn.classList.remove('show');
+        }
+    });
+    
+    // Acción del botón para volver arriba
+    backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
         });
     });
 });

@@ -289,6 +289,8 @@ function setupBubblesSelector(type, container) {
     canvasElement = document.createElement('canvas');
     canvasElement.id = `canvas-${type}`;
     canvasElement.className = 'bubbles-canvas';
+    canvasElement.style.width = '100%';
+    canvasElement.style.height = '100%';
     container.appendChild(canvasElement);
   }
   
@@ -332,13 +334,25 @@ function setupBubblesSelector(type, container) {
   }
   
   try {
+    // Configurar dimensiones consistentes para ambos canvas
+    const containerWidth = container.clientWidth || 300;
+    const containerHeight = container.clientHeight || 400;
+    canvasElement.width = containerWidth;
+    canvasElement.height = containerHeight;
+    
     const bubbles = new window.MagneticBubbles(canvasElement, {
       items: options,
       selectionMode: 'multiple',
-      canvasBackground: 'rgba(26, 26, 26, 0.1)',
-      width: container.clientWidth,
-      height: container.clientHeight
+      canvasBackground: 'rgba(0, 0, 0, 0.8)',
+      bubbleBaseColor: '#f97316',
+      bubbleSelectedColor: '#ea580c',
+      textColor: '#ffffff',
+      width: containerWidth,
+      height: containerHeight
     });
+    
+    // Guardar referencia global para facilitar el acceso
+    window[`${type}Bubbles`] = bubbles;
     
     // Evento de cambio de selección
     canvasElement.addEventListener('selection-changed', (e) => {
@@ -368,11 +382,116 @@ function setupBubblesSelector(type, container) {
   }
 }
 
+/**
+ * Verifica periódicamente el estado de los canvas y los restaura si es necesario
+ */
+function iniciarVerificacionPeriodica() {
+    // Verificar cada 3 segundos 
+    const intervaloVerificacion = setInterval(function() {
+        const preguntaActiva = document.querySelector('.pregunta-container.active');
+        if (!preguntaActiva) return;
+        
+        // Determinar qué tipo de canvas verificar según la pregunta activa
+        let canvasId = null;
+        if (preguntaActiva.id === 'pregunta-1') {
+            canvasId = 'estilos-canvas';
+        } else if (preguntaActiva.id === 'pregunta-2') {
+            canvasId = 'marcas-canvas';
+        }
+        
+        if (canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            // Verificar si el canvas tiene contenido visible
+            const esVacio = canvas.innerHTML.trim() === '';
+            const esInvisible = canvas.offsetHeight < 50 || canvas.offsetWidth < 50;
+            
+            if (esVacio || esInvisible) {
+                console.warn(`Canvas ${canvasId} detectado vacío o invisible. Intentando restaurar...`);
+                if (canvasId === 'estilos-canvas') {
+                    inicializarSoloEstilos();
+                } else if (canvasId === 'marcas-canvas') {
+                    inicializarSoloMarcas();
+                }
+            }
+        }
+    }, 3000);
+    
+    // Almacenar el ID del intervalo para poder detenerlo cuando sea necesario
+    window.verificacionCanvasInterval = intervaloVerificacion;
+}
+
+// Iniciar la verificación después de cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(iniciarVerificacionPeriodica, 2000);
+});
+
+// Asegurar que se verifica el estado al cambiar de pestaña
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function() {
+        // Dar tiempo para que se complete la transición
+        setTimeout(function() {
+            console.log("Verificando estado de canvas después de cambio de pestaña");
+            const preguntaActiva = document.querySelector('.pregunta-container.active');
+            if (preguntaActiva && preguntaActiva.id === 'pregunta-1') {
+                verificarEstadoCanvas('estilos-canvas');
+            } else if (preguntaActiva && preguntaActiva.id === 'pregunta-2') {
+                verificarEstadoCanvas('marcas-canvas');
+            }
+        }, 500);
+    });
+});
+
+function verificarEstadoCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    const container = canvas.parentElement;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    
+    // Si el contenedor es muy pequeño o invisible
+    if (containerRect.width < 100 || containerRect.height < 100) {
+        console.warn(`Contenedor de ${canvasId} demasiado pequeño, forzando redimensión`);
+        
+        // Forzar tamaño mínimo al contenedor
+        container.style.minWidth = '300px';
+        container.style.minHeight = '300px';
+        
+        // Reinicializar el canvas
+        if (canvasId === 'estilos-canvas') {
+            inicializarSoloEstilos();
+        } else if (canvasId === 'marcas-canvas') {
+            inicializarSoloMarcas();
+        }
+    }
+}
+
 // Navegación a la etapa anterior
 function navigateToPreviousStage() {
   console.log("Navegando a la etapa anterior");
   
   if (testState.currentStageIndex > 0) {
+    // Guardar el estado de la etapa actual antes de cambiar
+    const currentStage = testState.stageContainers[testState.currentStageIndex];
+    const currentType = currentStage.getAttribute('data-type');
+    const currentKey = currentStage.getAttribute('data-key');
+    
+    // Guardar datos específicos de burbujas si es necesario
+    if (currentType === 'bubbles' && (currentKey === 'estilos' || currentKey === 'marcas')) {
+      // Guardar explícitamente el estado del canvas actual
+      const bubbleInstance = window[`${currentKey}Bubbles`];
+      if (bubbleInstance && typeof bubbleInstance.getSelections === 'function') {
+        window.respuestas = window.respuestas || {};
+        window.respuestas[currentKey] = bubbleInstance.getSelections();
+        
+        window.testResults = window.testResults || {};
+        window.testResults[currentKey] = window.respuestas[currentKey];
+      }
+    }
+    
     // Ocultar etapa actual
     testState.stageContainers[testState.currentStageIndex].classList.remove('active');
     testState.stageContainers[testState.currentStageIndex].style.display = 'none';
@@ -381,6 +500,24 @@ function navigateToPreviousStage() {
     testState.currentStageIndex--;
     testState.stageContainers[testState.currentStageIndex].classList.add('active');
     testState.stageContainers[testState.currentStageIndex].style.display = 'block';
+    
+    // Verificar si la nueva etapa activa necesita reinicialización
+    const newStage = testState.stageContainers[testState.currentStageIndex];
+    const newType = newStage.getAttribute('data-type');
+    const newKey = newStage.getAttribute('data-key');
+    
+    if (newType === 'bubbles') {
+      console.log(`Navegado a etapa de burbujas ${newKey}, verificando canvas...`);
+      
+      // Llamar a funciones de recuperación para garantizar que el canvas sea funcional
+      setTimeout(function() {
+        if (typeof window.verificarYRestaurarCanvas === 'function') {
+          window.verificarYRestaurarCanvas('prev-navigation');
+        } else if (typeof window.recuperarTest === 'function') {
+          window.recuperarTest();
+        }
+      }, 100);
+    }
     
     // Actualizar botón "Anterior" 
     document.getElementById('prev-btn').disabled = (testState.currentStageIndex === 0);
@@ -403,6 +540,19 @@ function navigateToNextStage() {
   const currentStage = testState.stageContainers[testState.currentStageIndex];
   const stageType = currentStage.getAttribute('data-type');
   const stageKey = currentStage.getAttribute('data-key');
+  
+  // Guardar datos específicos de burbujas si es necesario
+  if (stageType === 'bubbles' && (stageKey === 'estilos' || stageKey === 'marcas')) {
+    // Guardar explícitamente el estado del canvas actual
+    const bubbleInstance = window[`${stageKey}Bubbles`];
+    if (bubbleInstance && typeof bubbleInstance.getSelections === 'function') {
+      window.respuestas = window.respuestas || {};
+      window.respuestas[stageKey] = bubbleInstance.getSelections();
+      
+      window.testResults = window.testResults || {};
+      window.testResults[stageKey] = window.respuestas[stageKey];
+    }
+  }
   
   // Validación específica por tipo
   if (stageType === 'select') {
@@ -448,6 +598,24 @@ function navigateToNextStage() {
     testState.currentStageIndex = nextIndex;
     testState.stageContainers[testState.currentStageIndex].classList.add('active');
     testState.stageContainers[testState.currentStageIndex].style.display = 'block';
+    
+    // Verificar si la nueva etapa activa necesita reinicialización
+    const newStage = testState.stageContainers[testState.currentStageIndex];
+    const newType = newStage.getAttribute('data-type');
+    const newKey = newStage.getAttribute('data-key');
+    
+    if (newType === 'bubbles') {
+      console.log(`Navegado a etapa de burbujas ${newKey}, verificando canvas...`);
+      
+      // Llamar a funciones de recuperación para garantizar que el canvas sea funcional
+      setTimeout(function() {
+        if (typeof window.verificarYRestaurarCanvas === 'function') {
+          window.verificarYRestaurarCanvas('next-navigation');
+        } else if (typeof window.recuperarTest === 'function') {
+          window.recuperarTest();
+        }
+      }, 100);
+    }
     
     // Habilitar botón "Anterior"
     document.getElementById('prev-btn').disabled = false;

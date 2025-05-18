@@ -20,206 +20,193 @@ document.addEventListener("DOMContentLoaded", () => {
         const jsonElement = document.getElementById('recommendations-data');
         if (jsonElement) {
             try {
-                const jsonData = JSON.parse(jsonElement.textContent);
-                if (Array.isArray(jsonData) && jsonData.length > 0) {
-                    motosRecomendadas = jsonData;
-                    console.log("Recomendaciones cargadas desde elemento JSON:", motosRecomendadas.length);
+                const data = JSON.parse(jsonElement.textContent);
+                if (Array.isArray(data) && data.length > 0) {
+                    console.log("Recomendaciones encontradas en elemento HTML:", data.length);
+                    motosRecomendadas = data;
                 }
-            } catch (error) {
-                console.error("Error al parsear datos JSON de recomendaciones:", error);
-            }
-        }
-        
-        // Fuente 3: Buscar en otro elemento de datos
-        if (motosRecomendadas.length === 0) {
-            const altJsonElement = document.querySelector('[data-recommendations]');
-            if (altJsonElement) {
-                try {
-                    const jsonData = JSON.parse(altJsonElement.getAttribute('data-recommendations'));
-                    if (Array.isArray(jsonData) && jsonData.length > 0) {
-                        motosRecomendadas = jsonData;
-                        console.log("Recomendaciones cargadas desde atributo data:", motosRecomendadas.length);
-                    }
-                } catch (error) {
-                    console.error("Error al parsear datos de atributo:", error);
-                }
+            } catch (e) {
+                console.error("Error al analizar datos JSON:", e);
             }
         }
     }
     
-    // Limitar a máximo 4 motos recomendadas
-    motosRecomendadas = motosRecomendadas.slice(0, 4);
-    
-    console.log(`Mostrando ${motosRecomendadas.length} recomendaciones de motos`);
-    
-    // Buscar el contenedor - intentando diferentes IDs por compatibilidad
-    let recomendacionesContainer = document.getElementById('recomendaciones-container');
-    
-    if (!recomendacionesContainer) {
-        // Intentar con IDs alternativos que podrían existir
-        const alternativeIds = ['motos-recomendadas', 'recommendations-container', 'resultados-container'];
-        for (const id of alternativeIds) {
-            const container = document.getElementById(id);
-            if (container) {
-                recomendacionesContainer = container;
-                console.log(`Contenedor encontrado con ID alternativo: ${id}`);
-                break;
-            }
-        }
-        
-        // Si aún no se encuentra, buscar por clase
-        if (!recomendacionesContainer) {
-            const containerByClass = document.querySelector('.recomendaciones-grid, .recommendations-container');
-            if (containerByClass) {
-                recomendacionesContainer = containerByClass;
-                console.log('Contenedor encontrado por clase');
-            }
-        }
-    }
-      // Si todavía no tenemos contenedor, crear uno
-    if (!recomendacionesContainer) {
-        console.warn("No se encontró contenedor de recomendaciones, creando uno nuevo");
-        recomendacionesContainer = document.createElement('div');
-        recomendacionesContainer.id = 'recomendaciones-container';
-        recomendacionesContainer.className = 'recomendaciones-grid';
-        
-        // Buscar un lugar adecuado para insertarlo
-        const mainContainer = document.querySelector('.main-container, main, .content-section');
-        if (mainContainer) {
-            // Si hay un título h1 o h2, insertar después de él
-            const header = mainContainer.querySelector('h1, h2');
-            if (header) {
-                header.parentNode.insertBefore(recomendacionesContainer, header.nextSibling);
-            } else {
-                // De lo contrario, añadir al principio del contenedor principal
-                mainContainer.prepend(recomendacionesContainer);
-            }
-        } else {
-            // Si no hay contenedor principal, añadir al body
-            document.body.appendChild(recomendacionesContainer);
-        }
+    // Referencia al contenedor principal
+    const gridContainer = document.querySelector('.grid-container');
+    if (!gridContainer) {
+        console.error("Contenedor de cuadrícula no encontrado");
+        return;
     }
     
-    // Limpiar contenedor
-    recomendacionesContainer.innerHTML = '';
+    // Limpiamos cualquier contenido previo
+    gridContainer.innerHTML = '';
     
     // Si no hay recomendaciones, mostrar mensaje
     if (motosRecomendadas.length === 0) {
-        recomendacionesContainer.innerHTML = `
-            <div class="no-recomendaciones">
+        gridContainer.innerHTML = `
+            <div class="no-recommendations">
                 <i class="fas fa-exclamation-circle"></i>
-                <h3>No se encontraron recomendaciones</h3>
-                <p>Por favor, completa el test de preferencias para recibir recomendaciones personalizadas.</p>
-                <a href="/test" class="btn btn-primary">Hacer test</a>
+                <h3>No hay recomendaciones disponibles</h3>
+                <p>Por favor completa el test de preferencias para obtener recomendaciones personalizadas.</p>
+                <a href="/test" class="nav-button">Hacer el test</a>
             </div>
         `;
         return;
     }
     
-    // Generar HTML para cada moto recomendada
+    // Renderizar directamente las recomendaciones en el formato de cuadrícula
     motosRecomendadas.forEach((moto, index) => {
-        // Manejar datos nulos o indefinidos
-        const segurosEstandarizar = (obj, prop, defaultValue) => {
-            if (!obj || obj[prop] === undefined || obj[prop] === null) {
-                return defaultValue;
-            }
-            return obj[prop];
-        };
+        const motoCard = document.createElement('div');
+        motoCard.className = 'moto-card';
         
-        // Calcular porcentaje de coincidencia (si no existe, usar un valor predeterminado basado en la posición)
-        const matchPercent = segurosEstandarizar(moto, 'match_percent', Math.max(95 - (index * 5), 75));
+        // Usar opacity 0 inicialmente para animar entrada
+        motoCard.style.opacity = "0";
+        motoCard.style.transform = "translateY(20px)";
         
-        // Crear elemento para la moto
-        const motoElement = document.createElement('div');
-        motoElement.className = 'recomendacion-card';
-        motoElement.innerHTML = `
-            <div class="recomendacion-header">
-                <span class="match-percent">${matchPercent}% coincidencia</span>
-                <h3>${segurosEstandarizar(moto, 'marca', 'Marca')} ${segurosEstandarizar(moto, 'modelo', 'Modelo')}</h3>
+        // Formatear valores correctamente
+        const precio = moto.precio ? `€${moto.precio.toLocaleString()}` : 'N/D';
+        const año = moto.año || 'N/D';
+        const cilindrada = moto.cilindrada ? `${moto.cilindrada} cc` : 'N/D';
+        
+        // Añadir el score de la recomendación (porcentaje de coincidencia)
+        const score = moto.score ? `${Math.round(moto.score * 100)}%` : 'N/D';
+        
+        motoCard.innerHTML = `
+            <img src="${moto.imagen}" alt="${moto.marca} ${moto.modelo}" class="moto-img">
+            <h3>${moto.marca} ${moto.modelo}</h3>
+            <div class="moto-score">
+                <span class="score-label">Coincidencia:</span>
+                <span class="score-value">${score}</span>
+                <div class="score-bar" style="width: ${moto.score ? moto.score * 100 : 0}%;"></div>
             </div>
-            <div class="recomendacion-image">
-                <img src="${segurosEstandarizar(moto, 'imagen', '/static/img/moto-placeholder.jpg')}" 
-                     alt="${segurosEstandarizar(moto, 'marca', 'Moto')} ${segurosEstandarizar(moto, 'modelo', 'recomendada')}">
-            </div>
-            <div class="recomendacion-details">
-                <div class="detail-row">
-                    <span class="detail-label">Cilindrada:</span>
-                    <span class="detail-value">${segurosEstandarizar(moto, 'cilindrada', 'N/A')} cc</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Potencia:</span>
-                    <span class="detail-value">${segurosEstandarizar(moto, 'potencia', 'N/A')} HP</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Estilo:</span>
-                    <span class="detail-value">${segurosEstandarizar(moto, 'estilo', 'N/A')}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Precio:</span>
-                    <span class="detail-value">Q${
-                        typeof moto.precio === 'number' ? 
-                        moto.precio.toLocaleString() : 
-                        segurosEstandarizar(moto, 'precio', 'N/A')
-                    }</span>
-                </div>
-            </div>
-            <div class="recomendacion-footer">
-                <a href="/motos/${segurosEstandarizar(moto, 'id', '')}" class="btn-ver-mas">Ver detalles</a>
-                <a href="/concesionarios?moto=${segurosEstandarizar(moto, 'id', '')}" class="btn-concesionarios">Concesionarios</a>
+            <p><strong>Año:</strong> ${año}</p>
+            <p><strong>Tipo:</strong> ${moto.tipo || 'N/D'}</p>
+            <p><strong>Cilindrada:</strong> ${cilindrada}</p>
+            <p><strong>Precio:</strong> ${precio}</p>
+            <div class="action-buttons">
+                <button class="like-btn" data-moto-id="${moto.moto_id}">
+                    <i class="fas fa-heart"></i> Me gusta
+                    <span class="like-count">${moto.likes || 0}</span>
+                </button>
+                <button class="ideal-btn" data-moto-id="${moto.moto_id}">
+                    <i class="fas fa-star"></i> Mi moto ideal
+                </button>
             </div>
         `;
         
-        // Añadir al contenedor
-        recomendacionesContainer.appendChild(motoElement);
-    });
-      // Comprobar si tenemos la cantidad esperada de recomendaciones
-    if (motosRecomendadas.length < 4) {
-        console.warn(`Solo se encontraron ${motosRecomendadas.length} recomendaciones, se esperaban 4`);
+        gridContainer.appendChild(motoCard);
         
-        // Añadir una nota informativa si hay menos de 3 recomendaciones
-        if (motosRecomendadas.length < 3) {
-            const infoNote = document.createElement('div');
-            infoNote.className = 'info-note';
-            infoNote.innerHTML = `
-                <p>Basado en tus preferencias, te mostramos ${motosRecomendadas.length} recomendación(es). 
-                   Puedes <a href="/test">ajustar tus preferencias</a> para obtener más opciones.</p>
-            `;
+        // Animar entrada con retardo
+        setTimeout(() => {
+            motoCard.style.opacity = "1";
+            motoCard.style.transform = "translateY(0)";
+        }, index * 100);
+    });
+    
+    // Configurar listener para botones de like
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const motoId = this.getAttribute('data-moto-id');
+            const likeCountElement = this.querySelector('.like-count');
             
-            // Añadir antes del primer elemento hijo o al principio si no tiene hijos
-            if (recomendacionesContainer.firstChild) {
-                recomendacionesContainer.insertBefore(infoNote, recomendacionesContainer.firstChild);
-            } else {
-                recomendacionesContainer.appendChild(infoNote);
-            }
-        }
-    }
-    
-    console.log(`Se han mostrado ${motosRecomendadas.length} recomendaciones`);
-    
-    // Añadir evento para cargar más recomendaciones si es necesario
-    if (motosRecomendadas.length > 0) {
-        // Si existe un botón para cargar más, configurarlo
-        const loadMoreBtn = document.getElementById('load-more-btn');
-        if (loadMoreBtn) {
-            loadMoreBtn.addEventListener('click', function() {
-                // Solicitar más recomendaciones vía AJAX (si tienes una API para esto)
-                fetch('/api/recommendations/more')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data && data.length > 0) {
-                            // Renderizar las nuevas recomendaciones
-                            data.forEach(moto => {
-                                // Reutilizar el código de renderizado...
-                            });
-                        } else {
-                            alert('No hay más recomendaciones disponibles');
-                            this.style.display = 'none'; // Ocultar botón
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error al cargar más recomendaciones:', error);
-                    });
+            // Hacer la petición AJAX para dar like
+            fetch('/like_moto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ moto_id: motoId });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Actualizar el contador de likes
+                    likeCountElement.textContent = data.likes;
+                    
+                    // Añadir clase para indicar que el usuario ha dado like
+                    this.classList.add('liked');
+                    
+                    // Mostrar mensaje de éxito
+                    showNotification('¡Like registrado!', 'success');
+                } else {
+                    showNotification(data.message || 'No se pudo registrar el like', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error al dar like:', error);
+                showNotification('Error al procesar la petición', 'error');
             });
-        }
+        });
+    });
+    
+    // Configurar listener para botones de moto ideal
+    document.querySelectorAll('.ideal-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const motoId = this.getAttribute('data-moto-id');
+            
+            // Hacer la petición AJAX para marcar como moto ideal
+            fetch('/set_ideal_moto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ moto_id: motoId });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Mostrar mensaje de éxito
+                    showNotification('¡Moto ideal guardada! Redirigiendo...', 'success');
+                    
+                    // Redireccionar a la página de moto ideal después de un breve retardo
+                    setTimeout(() => {
+                        window.location.href = '/moto_ideal';
+                    }, 1500);
+                } else {
+                    showNotification(data.message || 'No se pudo guardar tu moto ideal', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error al guardar moto ideal:', error);
+                showNotification('Error al procesar la petición', 'error');
+            });
+        });
+    });
+    
+    // Función para mostrar notificaciones
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Mostrar la notificación
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Ocultar y eliminar la notificación después de un tiempo
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
     }
 });

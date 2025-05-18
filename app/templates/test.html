@@ -90,8 +90,73 @@
     document.addEventListener('DOMContentLoaded', function() {
       mostrarBotonReintentar();
     });
+    
+    // Función de verificación durante navegación
+    function verificarIntegridadCanvas() {
+      // Después de la navegación, verificar que los canvas estén intactos
+      setTimeout(function() {
+        const preguntaActiva = document.querySelector('.pregunta.active');
+        if (preguntaActiva) {
+          const id = preguntaActiva.id;
+          console.log("Verificando integridad del canvas en: " + id);
+          
+          if (id === 'pregunta-1') {
+            const estilosCanvas = document.getElementById('estilos-canvas');
+            const hayCanvas = estilosCanvas && estilosCanvas.querySelector('canvas');
+            if (!hayCanvas) {
+              console.error("Canvas de estilos perdido después de navegación");
+              if (typeof window.recuperarTest === 'function') {
+                window.recuperarTest();
+              }
+            }
+          } else if (id === 'pregunta-2') {
+            const marcasCanvas = document.getElementById('marcas-canvas');
+            const hayCanvas = marcasCanvas && marcasCanvas.querySelector('canvas');
+            if (!hayCanvas) {
+              console.error("Canvas de marcas perdido después de navegación");
+              if (typeof window.recuperarTest === 'function') {
+                window.recuperarTest();
+              }
+            }
+          }
+        }
+      }, 200);
+    }
+    
+    // Observar cambios de pregunta activa
+    document.addEventListener('DOMContentLoaded', function() {
+      // Configurar observer para detectar cambios en clases
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'attributes' && 
+              mutation.attributeName === 'class' &&
+              mutation.target.classList.contains('active')) {
+            verificarIntegridadCanvas();
+          }
+        });
+      });
+      
+      // Observar todas las preguntas para detectar cuando se activan
+      const preguntas = document.querySelectorAll('.pregunta');
+      preguntas.forEach(function(pregunta) {
+        observer.observe(pregunta, { attributes: true });
+      });
+      
+      // Configurar listeners para botones de navegación
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      
+      if (prevBtn) {
+        prevBtn.addEventListener('click', verificarIntegridadCanvas);
+      }
+      
+      if (nextBtn) {
+        nextBtn.addEventListener('click', verificarIntegridadCanvas);
+      }
+    });
   </script>
   <style>
+    /* Ajustes específicos para canvas de burbujas */
     .circle-canvas {
       min-height: 400px;
       height: 50vh;
@@ -103,6 +168,18 @@
       width: 100%;
       background-color: rgba(0, 0, 0, 0.8);
       box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+      box-sizing: border-box; /* Asegura que el padding no afecte al tamaño */
+    }
+    
+    /* Asegurar que los canvas se rendericen correctamente */
+    #estilos-canvas canvas, #marcas-canvas canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none;
     }
     
     /* Estilos para el botón de reintentar */
@@ -351,7 +428,10 @@
         <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 4 clics: me encanta)</p>
         <p class="interaction-help">Puedes hacer clic en cualquier parte para que las burbujas se muevan</p>
         <div class="options-wrapper">
-          <div class="circle-canvas" id="marcas-canvas"></div>
+          <div class="circle-canvas" id="marcas-canvas">
+            <!-- Botón de reintentar en caso de error -->
+            <button id="retry-button-marcas" class="retry-button" onclick="window.recuperarTest()">Error al cargar. Reintentar</button>
+          </div>
         </div>
       </section>
       
