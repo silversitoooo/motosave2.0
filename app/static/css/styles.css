@@ -807,26 +807,22 @@ a[href="/dashboard"], a[href="/dashboard"] button {
   position: relative !important;
 }
 
-/* Mejoras para los contenedores de canvas */
+/* Mejoras para los contenedores de canvas - versión elegante y moderna */
 .circle-canvas {
   min-height: 400px !important;
   height: 50vh !important;
   width: 100% !important;
-  border: 2px solid rgba(249, 115, 22, 0.5);
-  border-radius: 10px;
+  border-radius: 12px;
   margin-bottom: 15px;
   position: relative !important;
   overflow: hidden;
-  background-color: rgba(0, 0, 0, 0.8);
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+  /* Fondo más limpio y elegante */
+  background: linear-gradient(to bottom, rgba(30, 30, 32, 0.95), rgba(24, 24, 26, 0.95));
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   box-sizing: border-box;
-  /* Garantizar que los eventos lleguen al canvas */
-  pointer-events: auto !important;
-}
-
-/* Ajustes específicos para el canvas de marcas */
-#marcas-canvas {
-  min-height: 400px !important; 
+  pointer-events: auto !important; /* CRUCIAL: Permitir eventos */
+  touch-action: none; /* CRUCIAL: Para eventos táctiles */
 }
 
 /* IMPORTANTE: Asegurar que el canvas reciba eventos de clic */
@@ -839,10 +835,11 @@ a[href="/dashboard"], a[href="/dashboard"] button {
   display: block !important;
   pointer-events: auto !important; /* CRUCIAL: Permite interacción */
   touch-action: none !important;
-  z-index: 10 !important; /* Asegurar que esté por encima de otros elementos */
+  z-index: 10 !important;
+  transition: opacity 0.3s ease;
 }
 
-/* Eliminar cualquier elemento que pudiera estar capturando los clics */
+/* Asegurar que cualquier elemento dentro del canvas no bloquee eventos */
 .circle-canvas * {
   pointer-events: auto !important;
 }
@@ -1088,21 +1085,17 @@ a[href="/dashboard"], a[href="/dashboard"] button {
   min-height: 400px !important;
   height: 50vh !important;
   width: 100% !important;
-  border: 2px solid rgba(249, 115, 22, 0.5);
-  border-radius: 10px;
+  border-radius: 12px;
   margin-bottom: 15px;
   position: relative !important;
   overflow: hidden;
-  background-color: rgba(0, 0, 0, 0.8);
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+  /* Fondo más limpio y elegante */
+  background: linear-gradient(to bottom, rgba(30, 30, 32, 0.95), rgba(24, 24, 26, 0.95));
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   box-sizing: border-box;
-  /* Garantizar que los eventos lleguen al canvas */
-  pointer-events: auto !important;
-}
-
-/* Ajustes específicos para el canvas de marcas */
-#marcas-canvas {
-  min-height: 400px !important; 
+  pointer-events: auto !important; /* CRUCIAL: Permitir eventos */
+  touch-action: none; /* CRUCIAL: Para eventos táctiles */
 }
 
 /* IMPORTANTE: Asegurar que el canvas reciba eventos de clic */
@@ -1115,10 +1108,11 @@ a[href="/dashboard"], a[href="/dashboard"] button {
   display: block !important;
   pointer-events: auto !important; /* CRUCIAL: Permite interacción */
   touch-action: none !important;
-  z-index: 10 !important; /* Asegurar que esté por encima de otros elementos */
+  z-index: 10 !important;
+  transition: opacity 0.3s ease;
 }
 
-/* Eliminar cualquier elemento que pudiera estar capturando los clics */
+/* Asegurar que cualquier elemento dentro del canvas no bloquee eventos */
 .circle-canvas * {
   pointer-events: auto !important;
 }

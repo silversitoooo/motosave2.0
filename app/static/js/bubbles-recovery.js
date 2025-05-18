@@ -322,24 +322,29 @@ function inicializarBurbuja(tipo, contenedor, opciones) {
       let bubbleConfig = {
         items: opciones,
         selectionMode: 'multiple',
-        canvasBackground: 'rgba(0, 0, 0, 0.8)', // Fondo oscuro consistente
+        // Configuración elegante y moderna
+        canvasBackground: 'rgba(24, 24, 26, 0.2)', // Fondo más transparente y elegante
         bubbleBaseColor: '#f97316',
-        bubbleSelectedColor: '#ea580c',
+        bubbleSelectedColor: '#fb923c',
         textColor: '#ffffff',
         width: containerWidth,
         height: containerHeight,
-        pixelRatio: pixelRatio
+        pixelRatio: pixelRatio,
+        // Parámetros más elegantes
+        friction: 0.025, // Fricción para movimiento fluido
+        attraction: 0.015, // Atracción sutil
+        bubbleSizeFactor: tipo === 'marcas' ? 0.085 : 0.12, // Tamaño ajustado
+        textScaleFactor: 1.0, // Texto proporcional
+        // Reducción de efectos visuales para un diseño más limpio
+        maxInitialVelocity: 1.2 // Velocidad inicial reducida para movimiento elegante
       };
       
       // Ajustes específicos para las marcas (más burbujas, tamaño menor)
       if (tipo === 'marcas') {
-        // Reducir tamaño de las burbujas para marcas (son más elementos)
-        bubbleConfig.bubbleSizeFactor = 0.08; // Factor de tamaño más pequeño para marcas
+        bubbleConfig.bubbleSizeFactor = 0.085; // Factor de tamaño más pequeño para marcas
         bubbleConfig.minDistance = 10; // Distancia mínima entre burbujas
-        bubbleConfig.maxInitialVelocity = 2; // Velocidad inicial más baja para mejor control
-        bubbleConfig.textScaleFactor = 0.8; // Texto ligeramente más pequeño
+        bubbleConfig.textScaleFactor = 0.9; // Texto ligeramente más pequeño
       } else {
-        // Configuración para estilos (menos elementos, pueden ser más grandes)
         bubbleConfig.bubbleSizeFactor = 0.12; // Factor de tamaño normal para estilos
         bubbleConfig.textScaleFactor = 1.0; // Texto normal
       }

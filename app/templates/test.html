@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Modificar el orden de carga de scripts -->
   <script>
-    // Función para cargar scripts secuencialmente
-    function loadScriptsSequentially(scripts, callback) {
+    // Función para cargar scripts secuencialmente con reintento
+    function loadScriptsSequentially(scripts, callback, attempt = 1) {
       if (scripts.length === 0) {
         if (callback) callback();
         return;
@@ -16,24 +16,34 @@
       
       var script = document.createElement('script');
       script.src = scripts[0] + "?v=" + Date.now(); // Evitar caché
+      
       script.onload = function() {
         console.log('Script cargado exitosamente: ' + scripts[0]);
         // Cargar el siguiente script
         loadScriptsSequentially(scripts.slice(1), callback);
       };
+      
       script.onerror = function() {
-        console.error('Error al cargar: ' + scripts[0]);
-        // Intentar cargar el siguiente script
-        loadScriptsSequentially(scripts.slice(1), callback);
+        console.error('Error al cargar: ' + scripts[0] + ', intento: ' + attempt);
+        if (attempt < 3) {
+          // Reintentar hasta 3 veces con delay incremental
+          setTimeout(() => {
+            loadScriptsSequentially(scripts, callback, attempt + 1);
+          }, attempt * 1000);
+        } else {
+          // Después de 3 intentos fallidos, continuar con el siguiente script
+          console.error('Error fatal al cargar ' + scripts[0] + ' después de 3 intentos');
+          loadScriptsSequentially(scripts.slice(1), callback);
+        }
       };
+      
       document.head.appendChild(script);
     }
     
     // Al cargar el documento, cargamos todos los scripts en orden
     document.addEventListener('DOMContentLoaded', function() {
       console.log('DOM cargado, cargando scripts...');
-        // IMPORTANTE: Asegurarse de que magnetic-bubbles.js se cargue PRIMERO
-      // Añadimos el debug-panel.js para diagnóstico
+      // IMPORTANTE: Asegurarse de que magnetic-bubbles.js se cargue PRIMERO
       var scripts = [
         "{{ url_for('static', filename='js/magnetic-bubbles.js') }}",
         "{{ url_for('static', filename='js/debug-panel.js') }}",
@@ -42,26 +52,42 @@
         "{{ url_for('static', filename='js/test_finalizacion.js') }}"
       ];
       
-      // Cargar scripts en orden y luego inicializar
+      // Cargar scripts en orden y luego inicializar con verificaciones adicionales
       loadScriptsSequentially(scripts, function() {
         console.log('Todos los scripts cargados, verificando MagneticBubbles...');
         
         // Verificar que MagneticBubbles está disponible
         if (typeof window.MagneticBubbles !== 'function') {
-          console.error('MagneticBubbles no está disponible como función después de cargar scripts');
-          alert('Error al cargar componentes necesarios. Por favor, recarga la página.');
+          console.error('MagneticBubbles no está disponible después de cargar scripts. Intentando recuperar...');
+          // Cargar magnetic-bubbles.js directamente
+          var scriptEmergencia = document.createElement('script');
+          scriptEmergencia.src = "{{ url_for('static', filename='js/magnetic-bubbles.js') }}?emergency=" + Date.now();
+          scriptEmergencia.onload = function() {
+            console.log('Script de emergencia MagneticBubbles cargado. Reintentando inicialización...');
+            if (typeof window.initializeTest === 'function') {
+              setTimeout(window.initializeTest, 100);
+            } else if (typeof window.recuperarTest === 'function') {
+              setTimeout(window.recuperarTest, 100);
+            }
+          };
+          document.head.appendChild(scriptEmergencia);
           return;
         }
         
         // Inicializar test si la función está disponible
         if (typeof window.initializeTest === 'function') {
           console.log('Función initializeTest encontrada, inicializando...');
-          setTimeout(function() {
-            window.initializeTest();
-          }, 100);
+          setTimeout(window.initializeTest, 100);
         } else {
           console.error('Error: La función initializeTest no está disponible');
-          alert('Error al inicializar el test. Por favor, recarga la página.');
+          // Intentar método de recuperación
+          if (typeof window.recuperarTest === 'function') {
+            console.log('Intentando recuperación de test...');
+            setTimeout(window.recuperarTest, 100);
+          } else {
+            console.error('No hay método de recuperación disponible');
+            alert('Error al inicializar el test. Por favor, recarga la página.');
+          }
         }
       });
     });
@@ -156,19 +182,19 @@
     });
   </script>
   <style>
-    /* Ajustes específicos para canvas de burbujas */
+    /* Ajustes específicos para canvas de burbujas - versión elegante */
     .circle-canvas {
       min-height: 400px;
       height: 50vh;
-      border: 2px solid rgba(249, 115, 22, 0.5);
-      border-radius: 10px;
+      border-radius: 12px;
       margin-bottom: 15px;
       position: relative;
       overflow: hidden;
       width: 100%;
-      background-color: rgba(0, 0, 0, 0.8);
-      box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
-      box-sizing: border-box; /* Asegura que el padding no afecte al tamaño */
+      background: linear-gradient(to bottom, rgba(30, 30, 32, 0.95), rgba(24, 24, 26, 0.95));
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-sizing: border-box;
     }
     
     /* Asegurar que los canvas se rendericen correctamente */
@@ -364,7 +390,7 @@
       z-index: 1001;
     }
     
-    /* Mejora de selectores */
+    /* Mejorar selectores */
     select {
       width: 100%;
       padding: 12px;

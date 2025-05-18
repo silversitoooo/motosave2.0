@@ -326,70 +326,162 @@ class MagneticBubbles {
     }
   }
   
-  // Método mejorado para dibujar las burbujas
+  // Método mejorado para dibujar las burbujas con diseño moderno y elegante
   drawBubble(bubble) {
     const ctx = this.ctx;
     
-    // Color base o seleccionado según estado
-    const baseColor = this.options.bubbleBaseColor;
-    const selectedColor = this.options.bubbleSelectedColor;
+    // Determinar colores base según estado
+    const baseColor = this.options.bubbleBaseColor || '#f97316';
+    const selectedColor = this.options.bubbleSelectedColor || '#ea580c';
     
-    // Determinar color según el nivel de selección
-    let color;
+    // Calcular tamaño según estado (seleccionado/hover)
+    const normalRadius = bubble.radius;
+    const hoverScale = bubble.hovered ? 1.05 : 1.0;
+    const selectionScale = bubble.selected ? (1.0 + bubble.selectionLevel * 0.1) : 1.0;
+    const finalRadius = normalRadius * hoverScale * selectionScale;
+    
+    // Determinar colores
+    let fillColor;
     if (bubble.selected) {
-      // Intensificar color seleccionado según nivel de selección
-      const r = parseInt(selectedColor.substr(1, 2), 16);
-      const g = parseInt(selectedColor.substr(3, 2), 16);
-      const b = parseInt(selectedColor.substr(5, 2), 16);
-      
-      // Hacer el color más intenso con mayor nivel de selección
-      const intensityFactor = 0.7 + (0.3 * bubble.selectionLevel);
-      const newR = Math.min(255, Math.floor(r * intensityFactor));
-      const newG = Math.min(255, Math.floor(g * intensityFactor));
-      const newB = Math.min(255, Math.floor(b * intensityFactor));
-      
-      color = `rgb(${newR}, ${newG}, ${newB})`;
+      // Color para estado seleccionado - más intenso según nivel
+      const intensity = 0.7 + (bubble.selectionLevel * 0.3);
+      const r = Math.min(255, Math.round(parseInt(selectedColor.substr(1, 2), 16) * intensity));
+      const g = Math.min(255, Math.round(parseInt(selectedColor.substr(3, 2), 16) * intensity));
+      const b = Math.min(255, Math.round(parseInt(selectedColor.substr(5, 2), 16) * intensity));
+      fillColor = `rgb(${r}, ${g}, ${b})`;
     } else {
-      color = baseColor;
+      // Color para estado normal
+      fillColor = bubble.hovered ? selectedColor : baseColor;
     }
     
-    // Efecto hover
-    if (bubble.hovered) {
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = "rgba(255, 165, 0, 0.8)";
+    // Dibujar círculo principal
+    ctx.beginPath();
+    ctx.arc(bubble.x, bubble.y, finalRadius, 0, Math.PI * 2);
+    
+    // Relleno con gradiente sutil
+    const gradient = ctx.createLinearGradient(
+      bubble.x, bubble.y - finalRadius, 
+      bubble.x, bubble.y + finalRadius
+    );
+    
+    // Colores de gradiente más sutiles
+    if (bubble.selected) {
+      gradient.addColorStop(0, fillColor);
+      gradient.addColorStop(1, this.adjustColor(fillColor, -15)); // Ligeramente más oscuro abajo
+    } else {
+      gradient.addColorStop(0, this.adjustColor(fillColor, 10)); // Ligeramente más claro arriba
+      gradient.addColorStop(1, fillColor);
+    }
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // Borde más elegante
+    ctx.strokeStyle = bubble.selected ? 
+                    "rgba(255, 255, 255, 0.5)" : 
+                    "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = bubble.selected ? 1.5 : 0.5;
+    ctx.stroke();
+    
+    // Texto con mejor legibilidad
+    const fontSize = Math.max(12, Math.min(16, finalRadius * 0.45 * this.options.textScaleFactor));
+    ctx.font = `${bubble.selected ? 'bold' : ''} ${fontSize}px "Segoe UI", -apple-system, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // Texto con sombra sutil para mejor legibilidad
+    ctx.fillStyle = this.options.textColor || "#ffffff";
+    
+    // Sombra muy sutil solo si es necesaria para legibilidad
+    if (this.getBrightness(fillColor) > 150) { // Color claro necesita sombra para legibilidad
+      ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+      ctx.shadowBlur = 2;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
     } else {
       ctx.shadowBlur = 0;
     }
     
-    // Dibujar círculo
-    ctx.beginPath();
-    ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    
-    // Añadir ligero borde
-    ctx.strokeStyle = bubble.selected ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.2)";
-    ctx.lineWidth = bubble.selected ? 2 : 1;
-    ctx.stroke();
-    
-    // Dibujar texto con tamaño proporcional al círculo
-    ctx.fillStyle = this.options.textColor;
-    const fontSize = Math.max(12, Math.min(16, bubble.radius * 0.45 * this.options.textScaleFactor));
-    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    
-    // Añadir texto con sombra para legibilidad
-    ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-    ctx.shadowBlur = 3;
-    ctx.shadowOffsetX = 1;
-    ctx.shadowOffsetY = 1;
     ctx.fillText(bubble.label, bubble.x, bubble.y);
-    
-    // Resetear sombra
     ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    
+    // Indicador de nivel de selección - minimalista
+    if (bubble.selected && bubble.selectionLevel > 0) {
+      const levels = 4; // 4 niveles posibles
+      const activeLevel = Math.ceil(bubble.selectionLevel * levels);
+      const indicatorSize = 3;
+      const spacing = 6;
+      const totalWidth = (levels * indicatorSize) + ((levels-1) * spacing);
+      const startX = bubble.x - totalWidth/2 + indicatorSize/2;
+      const y = bubble.y + finalRadius * 0.7;
+      
+      for (let i = 0; i < levels; i++) {
+        ctx.beginPath();
+        const x = startX + (i * (indicatorSize + spacing));
+        ctx.rect(x - indicatorSize/2, y - indicatorSize/2, indicatorSize, indicatorSize);
+        
+        if (i < activeLevel) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        } else {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        }
+        ctx.fill();
+      }
+    }
+  }
+  
+  // Función auxiliar para ajustar el brillo de un color
+  adjustColor(color, amount) {
+    // Extraer componentes RGB
+    let r, g, b;
+    
+    if (color.startsWith('#')) {
+      r = parseInt(color.substr(1, 2), 16);
+      g = parseInt(color.substr(3, 2), 16);
+      b = parseInt(color.substr(5, 2), 16);
+    } else {
+      // Intentar con formato rgb
+      const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (match) {
+        r = parseInt(match[1]);
+        g = parseInt(match[2]);
+        b = parseInt(match[3]);
+      } else {
+        return color; // No se pudo analizar el color
+      }
+    }
+    
+    // Ajustar componentes
+    r = Math.max(0, Math.min(255, r + amount));
+    g = Math.max(0, Math.min(255, g + amount));
+    b = Math.max(0, Math.min(255, b + amount));
+    
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  
+  // Función para calcular el brillo de un color (0-255)
+  getBrightness(color) {
+    // Extraer componentes RGB
+    let r, g, b;
+    
+    if (color.startsWith('#')) {
+      r = parseInt(color.substr(1, 2), 16);
+      g = parseInt(color.substr(3, 2), 16);
+      b = parseInt(color.substr(5, 2), 16);
+    } else {
+      // Intentar con formato rgb
+      const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (match) {
+        r = parseInt(match[1]);
+        g = parseInt(match[2]);
+        b = parseInt(match[3]);
+      } else {
+        return 128; // Valor por defecto si no se puede analizar
+      }
+    }
+    
+    // Fórmula estándar para calcular brillo perceptivo
+    return (r * 299 + g * 587 + b * 114) / 1000;
   }
   
   // Bucle de animación principal
