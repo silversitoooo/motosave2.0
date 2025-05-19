@@ -523,61 +523,36 @@ def friends():
 
 @fixed_routes.route('/set_ideal_moto', methods=['POST'])
 def set_ideal_moto():
-    """Ruta para establecer una moto como la ideal para el usuario"""
+    """Establece una moto como la ideal para el usuario actual."""
     if 'username' not in session:
-        return jsonify({'success': False, 'message': 'Debes iniciar sesión para guardar tu moto ideal'})
+        return jsonify({'success': False, 'error': 'No has iniciado sesión'})
     
-    data = request.get_json()
+    # Obtener datos de JSON (no de form-data)
+    data = request.json
+    user_id = session.get('user_id', '')
+    username = session.get('username', '')
+    moto_id = data.get('moto_id', '')
     
-    if not data or 'moto_id' not in data:
-        return jsonify({'success': False, 'message': 'Datos incompletos'})
-    
-    username = session.get('username')
-    moto_id = data['moto_id']
-    
-    # Obtener el adaptador
-    adapter = current_app.config.get('MOTO_RECOMMENDER')
-    if not adapter:
-        return jsonify({'success': False, 'message': 'Error del servidor: adaptador no disponible'})
+    if not moto_id:
+        return jsonify({'success': False, 'error': 'No se especificó una moto'})
     
     try:
-        # Registrar la moto como ideal para el usuario
-        success = adapter.set_ideal_moto(username, moto_id)
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
         
-        # Obtener los detalles de la moto
-        moto_detail = None
-        try:
-            moto_detail = adapter.get_moto_by_id(moto_id)
-        except Exception as e:
-            logger.error(f"Error al obtener detalles de la moto {moto_id}: {str(e)}")
+        if not adapter:
+            return jsonify({'success': False, 'error': 'Adaptador no disponible'})
         
-        # Guardar también en la sesión para acceso rápido
-        session['ideal_moto_id'] = moto_id
+        logger.info(f"Intentando guardar moto {moto_id} como ideal para usuario {username}")
         
-        if success:
-            # Respuesta con datos de la moto para mostrar en notificación
-            response_data = {
-                'success': True,
-                'message': 'Moto ideal guardada correctamente',
-                'moto_id': moto_id
-            }
-            
-            # Añadir detalles si están disponibles
-            if moto_detail:
-                marca = moto_detail.get('marca', 'Marca desconocida')
-                modelo = moto_detail.get('modelo', 'Modelo desconocido')
-                response_data.update({
-                    'marca': marca,
-                    'modelo': modelo,
-                    'message': f'¡{marca} {modelo} guardada como tu moto ideal!'
-                })
-            
-            logger.info(f"Usuario {username} guardó como ideal la moto {moto_id}")
-            return jsonify(response_data)
+        # Usar el método set_ideal_moto que vimos en el código
+        result = adapter.set_ideal_moto(username, moto_id)
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Moto guardada como ideal'})
         else:
-            logger.warning(f"Error al guardar moto ideal {moto_id} para usuario {username}")
-            return jsonify({'success': False, 'message': 'No se pudo guardar la moto ideal'})
+            return jsonify({'success': False, 'error': 'No se pudo guardar la moto ideal'})
     except Exception as e:
-        logger.error(f"Error al establecer moto ideal: {str(e)}")
+        import traceback
+        logger.error(f"Error al guardar moto ideal: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'message': f'Error interno del servidor: {str(e)}'})
+        return jsonify({'success': False, 'error': f'Error: {str(e)}'})
