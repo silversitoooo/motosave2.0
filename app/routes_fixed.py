@@ -250,6 +250,16 @@ def moto_ideal():
                              title="Sistema no disponible",
                              error="El sistema de recomendaciones no está disponible en este momento.")
         
+        # Buscar el ID real del usuario en la base de datos
+        db_user_id = username  # Por defecto, usamos el nombre de usuario
+        if adapter.users_df is not None:
+            user_rows = adapter.users_df[adapter.users_df['username'] == username]
+            if not user_rows.empty:
+                db_user_id = user_rows.iloc[0].get('user_id', username)
+                logger.info(f"ID de usuario encontrado en la base de datos: {db_user_id}")
+            else:
+                logger.warning(f"Usuario {username} no encontrado en la base de datos")
+                
         # Obtener la moto ideal para el usuario de Neo4j
         if hasattr(adapter, '_ensure_neo4j_connection'):
             adapter._ensure_neo4j_connection()
@@ -259,9 +269,8 @@ def moto_ideal():
                     MATCH (u:User {id: $user_id})-[r:IDEAL]->(m:Moto)
                     RETURN m.id as moto_id, r.score as score, r.reasons as reasons
                     """,
-                    user_id=user_id
-                )
-                
+                    user_id=db_user_id
+                )                
                 record = result.single()
                 
                 if record:
@@ -270,8 +279,15 @@ def moto_ideal():
                     reasons_str = record['reasons'] if 'reasons' in record else '[]'
                     
                     try:
-                        reasons = json.loads(reasons_str)
-                    except:
+                        # Verificar si reasons es un string JSON o una lista
+                        if isinstance(reasons_str, str):
+                            reasons = json.loads(reasons_str)
+                        elif isinstance(reasons_str, list):
+                            reasons = reasons_str
+                        else:
+                            reasons = [str(reasons_str)] if reasons_str else ["Recomendación personalizada"]
+                    except Exception as e:
+                        logger.warning(f"Error al parsear razones JSON '{reasons_str}': {str(e)}")
                         reasons = [reasons_str] if reasons_str else ["Recomendación personalizada"]
                     
                     # Obtener los detalles de la moto
@@ -279,31 +295,32 @@ def moto_ideal():
                     
                     if not moto_info.empty:
                         moto_row = moto_info.iloc[0]
-                        moto_ideal = {
+                        moto = {
                             "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
                             "marca": moto_row.get('marca', 'Marca Desconocida'),
                             "precio": float(moto_row.get('precio', 0)),
-                            "estilo": moto_row.get('tipo', 'Estilo Desconocido'),
+                            "tipo": moto_row.get('tipo', 'Estilo Desconocido'),
                             "imagen": moto_row.get('imagen', ''),
                             "razones": reasons,
-                            "score": score
+                            "score": score,
+                            "moto_id": moto_id
                         }
                         
-                        return render_template('moto_ideal.html', moto_ideal=moto_ideal)
+                        return render_template('moto_ideal.html', moto=moto)
         
         # Si no encontramos una moto ideal, mostrar ejemplo por defecto
         logger.warning(f"No se encontró moto ideal para usuario {username}, mostrando ejemplo")
-        moto_ideal = {
+        moto = {
             "modelo": "MT-09", 
             "marca": "Yamaha", 
             "precio": 9999.0,
-            "estilo": "Naked",
+            "tipo": "Naked",
             "imagen": "https://www.yamaha-motor.eu/es/es/products/motorcycles/hyper-naked/mt-09/_jcr_content/root/verticalnavigationcontainer/verticalnavigation/image_copy.img.jpg/1678272292818.jpg",
             "razones": ["Perfecta combinación de potencia y manejabilidad", "Se adapta a tu nivel de experiencia", "Dentro de tu presupuesto"],
             "score": 95.8
         }
         
-        return render_template('moto_ideal.html', moto_ideal=moto_ideal)
+        return render_template('moto_ideal.html', moto=moto)
                 
     except Exception as e:
         logger.error(f"Error al obtener moto ideal: {str(e)}")

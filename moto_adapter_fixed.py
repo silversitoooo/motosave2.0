@@ -4,6 +4,7 @@ import numpy as np
 import os
 import time
 import traceback
+import json
 from neo4j import GraphDatabase
 from app.algoritmo.pagerank import MotoPageRank
 from app.algoritmo.label_propagation import MotoLabelPropagation
@@ -377,9 +378,11 @@ class MotoRecommenderAdapter:
             except Exception as e:
                 logger.error(f"Error al obtener detalles de la moto: {str(e)}")
                 reasons = default_reasons
-            
-            # Usar el DatabaseConnector para guardar en Neo4j
+              # Usar el DatabaseConnector para guardar en Neo4j
             with self.driver.session() as session:
+                # Convertir reasons a formato JSON
+                reasons_json = json.dumps(reasons)
+                
                 # Actualizar o crear la relación de IDEAL
                 result = session.run("""
                 MATCH (u:User {id: $user_id})
@@ -389,7 +392,7 @@ class MotoRecommenderAdapter:
                     r.reasons = $reasons,
                     r.timestamp = timestamp()
                 RETURN r
-                """, user_id=user_id, moto_id=moto_id, reasons=reasons)
+                """, user_id=user_id, moto_id=moto_id, reasons=reasons_json)
                 
                 return True
         except Exception as e:
