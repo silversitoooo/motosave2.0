@@ -68,25 +68,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const precio = moto.precio ? `€${moto.precio.toLocaleString()}` : 'N/D';
         
         // Asegurar que los valores de año y cilindrada se muestren correctamente
-        const año = moto.año || 'N/D';
+        const año = moto.año || moto.anio || 'N/D';
         const cilindrada = moto.cilindrada ? `${moto.cilindrada} cc` : 'N/D';
+        
+        // Formatear la potencia (CV) correctamente con unidad
+        const potencia = moto.potencia ? `${moto.potencia} CV` : 'N/D';
         
         // Añadir el score de la recomendación (porcentaje de coincidencia)
         const score = moto.score ? `${Math.round(moto.score * 100)}%` : 'N/D';
         
         // HTML interno de la tarjeta con imagen de tamaño controlado y nuevos campos
         motoCard.innerHTML = `
-            <img src="${moto.imagen}" alt="${moto.marca} ${moto.modelo}" class="moto-img">
+            <img src="${moto.imagen || '/static/images/default-moto.jpg'}" alt="${moto.marca} ${moto.modelo}" class="moto-img">
             <h3>${moto.marca} ${moto.modelo}</h3>
+            <div class="moto-specs">
+                <span class="specs-year">${año}</span>
+                <span class="specs-divider">•</span>
+                <span class="specs-power">${potencia}</span>
+            </div>
             <div class="moto-score">
                 <span class="score-label">Coincidencia:</span>
                 <span class="score-value">${score}</span>
                 <div class="score-bar" style="width: ${moto.score ? moto.score * 100 : 0}%;"></div>
             </div>
-            <p><strong>Año:</strong> ${año}</p>
-            <p><strong>Tipo:</strong> ${moto.tipo || 'N/D'}</p>
-            <p><strong>Cilindrada:</strong> ${cilindrada}</p>
-            <p><strong>Precio:</strong> ${precio}</p>
+            <div class="moto-details">
+                <p><strong>Tipo:</strong> ${moto.tipo || moto.estilo || 'N/D'}</p>
+                <p><strong>Cilindrada:</strong> ${cilindrada}</p>
+                <p><strong>Precio:</strong> ${precio}</p>
+            </div>
             <div class="action-buttons">
                 <button class="like-btn" data-moto-id="${moto.moto_id}">
                     <i class="fas fa-heart"></i> Me gusta

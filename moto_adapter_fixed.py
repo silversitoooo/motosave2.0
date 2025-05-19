@@ -329,3 +329,120 @@ class MotoRecommenderAdapter:
         if self.users_df is None:
             return False
         return user_id in self.users_df['user_id'].values
+        
+    def set_ideal_moto(self, username, moto_id):
+        """
+        Establece una moto como la ideal para un usuario y la guarda en Neo4j.
+        
+        Args:
+            username (str): Nombre del usuario
+            moto_id (str): ID de la moto ideal
+            
+        Returns:
+            bool: True si se guardó correctamente, False en caso contrario
+        """
+        logger.info(f"Guardando moto {moto_id} como ideal para usuario {username}")
+        
+        # Asegurar que hay conexión a Neo4j
+        self._ensure_neo4j_connection()
+        
+        try:
+            # Buscar el ID del usuario en la base de datos
+            user_id = username
+            if self.users_df is not None:
+                user_rows = self.users_df[self.users_df['username'] == username]
+                if not user_rows.empty:
+                    user_id = user_rows.iloc[0].get('user_id', username)
+            
+            # Razones por defecto
+            default_reasons = ["Seleccionada como moto ideal por el usuario"]
+            
+            # Intentar obtener detalles de la moto para mejores razones
+            try:
+                moto_details = self.get_moto_by_id(moto_id)
+                if moto_details:
+                    marca = moto_details.get('marca', '')
+                    modelo = moto_details.get('modelo', '')
+                    tipo = moto_details.get('tipo', '')
+                    
+                    reasons = [
+                        f"Te gusta la marca {marca}",
+                        f"El modelo {modelo} se ajusta a tus preferencias"
+                    ]
+                    
+                    if tipo:
+                        reasons.append(f"Prefieres el estilo {tipo}")
+                else:
+                    reasons = default_reasons
+            except Exception as e:
+                logger.error(f"Error al obtener detalles de la moto: {str(e)}")
+                reasons = default_reasons
+            
+            # Usar el DatabaseConnector para guardar en Neo4j
+            with self.driver.session() as session:
+                # Actualizar o crear la relación de IDEAL
+                result = session.run("""
+                MATCH (u:User {id: $user_id})
+                MATCH (m:Moto {id: $moto_id})
+                MERGE (u)-[r:IDEAL]->(m)
+                SET r.score = 100.0,
+                    r.reasons = $reasons,
+                    r.timestamp = timestamp()
+                RETURN r
+                """, user_id=user_id, moto_id=moto_id, reasons=reasons)
+                
+                return True
+        except Exception as e:
+            logger.error(f"Error al guardar moto ideal: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False
+    
+    def get_moto_by_id(self, moto_id):
+        """
+        Obtiene los detalles de una moto por su ID.
+        
+        Args:
+            moto_id (str): ID de la moto a buscar
+            
+        Returns:
+            dict: Diccionario con los detalles de la moto, o None si no se encuentra
+        """
+        logger.info(f"Buscando detalles de la moto con ID: {moto_id}")
+        
+        # Verificar que los datos estén cargados
+        if self.motos_df is None:
+            logger.warning("No hay datos de motos cargados")
+            return None
+            
+        try:
+            # Primero buscar en el dataframe local por eficiencia
+            moto_rows = self.motos_df[self.motos_df['moto_id'] == moto_id]
+            
+            if not moto_rows.empty:
+                # Convertir la fila a diccionario
+                return moto_rows.iloc[0].to_dict()
+            
+            # Si no se encuentra en el dataframe, intentar buscar en Neo4j directamente
+            if self._ensure_neo4j_connection():
+                with self.driver.session() as session:
+                    result = session.run("""
+                    MATCH (m:Moto {id: $moto_id})
+                    RETURN m
+                    """, moto_id=moto_id)
+                    
+                    record = result.single()
+                    if record:
+                        # Extraer propiedades del nodo
+                        moto_data = dict(record['m'])
+                        # Asegurar consistencia con el nombre del campo ID
+                        if 'id' in moto_data and 'moto_id' not in moto_data:
+                            moto_data['moto_id'] = moto_data['id']
+                        return moto_data
+            
+            logger.warning(f"No se encontró la moto con ID: {moto_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error al buscar la moto {moto_id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            return None

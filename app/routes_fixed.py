@@ -18,9 +18,14 @@ fixed_routes = Blueprint('main', __name__)
 @fixed_routes.route('/home')
 def home():
     """Página de inicio."""
-    if 'username' in session:
-        return redirect(url_for('main.dashboard'))
-    return render_template('index.html')
+    try:
+        logger.info("Accediendo a la página de inicio")
+        if 'username' in session:
+            return redirect(url_for('main.dashboard'))
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error al renderizar página de inicio: {str(e)}")
+        return f"<h1>Error</h1><p>No se pudo cargar la página: {str(e)}</p>"
 
 @fixed_routes.route('/index')
 def index():
@@ -395,8 +400,7 @@ def recomendaciones():
         
         # Formatear para la plantilla
         motos_recomendadas = []
-        for moto_id, score, reasons in recomendaciones:
-            # Obtener datos completos de la moto
+        for moto_id, score, reasons in recomendaciones:            # Obtener datos completos de la moto
             moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
             if not moto_info.empty:
                 moto_row = moto_info.iloc[0]
@@ -407,7 +411,8 @@ def recomendaciones():
                     "estilo": moto_row.get('tipo', 'Estilo Desconocido'),
                     "imagen": moto_row.get('imagen', ''),
                     "score": score,
-                    "razones": reasons
+                    "razones": reasons,
+                    "moto_id": moto_id
                 })
         
         return render_template('recomendaciones.html', 
@@ -498,3 +503,64 @@ def friends():
         return render_template('error.html', 
                             title="Error al cargar amigos",
                             error=f"Ocurrió un error al cargar la lista de amigos: {str(e)}")
+
+@fixed_routes.route('/set_ideal_moto', methods=['POST'])
+def set_ideal_moto():
+    """Ruta para establecer una moto como la ideal para el usuario"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'Debes iniciar sesión para guardar tu moto ideal'})
+    
+    data = request.get_json()
+    
+    if not data or 'moto_id' not in data:
+        return jsonify({'success': False, 'message': 'Datos incompletos'})
+    
+    username = session.get('username')
+    moto_id = data['moto_id']
+    
+    # Obtener el adaptador
+    adapter = current_app.config.get('MOTO_RECOMMENDER')
+    if not adapter:
+        return jsonify({'success': False, 'message': 'Error del servidor: adaptador no disponible'})
+    
+    try:
+        # Registrar la moto como ideal para el usuario
+        success = adapter.set_ideal_moto(username, moto_id)
+        
+        # Obtener los detalles de la moto
+        moto_detail = None
+        try:
+            moto_detail = adapter.get_moto_by_id(moto_id)
+        except Exception as e:
+            logger.error(f"Error al obtener detalles de la moto {moto_id}: {str(e)}")
+        
+        # Guardar también en la sesión para acceso rápido
+        session['ideal_moto_id'] = moto_id
+        
+        if success:
+            # Respuesta con datos de la moto para mostrar en notificación
+            response_data = {
+                'success': True,
+                'message': 'Moto ideal guardada correctamente',
+                'moto_id': moto_id
+            }
+            
+            # Añadir detalles si están disponibles
+            if moto_detail:
+                marca = moto_detail.get('marca', 'Marca desconocida')
+                modelo = moto_detail.get('modelo', 'Modelo desconocido')
+                response_data.update({
+                    'marca': marca,
+                    'modelo': modelo,
+                    'message': f'¡{marca} {modelo} guardada como tu moto ideal!'
+                })
+            
+            logger.info(f"Usuario {username} guardó como ideal la moto {moto_id}")
+            return jsonify(response_data)
+        else:
+            logger.warning(f"Error al guardar moto ideal {moto_id} para usuario {username}")
+            return jsonify({'success': False, 'message': 'No se pudo guardar la moto ideal'})
+    except Exception as e:
+        logger.error(f"Error al establecer moto ideal: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'message': f'Error interno del servidor: {str(e)}'})

@@ -53,9 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         return;
     }
-      // Renderizar directamente las recomendaciones en el formato de cuadrícula
-    console.log("Motos recomendadas:", motosRecomendadas);
     
+    // Renderizar directamente las recomendaciones en el formato de cuadrícula
+    console.log("Motos recomendadas:", motosRecomendadas);
     motosRecomendadas.forEach((moto, index) => {
         console.log(`Moto ${index}:`, moto);
         const motoCard = document.createElement('div');
@@ -103,22 +103,91 @@ document.addEventListener("DOMContentLoaded", () => {
                     <i class="fas fa-star"></i> Mi moto ideal
                 </button>
             </div>
+            <div class="reasons-container">
+                <h4>Por qué te recomendamos esta moto:</h4>
+                <ul class="reasons-list">
+                    ${moto.razones ? moto.razones.map(reason => `
+                        <li><i class="fas fa-check"></i> ${reason}</li>
+                    `).join('') : '<li><i class="fas fa-check"></i> Recomendación personalizada</li>'}
+                </ul>
+            </div>
         `;
         
+        // Agregar al contenedor
         gridContainer.appendChild(motoCard);
         
-        // Animar entrada con retardo
+        // Animación de entrada
         setTimeout(() => {
             motoCard.style.opacity = "1";
             motoCard.style.transform = "translateY(0)";
-        }, index * 100);
+        }, 100 * index);
     });
     
-    // Configurar listener para botones de like
+    // Función para mostrar una notificación personalizada
+    function showNotification(message, type = 'info') {
+        const notificationContainer = document.querySelector('.notification-container') || createNotificationContainer();
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas ${getIconForType(type)}"></i>
+                <span>${message}</span>
+            </div>
+            <button class="close-notification">×</button>
+        `;
+        
+        notificationContainer.appendChild(notification);
+        
+        // Agregar evento para cerrar la notificación
+        notification.querySelector('.close-notification').addEventListener('click', () => {
+            notification.classList.add('fade-out');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        });
+        
+        // Auto cerrar después de 5 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    if (notification.parentNode) notification.remove();
+                }, 300);
+            }
+        }, 5000);
+    }
+    
+    function createNotificationContainer() {
+        const container = document.createElement('div');
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+        return container;
+    }
+    
+    function getIconForType(type) {
+        switch (type) {
+            case 'success': return 'fa-check-circle';
+            case 'error': return 'fa-exclamation-circle';
+            case 'warning': return 'fa-exclamation-triangle';
+            default: return 'fa-info-circle';
+        }
+    }
+    
+    // Configurar listeners para botones de me gusta
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const motoId = this.getAttribute('data-moto-id');
-            const likeCountElement = this.querySelector('.like-count');
+            console.log("Botón like clickeado, ID:", motoId);
+            
+            // Verificar si el ID es válido
+            if (!motoId || motoId === 'undefined') {
+                console.error("ID de moto inválido:", motoId);
+                return;
+            }
+            
+            const likeCount = this.querySelector('.like-count');
+            let currentLikes = parseInt(likeCount.textContent);
             
             // Hacer la petición AJAX para dar like
             fetch('/like_moto', {
@@ -126,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ moto_id: motoId });
+                body: JSON.stringify({ moto_id: motoId })
             })
             .then(response => {
                 if (!response.ok) {
@@ -136,26 +205,27 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .then(data => {
                 if (data.success) {
-                    // Actualizar el contador de likes
-                    likeCountElement.textContent = data.likes;
-                    
-                    // Añadir clase para indicar que el usuario ha dado like
+                    // Actualizar la UI con el nuevo conteo
+                    likeCount.textContent = data.likes || (currentLikes + 1).toString();
+                    // Animar el botón
                     this.classList.add('liked');
-                    
-                    // Mostrar mensaje de éxito
-                    showNotification('¡Like registrado!', 'success');
+                    setTimeout(() => {
+                        this.classList.remove('liked');
+                    }, 1000);
                 } else {
-                    showNotification(data.message || 'No se pudo registrar el like', 'error');
+                    showNotification(data.message || 'No se pudo dar like a la moto', 'error');
                 }
             })
             .catch(error => {
-                console.error('Error al dar like:', error);
+                console.error("Error al procesar like:", error);
                 showNotification('Error al procesar la petición', 'error');
             });
         });
     });
-      // Configurar listener para botones de moto ideal
-    document.querySelectorAll('.ideal-btn').forEach(btn => {        btn.addEventListener('click', function() {
+    
+    // Configurar listener para botones de moto ideal
+    document.querySelectorAll('.ideal-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
             const motoId = this.getAttribute('data-moto-id');
             console.log("Botón moto ideal clickeado, ID:", motoId);
             
@@ -165,7 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("ID de moto inválido:", motoId);
                 return;
             }
-
+            
             // Hacer la petición AJAX para marcar como moto ideal
             fetch('/set_ideal_moto', {
                 method: 'POST',
@@ -190,40 +260,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         window.location.href = '/moto_ideal';
                     }, 1500);
                 } else {
-                    showNotification(data.message || 'No se pudo guardar tu moto ideal', 'error');
+                    // Mostrar mensaje de error
+                    showNotification(data.message || 'No se pudo guardar la moto ideal', 'error');
                 }
             })
             .catch(error => {
-                console.error('Error al guardar moto ideal:', error);
+                console.error("Error al guardar moto ideal:", error);
                 showNotification('Error al procesar la petición', 'error');
             });
         });
     });
-    
-    // Función para mostrar notificaciones
-    function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.innerHTML = `
-            <div class="notification-content">
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
-                <span>${message}</span>
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // Mostrar la notificación
-        setTimeout(() => {
-            notification.classList.add('show');
-        }, 10);
-        
-        // Ocultar y eliminar la notificación después de un tiempo
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
-    }
 });

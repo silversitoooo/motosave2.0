@@ -39,22 +39,20 @@ def create_app():
     # Crear directorio para modelos si no existe
     model_path = os.path.join(app.root_path, 'algoritmo', app.config.get('RECOMMENDATION_CONFIG', {}).get('model_path', 'models/'))
     if not os.path.exists(model_path):
-        os.makedirs(model_path)
-
-    # Importar y registrar el blueprint principal
+        os.makedirs(model_path)    # Importar y registrar el blueprint principal
     try:
         # Primero intentar con routes_fixed (nuestro fallback seguro)
         from .routes_fixed import fixed_routes
         app.register_blueprint(fixed_routes)
         app.logger.info("Rutas corregidas registradas correctamente")
         
-        # Luego intentar routes.py (opcional)
-        try:
-            from .routes import main
-            app.register_blueprint(main, url_prefix='/main')
-            app.logger.info("Rutas principales registradas como /main")
-        except ImportError as e:
-            app.logger.warning(f"No se pudo registrar el blueprint principal: {str(e)}")
+        # # Comentamos temporalmente el registro de routes.py para evitar conflictos
+        # try:
+        #     from .routes import main
+        #     app.register_blueprint(main, url_prefix='/main')
+        #     app.logger.info("Rutas principales registradas como /main")
+        # except ImportError as e:
+        #     app.logger.warning(f"No se pudo registrar el blueprint principal: {str(e)}")
     except Exception as e:
         app.logger.critical(f"No se pudo registrar ningún blueprint: {e}")
     
