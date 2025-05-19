@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Test de Preferencias - MotoMatch</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/counter-selector.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Modificar el orden de carga de scripts -->
   <script>
@@ -43,27 +44,26 @@
     // Al cargar el documento, cargamos todos los scripts en orden
     document.addEventListener('DOMContentLoaded', function() {
       console.log('DOM cargado, cargando scripts...');
-      // IMPORTANTE: Asegurarse de que magnetic-bubbles.js se cargue PRIMERO
+      // Nuevo orden de scripts - Counter-selector primero
       var scripts = [
-        "{{ url_for('static', filename='js/magnetic-bubbles.js') }}",
+        "{{ url_for('static', filename='js/counter-selector.js') }}",
         "{{ url_for('static', filename='js/debug-panel.js') }}",
-        "{{ url_for('static', filename='js/bubbles-recovery.js') }}",
         "{{ url_for('static', filename='js/test.js') }}",
         "{{ url_for('static', filename='js/test_finalizacion.js') }}"
       ];
       
       // Cargar scripts en orden y luego inicializar con verificaciones adicionales
       loadScriptsSequentially(scripts, function() {
-        console.log('Todos los scripts cargados, verificando MagneticBubbles...');
+        console.log('Todos los scripts cargados, verificando CounterSelector...');
         
-        // Verificar que MagneticBubbles está disponible
-        if (typeof window.MagneticBubbles !== 'function') {
-          console.error('MagneticBubbles no está disponible después de cargar scripts. Intentando recuperar...');
-          // Cargar magnetic-bubbles.js directamente
+        // Verificar que CounterSelector está disponible
+        if (typeof window.CounterSelector !== 'function') {
+          console.error('CounterSelector no está disponible después de cargar scripts. Intentando recuperar...');
+          // Cargar counter-selector.js directamente
           var scriptEmergencia = document.createElement('script');
-          scriptEmergencia.src = "{{ url_for('static', filename='js/magnetic-bubbles.js') }}?emergency=" + Date.now();
+          scriptEmergencia.src = "{{ url_for('static', filename='js/counter-selector.js') }}?emergency=" + Date.now();
           scriptEmergencia.onload = function() {
-            console.log('Script de emergencia MagneticBubbles cargado. Reintentando inicialización...');
+            console.log('Script de emergencia CounterSelector cargado. Reintentando inicialización...');
             if (typeof window.initializeTest === 'function') {
               setTimeout(window.initializeTest, 100);
             } else if (typeof window.recuperarTest === 'function') {
@@ -98,11 +98,11 @@
     // Función para mostrar el botón de reintentar después de un tiempo
     function mostrarBotonReintentar() {
       setTimeout(function() {
-        // Verificar si las burbujas se inicializaron correctamente
+        // Verificar si los contadores se inicializaron correctamente
         var estilosCanvas = document.getElementById('estilos-canvas');
-        var hayCanvas = estilosCanvas && estilosCanvas.querySelector('canvas');
+        var hayContadores = estilosCanvas && estilosCanvas.querySelector('.counter-selector-container');
         
-        if (!hayCanvas) {
+        if (!hayContadores) {
           console.error("No se detectó inicialización correcta, mostrando botón de reintentar");
           var retryButton = document.getElementById('retry-button');
           if (retryButton) {
@@ -118,30 +118,30 @@
     });
     
     // Función de verificación durante navegación
-    function verificarIntegridadCanvas() {
-      // Después de la navegación, verificar que los canvas estén intactos
+    function verificarIntegridadContadores() {
+      // Después de la navegación, verificar que los contadores estén intactos
       setTimeout(function() {
         const preguntaActiva = document.querySelector('.pregunta.active');
         if (preguntaActiva) {
           const id = preguntaActiva.id;
-          console.log("Verificando integridad del canvas en: " + id);
+          console.log("Verificando integridad de los contadores en: " + id);
           
           if (id === 'pregunta-1') {
             const estilosCanvas = document.getElementById('estilos-canvas');
-            const hayCanvas = estilosCanvas && estilosCanvas.querySelector('canvas');
-            if (!hayCanvas) {
-              console.error("Canvas de estilos perdido después de navegación");
-              if (typeof window.recuperarTest === 'function') {
-                window.recuperarTest();
+            const hayContadores = estilosCanvas && estilosCanvas.querySelector('.counter-selector-container');
+            if (!hayContadores) {
+              console.error("Contadores de estilos perdidos después de navegación");
+              if (typeof window.verificarYRestaurarCanvas === 'function') {
+                window.verificarYRestaurarCanvas('verificación automática');
               }
             }
           } else if (id === 'pregunta-2') {
             const marcasCanvas = document.getElementById('marcas-canvas');
-            const hayCanvas = marcasCanvas && marcasCanvas.querySelector('canvas');
-            if (!hayCanvas) {
-              console.error("Canvas de marcas perdido después de navegación");
-              if (typeof window.recuperarTest === 'function') {
-                window.recuperarTest();
+            const hayContadores = marcasCanvas && marcasCanvas.querySelector('.counter-selector-container');
+            if (!hayContadores) {
+              console.error("Contadores de marcas perdidos después de navegación");
+              if (typeof window.verificarYRestaurarCanvas === 'function') {
+                window.verificarYRestaurarCanvas('verificación automática');
               }
             }
           }
@@ -157,7 +157,7 @@
           if (mutation.type === 'attributes' && 
               mutation.attributeName === 'class' &&
               mutation.target.classList.contains('active')) {
-            verificarIntegridadCanvas();
+            verificarIntegridadContadores();
           }
         });
       });
@@ -173,16 +173,16 @@
       const nextBtn = document.getElementById('next-btn');
       
       if (prevBtn) {
-        prevBtn.addEventListener('click', verificarIntegridadCanvas);
+        prevBtn.addEventListener('click', verificarIntegridadContadores);
       }
       
       if (nextBtn) {
-        nextBtn.addEventListener('click', verificarIntegridadCanvas);
+        nextBtn.addEventListener('click', verificarIntegridadContadores);
       }
     });
   </script>
   <style>
-    /* Ajustes específicos para canvas de burbujas - versión elegante */
+    /* Ajustes específicos para contenedores de selectores - versión elegante */
     .circle-canvas {
       min-height: 400px;
       height: 50vh;
@@ -195,17 +195,6 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.05);
       box-sizing: border-box;
-    }
-    
-    /* Asegurar que los canvas se rendericen correctamente */
-    #estilos-canvas canvas, #marcas-canvas canvas {
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100% !important;
-      height: 100% !important;
-      touch-action: none;
     }
     
     /* Estilos para el botón de reintentar */
@@ -271,37 +260,7 @@
     .options-wrapper {
       width: 100%;
       height: 100%;
-      padding: 0; /* Eliminamos el padding para que el canvas ocupe todo el espacio */
-    }
-    
-    #physics-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      pointer-events: none;
-    }
-    
-    /* Estilos para asegurar que los canvas sean visibles y reciban eventos */
-    #estilos-canvas, #marcas-canvas {
-      width: 100% !important;
-      height: 100% !important;
-      pointer-events: auto;
-      touch-action: none; /* Mejora interacción en dispositivos táctiles */
-    }
-    
-    /* Estilos para asegurar que los canvas reciban los eventos del mouse */
-    canvas {
-      position: relative;
-      z-index: 1;
-    }
-    
-    /* Estilos para los círculos seleccionados */
-    .circulo-seleccionado {
-      filter: brightness(1.5);
-      box-shadow: 0 0 15px #f97316;
+      padding: 0; /* Eliminamos el padding para que el contenedor ocupe todo el espacio */
     }
     
     /* Mejorar visibilidad de textos */
@@ -427,7 +386,6 @@
     <i class="fas fa-arrow-left"></i> Regresar al Dashboard
   </a>
   
-  <div id="physics-container"></div>
   <div id="contenedorPrincipalTest" class="main-container">
     <div class="test-container">
       <h1 class="tituloFriends">Test de Preferencias</h1>
@@ -435,28 +393,29 @@
       <div class="progress-container">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-        <!-- Pregunta 1: Estilo de moto -->
-      <section class="pregunta active" id="pregunta-1" data-type="bubbles" data-key="estilos">
+      
+      <!-- Pregunta 1: Estilo de moto -->
+      <section class="pregunta active" id="pregunta-1" data-type="selector" data-key="estilos">
         <h2>1. ¿Qué estilo(s) de moto te gustan más?</h2>
-        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 4 clics: me encanta)</p>
-        <p class="interaction-help">Puedes hacer clic en cualquier parte para que las burbujas se muevan</p>
+        <p>Utiliza los botones + y - para indicar tu nivel de preferencia (0-4)</p>
+        <p class="interaction-help">El nivel 4 indica tu máxima preferencia</p>
         <div class="options-wrapper">
           <div class="circle-canvas" id="estilos-canvas">
             <!-- Botón de reintentar en caso de error -->
-            <button id="retry-button" class="retry-button" onclick="window.recuperarTest()">Error al cargar. Reintentar</button>
+            <button id="retry-button" class="retry-button" onclick="window.verificarYRestaurarCanvas('botón reintentar')">Error al cargar. Reintentar</button>
           </div>
         </div>
       </section>
 
       <!-- Pregunta 2: Marca favorita -->
-      <section class="pregunta" id="pregunta-2" data-type="bubbles" data-key="marcas">
+      <section class="pregunta" id="pregunta-2" data-type="selector" data-key="marcas">
         <h2>2. ¿Qué marca(s) prefieres?</h2>
-        <p>Haz clic en las burbujas para seleccionar (1 clic: me gusta, 4 clics: me encanta)</p>
-        <p class="interaction-help">Puedes hacer clic en cualquier parte para que las burbujas se muevan</p>
+        <p>Utiliza los botones + y - para indicar tu nivel de preferencia (0-4)</p>
+        <p class="interaction-help">El nivel 4 indica tu máxima preferencia</p>
         <div class="options-wrapper">
           <div class="circle-canvas" id="marcas-canvas">
             <!-- Botón de reintentar en caso de error -->
-            <button id="retry-button-marcas" class="retry-button" onclick="window.recuperarTest()">Error al cargar. Reintentar</button>
+            <button id="retry-button-marcas" class="retry-button" onclick="window.verificarYRestaurarCanvas('botón reintentar marcas')">Error al cargar. Reintentar</button>
           </div>
         </div>
       </section>
@@ -646,12 +605,12 @@
     
     if (finishButton) {
       finishButton.addEventListener('click', function() {
-        // IMPORTANTE: Primero aseguramos que los datos de las burbujas se transfieran a testResults
+        // IMPORTANTE: Primero aseguramos que los datos de los selectores se transfieran a testResults
         if (!window.testResults) {
           window.testResults = {};
         }
         
-        // Asegurar que las selecciones de burbujas se transfieran a testResults
+        // Asegurar que las selecciones se transfieran a testResults
         window.testResults.estilos = window.respuestas ? window.respuestas.estilos : {};
         window.testResults.marcas = window.respuestas ? window.respuestas.marcas : {};
         
@@ -662,7 +621,7 @@
           presupuesto: window.testResults ? window.testResults.presupuesto : '10000',
           uso: window.testResults ? window.testResults.uso : 'mixto',
           
-          // Usar window.testResults para las selecciones de burbujas 
+          // Usar window.testResults para las selecciones 
           estilos: window.testResults ? window.testResults.estilos : {},
           marcas: window.testResults ? window.testResults.marcas : {}
         };
@@ -680,22 +639,6 @@
     }
   });
 </script>
-
-  <!-- Asegúrate de que este código en recomendaciones.js procese todas las recomendaciones enviadas -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        // Obtener datos de recomendaciones
-        let motosRecomendadas = window.motosRecomendadas || [];
-        
-        // Limitaría a 4 si quisieras forzar ese número exacto
-        // motosRecomendadas = motosRecomendadas.slice(0, 4);
-        
-        // Generar tarjetas para cada moto
-        motosRecomendadas.forEach(moto => {
-            // Código para generar las tarjetas HTML
-        });
-    });
-  </script>
 
   <footer>
     <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>

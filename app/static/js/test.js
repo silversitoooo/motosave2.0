@@ -26,14 +26,14 @@ const testStages = [
     key: 'estilos',
     title: 'Estilos de Moto',
     description: 'Selecciona los estilos de moto que más te interesan',
-    type: 'bubbles'
+    type: 'selector'
   },
   {
     id: 'pregunta-2',
     key: 'marcas',
     title: 'Marcas Preferidas', 
     description: 'Selecciona tus marcas favoritas o las que más te interesan',
-    type: 'bubbles'
+    type: 'selector'
   },
   {
     id: 'pregunta-3',
@@ -42,7 +42,6 @@ const testStages = [
     description: 'Cuéntanos sobre tu nivel de experiencia con las motos',
     type: 'select'
   },
-  // Resto de preguntas se cargarán dinámicamente según la rama (inexperto/experto)
 ];
 
 // Opciones para cada pregunta
@@ -69,35 +68,15 @@ const testOptions = {
 
 // Función para inicializar el test
 function initializeTest() {
-  console.log('Inicializando test...');
-  
-  // Obtener elementos principales
-  const testContainer = document.querySelector('.test-container');
-  const progressBar = document.getElementById('progress-bar');
-  
-  if (!testContainer) {
-    console.error('No se encontró el contenedor principal del test');
-    return;
-  }
-  
-  // Usar los elementos existentes en lugar de crearlos
   const existingStages = document.querySelectorAll('.pregunta');
+  
+  // Recolectar contenedores y configurar indicadores
   if (existingStages.length > 0) {
-    console.log(`Encontradas ${existingStages.length} etapas existentes en el HTML`);
-    
-    // Inicializar contenedores para cada etapa
+    // Usar los contenedores existentes en el HTML
     testState.stageContainers = Array.from(existingStages);
     
-    // Configurar visibilidad inicial (mostrar solo la primera etapa)
-    testState.stageContainers.forEach((container, i) => {
-      if (i === 0) {
-        container.classList.add('active');
-        container.style.display = 'block';
-      } else {
-        container.classList.remove('active');
-        container.style.display = 'none';
-      }
-    });
+    // Configurar indicadores (si existen)
+    testState.stageIndicators = Array.from(document.querySelectorAll('.stage-indicator'));
     
     // Configurar botones de navegación
     const prevBtn = document.getElementById('prev-btn');
@@ -111,15 +90,22 @@ function initializeTest() {
       nextBtn.addEventListener('click', navigateToNextStage);
     }
     
-    // Inicializar burbujas para estilos y marcas
-    setupBubblesSelector('estilos', document.getElementById('estilos-canvas'));
-    setupBubblesSelector('marcas', document.getElementById('marcas-canvas'));
-    
-    // Configurar evento de selección para las opciones desplegables
+    // Configurar listeners para selects
     setupSelectListeners();
+    
+    // Inicializar los selectores de contadores
+    const estilosContainer = document.getElementById('estilos-canvas');
+    const marcasContainer = document.getElementById('marcas-canvas');
+    
+    if (estilosContainer) {
+      setupBubblesSelector('estilos', estilosContainer);
+    }
+    
+    if (marcasContainer) {
+      setupBubblesSelector('marcas', marcasContainer);
+    }
   } else {
-    console.error('No se encontraron etapas del test en el HTML');
-    return;
+    console.error('No se encontraron contenedores de etapas en el HTML');
   }
   
   // Actualizar la barra de progreso
@@ -142,17 +128,21 @@ function setupSelectListeners() {
   const selects = document.querySelectorAll('.pregunta select');
   selects.forEach(select => {
     select.addEventListener('change', function() {
-      const key = this.name;
+      const stageKey = this.closest('.pregunta').getAttribute('data-key');
       const value = this.value;
       
-      // Guardar valor seleccionado
+      // Guardar el valor en respuestas
+      window.respuestas = window.respuestas || {};
+      window.respuestas[stageKey] = value;
+      
+      // Guardar en testResults para coherencia
       window.testResults = window.testResults || {};
-      window.testResults[key] = value;
+      window.testResults[stageKey] = value;
       
-      console.log(`Seleccionado ${key}: ${value}`);
+      console.log(`Seleccionado ${stageKey}: ${value}`);
       
-      // Si es el select de experiencia, configurar la rama correspondiente
-      if (key === 'experiencia') {
+      // Si el select corresponde a experiencia, configurar la rama correspondiente
+      if (stageKey === 'experiencia') {
         setupExperienceBranch(value);
       }
     });
@@ -196,11 +186,21 @@ document.addEventListener('DOMContentLoaded', function() {
     next: document.getElementById('next-btn')
   });
   
-  // Revisar si MagneticBubbles está disponible
+  // Revisar si CounterSelector está disponible
   setTimeout(function() {
-    console.log('MagneticBubbles disponible:', typeof window.MagneticBubbles === 'function');
+    console.log('CounterSelector disponible:', typeof window.CounterSelector === 'function');
     console.log('recuperarTest disponible:', typeof window.recuperarTest === 'function');
   }, 1000);
+  
+  // Asegurar que los contenedores tengan tamaño adecuado
+  const contenedores = ['estilos-canvas', 'marcas-canvas'];
+  contenedores.forEach(id => {
+    const contenedor = document.getElementById(id);
+    if (contenedor) {
+      contenedor.style.minHeight = '300px';
+      contenedor.style.minWidth = '100%';
+    }
+  });
 });
 
 // Configurar el contenido específico para cada etapa
@@ -217,14 +217,20 @@ function setupStageContent(stage, container) {
     case 'experiencia':
     case 'presupuesto':
     case 'uso_principal':
+      // Usar opciones básicas para estos tipos
       setupBasicOptions(stage.id, optionsContainer);
       break;
+
     case 'estilos_preferidos':
+      // Configurar selector de contadores para estilos
       setupBubblesSelector('estilos', optionsContainer);
       break;
+
     case 'marcas_preferidas':
+      // Configurar selector de contadores para marcas
       setupBubblesSelector('marcas', optionsContainer);
       break;
+
     default:
       console.warn(`Tipo de etapa no reconocido: ${stage.id}`);
   }
@@ -262,10 +268,10 @@ function setupBasicOptions(optionType, container) {
       // Guardar valor seleccionado
       const value = card.getAttribute('data-value');
       if (optionType === 'uso_principal') {
-        window.testResults = window.testResults || {};
-        window.testResults.uso = value;
+        window.respuestas.uso_principal = value;
+        window.testResults.uso_principal = value;
       } else {
-        window.testResults = window.testResults || {};
+        window.respuestas[optionType] = value;
         window.testResults[optionType] = value;
       }
       
@@ -274,25 +280,17 @@ function setupBasicOptions(optionType, container) {
   });
 }
 
-// Configurar selector de burbujas para estilos y marcas
+// Configurar selector de contadores para estilos y marcas
 function setupBubblesSelector(type, container) {
-  console.log(`Configurando selector de burbujas para ${type}...`);
+  console.log(`Configurando selector de contadores para ${type}...`);
   
   if (!container) {
-    console.error(`Contenedor para burbujas de ${type} no encontrado`);
+    console.error(`Contenedor para selección de ${type} no encontrado`);
     return;
   }
   
-  // Crear canvas para las burbujas si no existe
-  let canvasElement = container.querySelector('canvas');
-  if (!canvasElement) {
-    canvasElement = document.createElement('canvas');
-    canvasElement.id = `canvas-${type}`;
-    canvasElement.className = 'bubbles-canvas';
-    canvasElement.style.width = '100%';
-    canvasElement.style.height = '100%';
-    container.appendChild(canvasElement);
-  }
+  // Limpiar el contenedor
+  container.innerHTML = '';
   
   // Determinar opciones según el tipo
   let options = [];
@@ -319,335 +317,171 @@ function setupBubblesSelector(type, container) {
     ];
   }
   
-  // Inicializar MagneticBubbles con verificación
-  if (typeof window.MagneticBubbles !== 'function') {
-    console.error('Error crítico: MagneticBubbles no está disponible como función');
+  // Inicializar CounterSelector con verificación
+  if (typeof window.CounterSelector !== 'function') {
+    console.error('Error crítico: CounterSelector no está disponible como función');
     
-    // Intento de recuperación automática usando la recuperación existente
-    if (typeof window.recuperarTest === 'function') {
-      console.log('Intentando recuperación automática de burbujas...');
-      setTimeout(window.recuperarTest, 500);
-    } else {
-      alert('Error al cargar el componente de burbujas. Por favor, recarga la página.');
-    }
+    // Mostrar un mensaje de error en el contenedor
+    container.innerHTML = `
+      <div class="error-message">
+        <p>Error al cargar el componente de selección.</p>
+        <button onclick="window.location.reload()">Recargar página</button>
+      </div>
+    `;
     return;
   }
   
   try {
-    // Configurar dimensiones consistentes para ambos canvas
-    const containerWidth = container.clientWidth || 300;
-    const containerHeight = container.clientHeight || 400;
-    canvasElement.width = containerWidth;
-    canvasElement.height = containerHeight;
-    
-    const bubbles = new window.MagneticBubbles(canvasElement, {
+    // Crear instancia del selector de contadores
+    const counterSelector = new window.CounterSelector(container, {
       items: options,
-      selectionMode: 'multiple',
-      canvasBackground: 'rgba(0, 0, 0, 0.8)',
-      bubbleBaseColor: '#f97316',
-      bubbleSelectedColor: '#ea580c',
-      textColor: '#ffffff',
-      width: containerWidth,
-      height: containerHeight
+      onChange: (selections) => {
+        // Guardar selecciones en objeto global 'respuestas'
+        window.respuestas = window.respuestas || {};
+        window.respuestas[type] = selections;
+        
+        // También guardar en testResults para coherencia
+        window.testResults = window.testResults || {};
+        window.testResults[type] = selections;
+        
+        // Log para diagnóstico
+        console.log(`Selecciones de ${type} actualizadas:`, selections);
+      }
     });
     
     // Guardar referencia global para facilitar el acceso
-    window[`${type}Bubbles`] = bubbles;
+    window[`${type}Selector`] = counterSelector;
     
-    // Evento de cambio de selección
-    canvasElement.addEventListener('selection-changed', (e) => {
-      const selections = e.detail.selections;
-      
-      // Guardar selecciones en objeto global 'respuestas'
-      window.respuestas = window.respuestas || {};
-      window.respuestas[type] = selections;
-      
-      // También guardar en testResults para coherencia
-      window.testResults = window.testResults || {};
-      window.testResults[type] = selections;
-      
-      // Log para diagnóstico
-      console.log(`Selecciones de ${type} actualizadas:`, selections);
-    });
-    
-    console.log(`Burbujas de ${type} inicializadas correctamente`);
+    console.log(`Selector de contadores para ${type} inicializado correctamente`);
   } catch (error) {
-    console.error(`Error al inicializar burbujas para ${type}:`, error);
+    console.error(`Error al inicializar selector para ${type}:`, error);
     
-    // Intento de recuperación automática
-    if (typeof window.recuperarTest === 'function') {
-      console.log('Intentando recuperación después de error...');
-      setTimeout(window.recuperarTest, 500);
-    }
+    // Mostrar mensaje de error en el contenedor
+    container.innerHTML = `
+      <div class="error-message">
+        <p>Error: ${error.message}</p>
+        <button onclick="window.location.reload()">Recargar página</button>
+      </div>
+    `;
   }
-}
-
-/**
- * Verifica periódicamente el estado de los canvas y los restaura si es necesario
- */
-function iniciarVerificacionPeriodica() {
-    // Verificar cada 3 segundos 
-    const intervaloVerificacion = setInterval(function() {
-        const preguntaActiva = document.querySelector('.pregunta-container.active');
-        if (!preguntaActiva) return;
-        
-        // Determinar qué tipo de canvas verificar según la pregunta activa
-        let canvasId = null;
-        if (preguntaActiva.id === 'pregunta-1') {
-            canvasId = 'estilos-canvas';
-        } else if (preguntaActiva.id === 'pregunta-2') {
-            canvasId = 'marcas-canvas';
-        }
-        
-        if (canvasId) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            
-            // Verificar si el canvas tiene contenido visible
-            const esVacio = canvas.innerHTML.trim() === '';
-            const esInvisible = canvas.offsetHeight < 50 || canvas.offsetWidth < 50;
-            
-            if (esVacio || esInvisible) {
-                console.warn(`Canvas ${canvasId} detectado vacío o invisible. Intentando restaurar...`);
-                if (canvasId === 'estilos-canvas') {
-                    inicializarSoloEstilos();
-                } else if (canvasId === 'marcas-canvas') {
-                    inicializarSoloMarcas();
-                }
-            }
-        }
-    }, 3000);
-    
-    // Almacenar el ID del intervalo para poder detenerlo cuando sea necesario
-    window.verificacionCanvasInterval = intervaloVerificacion;
-}
-
-// Iniciar la verificación después de cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(iniciarVerificacionPeriodica, 2000);
-});
-
-// Asegurar que se verifica el estado al cambiar de pestaña
-document.querySelectorAll('.nav-link').forEach(link => {
-    link.addEventListener('click', function() {
-        // Dar tiempo para que se complete la transición
-        setTimeout(function() {
-            console.log("Verificando estado de canvas después de cambio de pestaña");
-            const preguntaActiva = document.querySelector('.pregunta-container.active');
-            if (preguntaActiva && preguntaActiva.id === 'pregunta-1') {
-                verificarEstadoCanvas('estilos-canvas');
-            } else if (preguntaActiva && preguntaActiva.id === 'pregunta-2') {
-                verificarEstadoCanvas('marcas-canvas');
-            }
-        }, 500);
-    });
-});
-
-function verificarEstadoCanvas(canvasId) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    
-    const container = canvas.parentElement;
-    if (!container) return;
-    
-    const containerRect = container.getBoundingClientRect();
-    
-    // Si el contenedor es muy pequeño o invisible
-    if (containerRect.width < 100 || containerRect.height < 100) {
-        console.warn(`Contenedor de ${canvasId} demasiado pequeño, forzando redimensión`);
-        
-        // Forzar tamaño mínimo al contenedor
-        container.style.minWidth = '300px';
-        container.style.minHeight = '300px';
-        
-        // Reinicializar el canvas
-        if (canvasId === 'estilos-canvas') {
-            inicializarSoloEstilos();
-        } else if (canvasId === 'marcas-canvas') {
-            inicializarSoloMarcas();
-        }
-    }
 }
 
 // Navegación a la etapa anterior
 function navigateToPreviousStage() {
-  console.log("Navegando a la etapa anterior");
+  const currentIndex = testState.currentStageIndex;
+  if (currentIndex <= 0) return;
   
-  if (testState.currentStageIndex > 0) {
-    // Guardar el estado de la etapa actual antes de cambiar
-    const currentStage = testState.stageContainers[testState.currentStageIndex];
-    const currentType = currentStage.getAttribute('data-type');
-    const currentKey = currentStage.getAttribute('data-key');
-    
-    // Guardar datos específicos de burbujas si es necesario
-    if (currentType === 'bubbles' && (currentKey === 'estilos' || currentKey === 'marcas')) {
-      // Guardar explícitamente el estado del canvas actual
-      const bubbleInstance = window[`${currentKey}Bubbles`];
-      if (bubbleInstance && typeof bubbleInstance.getSelections === 'function') {
-        window.respuestas = window.respuestas || {};
-        window.respuestas[currentKey] = bubbleInstance.getSelections();
-        
-        window.testResults = window.testResults || {};
-        window.testResults[currentKey] = window.respuestas[currentKey];
-      }
+  // Obtener clave de la etapa actual para guardar datos
+  const currentStage = testState.stageContainers[currentIndex];
+  const currentKey = currentStage.getAttribute('data-key');
+  
+  // Guardar selecciones actuales si es un selector de contadores
+  if (currentStage.getAttribute('data-type') === 'selector' || currentStage.getAttribute('data-type') === 'bubbles') {
+    const counterSelector = window[`${currentKey}Selector`];
+    if (counterSelector) {
+      window.respuestas[currentKey] = counterSelector.getSelections();
+      window.testResults[currentKey] = counterSelector.getSelections();
     }
-    
-    // Ocultar etapa actual
-    testState.stageContainers[testState.currentStageIndex].classList.remove('active');
-    testState.stageContainers[testState.currentStageIndex].style.display = 'none';
-    
+  }
+  
+  // Ocultar etapa actual
+  currentStage.classList.remove('active');
+  
+  // Buscar la etapa anterior visible
+  let prevIndex = currentIndex - 1;
+  while (prevIndex >= 0 && testState.stageContainers[prevIndex].hasAttribute('data-hidden')) {
+    prevIndex--;
+  }
+  
+  if (prevIndex >= 0) {
     // Mostrar etapa anterior
-    testState.currentStageIndex--;
-    testState.stageContainers[testState.currentStageIndex].classList.add('active');
-    testState.stageContainers[testState.currentStageIndex].style.display = 'block';
-    
-    // Verificar si la nueva etapa activa necesita reinicialización
-    const newStage = testState.stageContainers[testState.currentStageIndex];
-    const newType = newStage.getAttribute('data-type');
-    const newKey = newStage.getAttribute('data-key');
-    
-    if (newType === 'bubbles') {
-      console.log(`Navegado a etapa de burbujas ${newKey}, verificando canvas...`);
-      
-      // Llamar a funciones de recuperación para garantizar que el canvas sea funcional
-      setTimeout(function() {
-        if (typeof window.verificarYRestaurarCanvas === 'function') {
-          window.verificarYRestaurarCanvas('prev-navigation');
-        } else if (typeof window.recuperarTest === 'function') {
-          window.recuperarTest();
-        }
-      }, 100);
-    }
-    
-    // Actualizar botón "Anterior" 
-    document.getElementById('prev-btn').disabled = (testState.currentStageIndex === 0);
+    testState.stageContainers[prevIndex].classList.add('active');
+    testState.currentStageIndex = prevIndex;
     
     // Actualizar barra de progreso
-    updateProgressBar(testState.currentStageIndex, testState.stageContainers.length);
+    updateProgressBar(prevIndex, testState.stageContainers.length);
+    
+    // Habilitar/deshabilitar botones según corresponda
+    document.getElementById('prev-btn').disabled = (prevIndex === 0);
+    document.getElementById('next-btn').disabled = false;
   }
+  
+  // Verificar integridad después de la navegación
+  setTimeout(verificarYRestaurarCanvas, 100, 'navegación previa');
 }
 
 // Navegación a la siguiente etapa
 function navigateToNextStage() {
-  // Log del estado actual para depuración
-  console.log("Navegando a la siguiente etapa:", {
-    currentStageIndex: testState.currentStageIndex,
-    currentStageId: testState.stageContainers[testState.currentStageIndex].id,
-    totalStages: testState.stageContainers.length,
-  });
+  const currentIndex = testState.currentStageIndex;
+  if (currentIndex >= testState.stageContainers.length - 1) return;
   
-  // Validar selección según tipo de etapa
-  const currentStage = testState.stageContainers[testState.currentStageIndex];
-  const stageType = currentStage.getAttribute('data-type');
+  // Obtener clave de la etapa actual para guardar datos
+  const currentStage = testState.stageContainers[currentIndex];
   const stageKey = currentStage.getAttribute('data-key');
   
-  // Guardar datos específicos de burbujas si es necesario
-  if (stageType === 'bubbles' && (stageKey === 'estilos' || stageKey === 'marcas')) {
-    // Guardar explícitamente el estado del canvas actual
-    const bubbleInstance = window[`${stageKey}Bubbles`];
-    if (bubbleInstance && typeof bubbleInstance.getSelections === 'function') {
-      window.respuestas = window.respuestas || {};
-      window.respuestas[stageKey] = bubbleInstance.getSelections();
-      
-      window.testResults = window.testResults || {};
-      window.testResults[stageKey] = window.respuestas[stageKey];
+  // Guardar selecciones actuales si es un selector de contadores
+  if (currentStage.getAttribute('data-type') === 'selector' || currentStage.getAttribute('data-type') === 'bubbles') {
+    const counterSelector = window[`${stageKey}Selector`];
+    if (counterSelector) {
+      window.respuestas[stageKey] = counterSelector.getSelections();
+      window.testResults[stageKey] = counterSelector.getSelections();
     }
   }
   
-  // Validación específica por tipo
-  if (stageType === 'select') {
-    const select = currentStage.querySelector('select');
-    if (select && select.value) {
-      // Guardar la selección
-      window.testResults = window.testResults || {};
-      window.testResults[stageKey] = select.value;
-    }
-  } else if (stageType === 'bubbles') {
-    // Para etapas de burbujas, no validamos - permitimos avanzar sin selecciones
-    console.log(`Etapa de burbujas de ${stageKey}, no se requiere validación estricta`);
-  }
+  // Ocultar etapa actual
+  currentStage.classList.remove('active');
   
-  // Si es la última etapa visible, finalizar test
-  let isLastVisible = true;
-  for (let i = testState.currentStageIndex + 1; i < testState.stageContainers.length; i++) {
-    if (!testState.stageContainers[i].hasAttribute('data-hidden')) {
-      isLastVisible = false;
-      break;
-    }
-  }
-  
-  if (isLastVisible) {
-    console.log("Última etapa alcanzada, mostrando modal de finalización");
-    showCompletionModal();
-    return;
-  }
-  
-  // Encontrar la siguiente etapa visible
-  let nextIndex = testState.currentStageIndex + 1;
+  // Buscar la siguiente etapa visible
+  let nextIndex = currentIndex + 1;
   while (nextIndex < testState.stageContainers.length && 
          testState.stageContainers[nextIndex].hasAttribute('data-hidden')) {
     nextIndex++;
   }
   
   if (nextIndex < testState.stageContainers.length) {
-    // Ocultar etapa actual
-    testState.stageContainers[testState.currentStageIndex].classList.remove('active');
-    testState.stageContainers[testState.currentStageIndex].style.display = 'none';
-    
     // Mostrar siguiente etapa
+    testState.stageContainers[nextIndex].classList.add('active');
     testState.currentStageIndex = nextIndex;
-    testState.stageContainers[testState.currentStageIndex].classList.add('active');
-    testState.stageContainers[testState.currentStageIndex].style.display = 'block';
-    
-    // Verificar si la nueva etapa activa necesita reinicialización
-    const newStage = testState.stageContainers[testState.currentStageIndex];
-    const newType = newStage.getAttribute('data-type');
-    const newKey = newStage.getAttribute('data-key');
-    
-    if (newType === 'bubbles') {
-      console.log(`Navegado a etapa de burbujas ${newKey}, verificando canvas...`);
-      
-      // Llamar a funciones de recuperación para garantizar que el canvas sea funcional
-      setTimeout(function() {
-        if (typeof window.verificarYRestaurarCanvas === 'function') {
-          window.verificarYRestaurarCanvas('next-navigation');
-        } else if (typeof window.recuperarTest === 'function') {
-          window.recuperarTest();
-        }
-      }, 100);
-    }
-    
-    // Habilitar botón "Anterior"
-    document.getElementById('prev-btn').disabled = false;
     
     // Actualizar barra de progreso
-    updateProgressBar(testState.currentStageIndex, testState.stageContainers.length);
+    updateProgressBar(nextIndex, testState.stageContainers.length);
+    
+    // Habilitar/deshabilitar botones según corresponda
+    document.getElementById('prev-btn').disabled = false;
+    document.getElementById('next-btn').disabled = false; // Mantener habilitado para poder finalizar
+    
+    // Si es la última etapa, cambiar texto del botón
+    if (nextIndex === testState.stageContainers.length - 1) {
+      document.getElementById('next-btn').innerHTML = 'Finalizar <i class="fas fa-check"></i>';
+      document.getElementById('next-btn').addEventListener('click', showCompletionModal, { once: true });
+    }
   } else {
-    // Si no hay más etapas visibles, mostrar la finalización
+    // No hay más etapas, mostrar modal de finalización
     showCompletionModal();
   }
+  
+  // Verificar integridad después de la navegación
+  setTimeout(verificarYRestaurarCanvas, 100, 'navegación siguiente');
 }
 
 // Mostrar modal de finalización
 function showCompletionModal() {
-  // Transferir datos de burbujas al testResults
+  // Transferir datos de selectores al testResults
   window.testResults = window.testResults || {};
   
-  // Asegurar que las selecciones de burbujas se transfieran
+  // Asegurar que las selecciones de contadores se transfieran
   if (window.respuestas && window.respuestas.estilos) {
     window.testResults.estilos = window.respuestas.estilos;
-    console.log("Transferidos datos de estilos a testResults:", window.respuestas.estilos);
   }
   
   if (window.respuestas && window.respuestas.marcas) {
     window.testResults.marcas = window.respuestas.marcas;
-    console.log("Transferidos datos de marcas a testResults:", window.respuestas.marcas);
   }
   
   // Usar el modal existente en el HTML en lugar de crearlo
   const modal = document.getElementById('completion-modal');
   if (!modal) {
-    console.error("Modal de finalización no encontrado en el HTML");
+    console.error('Modal de finalización no encontrado en el HTML');
     return;
   }
   
@@ -660,24 +494,10 @@ function showCompletionModal() {
     
     // Añadir nuevo listener
     newButton.addEventListener('click', () => {
-      // Última verificación y transferencia de datos
-      if (window.respuestas && window.respuestas.estilos) {
-        window.testResults.estilos = window.respuestas.estilos;
-      }
-      
-      if (window.respuestas && window.respuestas.marcas) {
-        window.testResults.marcas = window.respuestas.marcas;
-      }
-      
-      // Log final de diagnóstico
-      console.log("Datos finales del test:", window.testResults);
-      
-      // Llamar a la función finalizarTest que está definida en el HTML
-      if (typeof finalizarTest === 'function') {
-        finalizarTest(window.testResults);
+      if (typeof testState.completionCallback === 'function') {
+        testState.completionCallback(window.testResults);
       } else {
-        console.error("Función finalizarTest no encontrada");
-        alert("Error al finalizar el test. Por favor, inténtalo de nuevo.");
+        console.log('Test finalizado. Datos:', window.testResults);
       }
     });
   }
@@ -685,3 +505,34 @@ function showCompletionModal() {
   // Mostrar modal
   modal.style.display = 'flex';
 }
+
+// Reemplazar estas funciones para que usen CounterSelector en lugar de burbujas
+
+function inicializarSoloEstilos() {
+  setupBubblesSelector('estilos', document.getElementById('estilos-canvas'));
+}
+
+function inicializarSoloMarcas() {
+  setupBubblesSelector('marcas', document.getElementById('marcas-canvas'));
+}
+
+// También añadir esta función para verificar y restaurar el estado
+function verificarYRestaurarCanvas(origen) {
+  const estilosCanvas = document.getElementById('estilos-canvas');
+  const marcasCanvas = document.getElementById('marcas-canvas');
+  
+  if (estilosCanvas) {
+    setupBubblesSelector('estilos', estilosCanvas);
+  }
+  
+  if (marcasCanvas) {
+    setupBubblesSelector('marcas', marcasCanvas);
+  }
+  
+  console.log(`Canvas restaurados desde: ${origen}`);
+}
+
+// Exponer funciones globalmente para que sean accesibles desde otros scripts
+window.inicializarSoloEstilos = inicializarSoloEstilos;
+window.inicializarSoloMarcas = inicializarSoloMarcas;
+window.verificarYRestaurarCanvas = verificarYRestaurarCanvas;
