@@ -135,3 +135,70 @@ class MotoLabelPropagation:
         sorted_recs = sorted(unrated_motos, key=lambda x: x[1], reverse=True)
         
         return sorted_recs[:top_n]
+    
+    def initialize_from_interactions(self, interactions):
+        """
+        Inicializa el algoritmo a partir de datos de interacciones.
+        
+        Args:
+            interactions: Lista de diccionarios con estructura {user_id, moto_id, weight}
+            
+        Returns:
+            self: Permite encadenamiento de métodos
+        """
+        # 1. Construir el grafo social basado en quienes interactuaron con motos similares
+        friendships = []
+        
+        # Agrupar por motos para identificar usuarios que interactuaron con la misma moto
+        moto_to_users = defaultdict(list)
+        for interaction in interactions:
+            user_id = interaction["user_id"]
+            moto_id = interaction["moto_id"]
+            moto_to_users[moto_id].append(user_id)
+        
+        # Usuarios que interactuaron con la misma moto forman conexiones
+        for users in moto_to_users.values():
+            if len(users) > 1:
+                # Formar todas las posibles conexiones entre estos usuarios
+                for i in range(len(users)):
+                    for j in range(i+1, len(users)):
+                        friendships.append((users[i], users[j]))
+        
+        # 2. Construir el grafo
+        self.build_social_graph(friendships)
+        
+        # 3. Convertir interacciones a lista de preferencias (user_id, moto_id, rating)
+        user_moto_preferences = []
+        for interaction in interactions:
+            user_moto_preferences.append(
+                (interaction["user_id"], interaction["moto_id"], float(interaction["weight"]))
+            )
+        
+        # 4. Establecer preferencias
+        self.set_user_preferences(user_moto_preferences)
+        
+        # 5. Propagar etiquetas
+        if self.social_graph and self.user_preferences:
+            self.propagate_labels()
+        
+        return self
+    
+    def get_recommendations(self, user_id, top_n=5):
+        """
+        Obtiene recomendaciones para un usuario basadas en el algoritmo de propagación.
+        Alias para get_friend_recommendations para mantener compatibilidad con la interfaz.
+        
+        Args:
+            user_id: ID del usuario para el que se generan recomendaciones
+            top_n (int): Número de recomendaciones a generar
+            
+        Returns:
+            list: Lista de diccionarios {moto_id, score} ordenados por puntuación
+        """
+        # Obtener recomendaciones en formato de tuplas
+        rec_tuples = self.get_friend_recommendations(user_id, top_n)
+        
+        # Convertir a formato de diccionarios para mantener consistencia con la interfaz
+        recommendations = [{"moto_id": moto_id, "score": score} for moto_id, score in rec_tuples]
+        
+        return recommendations

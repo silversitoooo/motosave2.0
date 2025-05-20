@@ -392,7 +392,7 @@ class DataPreprocessor:
                     df_norm[col] = 0  # Si todos los valores son iguales
         
         return df_norm
-    
+        
     @staticmethod
     def encode_categorical(df, columns):
         """
@@ -416,3 +416,40 @@ class DataPreprocessor:
                 df_encoded = pd.concat([df_encoded.drop(col, axis=1), dummies], axis=1)
         
         return df_encoded
+        
+    @staticmethod
+    def normalize_features(df, columns=None):
+        """
+        Normaliza características numéricas a escala 0-1.
+        
+        Args:
+            df (pandas.DataFrame): DataFrame con columnas numéricas
+            columns (list, optional): Lista de columnas a normalizar
+            
+        Returns:
+            pandas.DataFrame: DataFrame con columnas normalizadas
+        """
+        if df is None or df.empty:
+            return df
+            
+        result = df.copy()
+        
+        # Si no se especifican columnas, detectar automáticamente
+        if columns is None:
+            columns = [col for col in result.columns 
+                     if col not in ['user_id', 'moto_id'] 
+                     and pd.api.types.is_numeric_dtype(result[col])]
+                     
+        # Normalizar cada columna
+        for col in columns:
+            if col in result.columns:
+                min_val = result[col].min()
+                max_val = result[col].max()
+                
+                # Evitar división por cero
+                if min_val == max_val:
+                    result[col] = 0.5  # Valor medio si todos son iguales
+                else:
+                    result[col] = (result[col] - min_val) / (max_val - min_val)
+        
+        return result
