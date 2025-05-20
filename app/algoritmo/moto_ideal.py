@@ -79,11 +79,12 @@ class MotoIdealRecommender:
         if moto_ids is not None:
             processed_df = self.motos_features.drop('moto_id', axis=1)
         else:
-            processed_df = self.motos_features.copy()
-            
-        # PASO 2: Codificar variables categóricas
+            processed_df = self.motos_features.copy()            # PASO 2: Codificar variables categóricas
         try:
-            self.motos_features_processed = DataPreprocessor.encode_categorical(processed_df)
+            # Identificar columnas categóricas
+            categorical_columns = [col for col in processed_df.columns 
+                                if pd.api.types.is_object_dtype(processed_df[col])]
+            self.motos_features_processed = DataPreprocessor.encode_categorical(processed_df, columns=categorical_columns)
             
             # PASO 3: Normalizar variables numéricas
             numeric_columns = ['potencia', 'peso', 'cilindrada', 'precio']

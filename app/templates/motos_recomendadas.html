@@ -130,8 +130,10 @@
                                     <p class="card-text">
                                         <strong>Tipo:</strong> {{ moto.tipo }}<br>
                                         <strong>Precio:</strong> ${{ moto.precio }}
-                                    </p>
+                                    </p>                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
+                                    {% if moto.id %}
                                     <a href="{{ url_for('main.moto_detail', moto_id=moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -158,11 +160,13 @@
                                 {% endif %}
                                 <div class="card-body">
                                     <h5 class="card-title">{{ item.moto.marca }} {{ item.moto.modelo }}</h5>
-                                    <p class="card-text">
-                                        <strong>Tipo:</strong> {{ item.moto.tipo }}<br>
+                                    <p class="card-text">                                        <strong>Tipo:</strong> {{ item.moto.tipo }}<br>
                                         <strong>Precio:</strong> ${{ item.moto.precio }}
                                     </p>
+                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
+                                    {% if item.moto.id %}
                                     <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -197,10 +201,12 @@
                                     <div class="progress mb-3">
                                         <div class="progress-bar" role="progressbar" style="width: {{ (item.score * 100)|int }}%;" 
                                             aria-valuenow="{{ (item.score * 100)|int }}" aria-valuemin="0" aria-valuemax="100">
-                                            {{ (item.score * 100)|int }}%
-                                        </div>
+                                            {{ (item.score * 100)|int }}%                                        </div>
                                     </div>
+                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
+                                    {% if item.moto.id %}
                                     <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

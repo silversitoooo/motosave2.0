@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalles de la Moto - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+    <style>
+        .moto-detail-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .moto-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .moto-info {
+            margin-top: 20px;
+        }
+        
+        .detail-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .spec-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .spec-item {
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .spec-name {
+            font-weight: bold;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .spec-value {
+            font-size: 1.1rem;
+            color: #333;
+        }
+        
+        .reviews-section {
+            margin-top: 30px;
+        }
+        
+        .review-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .review-author {
+            font-weight: bold;
+        }
+        
+        .review-date {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .rating {
+            color: #ffc107;
+        }
+        
+        .back-button {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="moto-detail-container">
+        <div class="back-button">
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            </a>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                {% if moto.imagen %}
+                <img src="{{ moto.imagen }}" alt="{{ moto.marca }} {{ moto.modelo }}" class="moto-image">
+                {% else %}
+                <div class="moto-image d-flex align-items-center justify-content-center bg-light">
+                    <i class="fas fa-image fa-3x text-muted"></i>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6 moto-info">
+                <h1>{{ moto.marca }} {{ moto.modelo }}</h1>
+                <div class="mt-3 mb-4">
+                    <span class="badge badge-primary">{{ moto.tipo }}</span>
+                    <h3 class="mt-2">€{{ moto.precio }}</h3>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Especificaciones Técnicas</h4>
+                    <div class="spec-container">
+                        <div class="spec-item">
+                            <div class="spec-name">Motor</div>
+                            <div class="spec-value">{{ moto.motor }}</div>
+                        </div>
+                        <div class="spec-item">
+                            <div class="spec-name">Cilindrada</div>
+                            <div class="spec-value">{{ moto.cilindrada }}</div>
+                        </div>
+                        <div class="spec-item">
+                            <div class="spec-name">Potencia</div>
+                            <div class="spec-value">{{ moto.potencia }}</div>
+                        </div>
+                        <div class="spec-item">
+                            <div class="spec-name">Peso</div>
+                            <div class="spec-value">{{ moto.peso }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="reviews-section">
+            <h3>Opiniones de Usuarios</h3>
+            
+            {% if reviews %}
+                {% for review in reviews %}
+                <div class="review-item">
+                    <div class="review-header">
+                        <div class="review-author">{{ review.username }}</div>
+                        <div class="review-date">{{ review.timestamp }}</div>
+                    </div>
+                    
+                    <div class="rating">
+                        {% for i in range(5) %}
+                            {% if i < review.rating|int %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="review-content mt-2">
+                        {{ review.comment }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    No hay opiniones para esta moto aún.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="{{ url_for('main.home') }}" class="link">Inicio</a></p>
+    </footer>
+</body>
+</html>

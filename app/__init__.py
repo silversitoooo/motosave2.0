@@ -15,9 +15,11 @@ def create_app():
 
     # Clave secreta necesaria para usar sesiones (como guardar el usuario)
     app.secret_key = 'clave-super-secreta'
-    
-    # Cargar configuración de la base de datos
+      # Cargar configuración de la base de datos
     app.config.from_pyfile('config.py')
+    
+    # Fix database connection issues
+    fix_database_connection()
     
     # Inicializar conexión a Neo4j
     try:
@@ -124,3 +126,39 @@ class MotoRecommenderAdapter:
         
         # Cargar datos inmediatamente
         self.load_data()
+def fix_database_connection():
+    """
+    Fix the database connection issues by modifying the DatabaseConnector class.
+    """
+    try:
+        from app.algoritmo.utils import DatabaseConnector
+        
+        # Monkey patch the __init__ method to ensure it accepts keyword arguments
+        original_init = DatabaseConnector.__init__
+        
+        def patched_init(self, *args, **kwargs):
+            # Handle both positional and keyword arguments
+            if kwargs and 'uri' in kwargs:
+                # Called with keywords
+                uri = kwargs.get('uri', 'bolt://localhost:7687')
+                user = kwargs.get('user', 'neo4j')
+                password = kwargs.get('password', '22446688')
+                original_init(self, uri, user, password)
+            elif len(args) == 3:
+                # Called with 3 positional args (uri, user, password)
+                original_init(self, *args)
+            elif len(args) == 1 and isinstance(args[0], str):
+                # Called with just URI
+                original_init(self, args[0], 'neo4j', '22446688')
+            else:
+                # Default fallback
+                original_init(self, 'bolt://localhost:7687', 'neo4j', '22446688')
+        
+        # Apply the monkey patch
+        DatabaseConnector.__init__ = patched_init
+        
+        return True
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to patch DatabaseConnector: {str(e)}")
+        return False

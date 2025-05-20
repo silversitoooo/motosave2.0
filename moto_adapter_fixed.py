@@ -449,3 +449,110 @@ class MotoRecommenderAdapter:
             logger.error(f"Error al buscar la moto {moto_id}: {str(e)}")
             logger.error(traceback.format_exc())
             return None
+        
+    def get_popular_motos(self, top_n=10):
+        """
+        Obtiene las motos más populares usando PageRank.
+        
+        Args:
+            top_n (int): Número de motos a devolver
+            
+        Returns:
+            list: Lista de motos populares con sus puntuaciones
+        """
+        try:
+            # Conectar a Neo4j si es necesario
+            if not self._ensure_neo4j_connection():
+                logger.error("No se pudo conectar a Neo4j para obtener motos populares")
+                return []
+                
+            # Obtener datos de interacción
+            query = """
+            MATCH (u:User)-[r:INTERACTED]->(m:Moto)
+            WHERE r.type = 'like' OR r.type = 'rating'
+            RETURN u.id as user_id, m.id as moto_id, r.weight as weight
+            """
+            
+            with self.driver.session() as session:
+                result = session.run(query)
+                interactions = [(record["user_id"], record["moto_id"], 
+                               record.get("weight", 1.0)) for record in result]
+            
+            # Si no hay datos de interacción, devolver lista vacía
+            if not interactions:
+                logger.warning("No hay datos de interacción para calcular motos populares")
+                return []
+                
+            # Inicializar y ejecutar PageRank
+            from app.algoritmo.pagerank import MotoPageRank
+            pagerank = MotoPageRank()
+            pagerank.build_graph(interactions)
+            pagerank.run()
+            
+            # Obtener las motos más populares
+            popular_moto_ids = pagerank.get_popular_motos(top_n=top_n)
+            
+            # Obtener información detallada de las motos
+            popular_motos_info = []
+            
+            if not self.motos_df is None and not self.motos_df.empty:
+                # Usar DataFrame en memoria si está disponible
+                for moto_id, score in popular_moto_ids:
+                    # Buscar la moto en el DataFrame
+                    moto_info = self.motos_df[self.motos_df['moto_id'] == moto_id]
+                    if not moto_info.empty:
+                        # Convertir la primera fila a diccionario
+                        moto_dict = moto_info.iloc[0].to_dict()
+                        # Agregar puntuación
+                        moto_dict['score'] = score
+                        popular_motos_info.append(moto_dict)
+            else:
+                # Buscar datos en Neo4j
+                moto_ids = [moto_id for moto_id, _ in popular_moto_ids]
+                moto_query = """
+                MATCH (m:Moto)
+                WHERE m.id IN $moto_ids
+                RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                       m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                """
+                
+                with self.driver.session() as session:
+                    result = session.run(moto_query, moto_ids=moto_ids)
+                    
+                    for record in result:
+                        # Buscar la puntuación
+                        score = 0.0
+                        for moto_id, s in popular_moto_ids:
+                            if moto_id == record["id"]:
+                                score = s
+                                break
+                                
+                        popular_motos_info.append({
+                            "id": record["id"],
+                            "marca": record["marca"],
+                            "modelo": record["modelo"],
+                            "tipo": record["tipo"],
+                            "precio": record["precio"],
+                            "imagen": record["imagen"],
+                            "score": score
+                        })
+            
+            return popular_motos_info
+            
+        except Exception as e:
+            logger.error(f"Error al obtener motos populares: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+    
+    def _get_popular_motos(self, top_n=10):
+        """
+        Método de compatibilidad para código antiguo que llama a _get_popular_motos.
+        
+        Args:
+            top_n (int): Número de motos a devolver
+            
+        Returns:
+            list: Lista de motos populares con sus puntuaciones
+        """
+        return self.get_popular_motos(top_n)

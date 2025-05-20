@@ -207,10 +207,19 @@ def populares():
     if not adapter:
         return render_template('error.html', 
                              title="Sistema no disponible",
-                             error="El sistema de recomendaciones no está disponible en este momento.")
-    
+                             error="El sistema de recomendaciones no está disponible en este momento.")    
     # Obtener motos populares
-    motos_populares = adapter._get_popular_motos(top_n=6)
+    try:
+        # Primero intentar usar get_popular_motos del adaptador
+        if hasattr(adapter, 'get_popular_motos'):
+            motos_populares = adapter.get_popular_motos(top_n=6)
+        else:
+            # Si no existe, usar la función de utils como fallback
+            from app.utils import get_populares_motos
+            motos_populares = get_populares_motos(top_n=6)
+    except Exception as e:
+        flash(f'Error al obtener motos populares: {str(e)}', 'error')
+        motos_populares = []
     
     # Formatear para la plantilla
     motos_formateadas = []
@@ -747,158 +756,419 @@ def motos_recomendadas():
     """
     user_id = session.get('user_id')
     if not user_id:
-        flash('Debes iniciar sesión para ver las recomendaciones', 'error')
-        return redirect(url_for('main.login'))
+        # También verificar username para sesiones antiguas
+        username = session.get('username')
+        if username:
+            # Buscar el user_id asociado al username
+            try:
+                adapter = current_app.config.get('MOTO_RECOMMENDER')
+                if adapter and hasattr(adapter, '_ensure_neo4j_connection'):
+                    adapter._ensure_neo4j_connection()
+                    with adapter.driver.session() as neo4j_session:
+                        result = neo4j_session.run("""
+                            MATCH (u:User {username: $username})
+                            RETURN u.id as user_id
+                        """, username=username)
+                        
+                        # Use the first record in case there are multiple matches
+                        records = list(result)
+                        if records:
+                            user_id = records[0]["user_id"]
+                            # Actualizar la sesión
+                            session['user_id'] = user_id
+                            logger.info(f"Actualizada sesión con user_id {user_id} para {username}")
+            except Exception as e:
+                logger.error(f"Error al obtener user_id desde username: {str(e)}")
+        
+        if not user_id:
+            flash('Debes iniciar sesión para ver las recomendaciones', 'error')
+            return redirect(url_for('main.login'))
     
     # Obtener conexión a la base de datos
-    connector = get_db_connection()
-    if not connector:
-        flash('No se pudo conectar a la base de datos', 'error')
-        return redirect(url_for('main.dashboard'))
-    
-    # Obtener lista de amigos
-    friends = []
     try:
-        with connector.driver.session() as db_session:
-            result = db_session.run("""
-                MATCH (u:User {id: $user_id})-[:FRIEND]->(f:User)
-                RETURN f.id as friend_id, f.username as friend_username
-            """, user_id=user_id)
+        # Primero intentar usar el adaptador en la configuración de la app
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if adapter and hasattr(adapter, '_ensure_neo4j_connection'):
+            if not adapter._ensure_neo4j_connection():
+                flash('No se pudo conectar a la base de datos. Intente más tarde.', 'error')
+                return redirect(url_for('main.dashboard'))
             
-            friends = [{"id": record["friend_id"], "username": record["friend_username"]} 
-                      for record in result]
-    except Exception as e:
-        flash(f'Error al obtener la lista de amigos: {str(e)}', 'error')
-        return redirect(url_for('main.dashboard'))
-    
-    # Si no hay amigos, mostrar página con mensaje
-    if not friends:
-        return render_template('motos_recomendadas.html', friends_data=None)
-    
-    # Preparar datos para la plantilla
-    ideal_motos = {}
-    liked_motos = []
-    propagation_motos = []
-    
-    # Crear instancia del algoritmo de label propagation
-    label_propagation = MotoLabelPropagation()
-    
-    # Procesar cada amigo
-    for friend in friends:
-        friend_id = friend["id"]
-        friend_username = friend["username"]
-        
-        # 1. Obtener moto ideal del amigo
-        try:
-            with connector.driver.session() as db_session:
+            # Obtener lista de amigos usando el adaptador
+            friends = []
+            with adapter.driver.session() as db_session:
+                # Modificar para buscar tanto FRIEND como FRIEND_OF relaciones
                 result = db_session.run("""
-                    MATCH (f:User {id: $friend_id})-[:IDEAL_MOTO]->(m:Moto)
+                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(f:User)
+                    RETURN f.id as friend_id, f.username as friend_username
+                """, user_id=user_id)
+                
+                friends = [{"id": record["friend_id"], "username": record["friend_username"]} 
+                          for record in result]
+            
+            # Si no hay amigos, mostrar página con mensaje
+            if not friends:
+                return render_template('motos_recomendadas.html', friends_data=None)
+            
+            # Preparar datos para la plantilla
+            ideal_motos = {}
+            liked_motos = []
+            propagation_motos = []
+            
+            # Crear instancia del algoritmo de label propagation
+            label_propagation = MotoLabelPropagation()
+            
+            # Procesar cada amigo
+            for friend in friends:
+                friend_id = friend["id"]
+                friend_username = friend["username"]
+                
+                # 1. Obtener moto ideal del amigo
+                try:
+                    with adapter.driver.session() as db_session:
+                        result = db_session.run("""
+                            MATCH (f:User {id: $friend_id})-[:IDEAL_MOTO|:IDEAL]->(m:Moto)
+                            RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                   m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                        """, friend_id=friend_id)
+                        
+                        record = result.single()
+                        if record:
+                            ideal_motos[friend_username] = {
+                                "id": record["id"],
+                                "marca": record["marca"],
+                                "modelo": record["modelo"],
+                                "tipo": record["tipo"],
+                                "precio": record["precio"],
+                                "imagen": record["imagen"]
+                            }
+                except Exception as e:
+                    logger.error(f"Error al obtener moto ideal de {friend_username}: {e}")
+                
+                # 2. Obtener motos con like del amigo
+                try:
+                    with adapter.driver.session() as db_session:
+                        result = db_session.run("""
+                            MATCH (f:User {id: $friend_id})-[r:INTERACTED]->(m:Moto)
+                            WHERE r.type = 'like'
+                            RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                   m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                        """, friend_id=friend_id)
+                        
+                        for record in result:
+                            liked_motos.append({
+                                "friend_name": friend_username,
+                                "moto": {
+                                    "id": record["id"],
+                                    "marca": record["marca"],
+                                    "modelo": record["modelo"],
+                                    "tipo": record["tipo"],
+                                    "precio": record["precio"],
+                                    "imagen": record["imagen"]
+                                }
+                            })
+                except Exception as e:
+                    logger.error(f"Error al obtener motos con like de {friend_username}: {e}")
+                
+                # 3. Generar recomendaciones con label propagation
+                try:
+                    # Obtener interacciones del usuario y su amigo
+                    with adapter.driver.session() as db_session:
+                        interactions_result = db_session.run("""
+                            MATCH (u:User)-[r:INTERACTED]->(m:Moto)
+                            WHERE u.id IN [$user_id, $friend_id] AND r.type = 'like'
+                            RETURN u.id as user_id, m.id as moto_id,
+                                   m.marca as marca, m.modelo as modelo, r.weight as weight
+                        """, user_id=user_id, friend_id=friend_id)
+                        
+                        # Preparar datos para el algoritmo
+                        interactions = []
+                        for record in interactions_result:
+                            interactions.append({
+                                "user_id": record["user_id"],
+                                "moto_id": record["moto_id"],
+                                "weight": record["weight"] if record["weight"] else 1.0
+                            })
+                        
+                        # Ejecutar propagación si hay suficientes datos
+                        if interactions:
+                            # Inicializar el algoritmo con los datos
+                            label_propagation.initialize_from_interactions(interactions)
+                            
+                            # Obtener recomendaciones para el usuario actual
+                            prop_recommendations = label_propagation.get_recommendations(user_id)
+                            
+                            # Obtener detalles de las motos recomendadas
+                            if prop_recommendations:
+                                for rec in prop_recommendations[:5]:  # Limitar a 5 recomendaciones por amigo
+                                    moto_id = rec["moto_id"]
+                                    score = rec["score"]
+                                    
+                                    # Obtener detalles de la moto
+                                    moto_result = db_session.run("""
+                                        MATCH (m:Moto {id: $moto_id})
+                                        RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                               m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                                    """, moto_id=moto_id)
+                                    
+                                    moto_record = moto_result.single()
+                                    if moto_record:
+                                        propagation_motos.append({
+                                            "friend_name": friend_username,
+                                            "score": score,
+                                            "moto": {
+                                                "id": moto_record["id"],
+                                                "marca": moto_record["marca"],
+                                                "modelo": moto_record["modelo"],
+                                                "tipo": moto_record["tipo"],
+                                                "precio": moto_record["precio"],
+                                                "imagen": moto_record["imagen"]
+                                            }
+                                        })
+                except Exception as e:
+                    logger.error(f"Error al generar recomendaciones con label propagation para {friend_username}: {e}")
+            
+            # Ordenar motos recomendadas por puntuación
+            propagation_motos.sort(key=lambda x: x["score"], reverse=True)
+            
+            # Renderizar plantilla con los datos
+            return render_template('motos_recomendadas.html', 
+                                   friends_data=friends,
+                                   ideal_motos=ideal_motos,
+                                   liked_motos=liked_motos,
+                                   propagation_motos=propagation_motos)
+        else:
+            # Usar el getDB_connection como respaldo
+            connector = get_db_connection()
+            if not connector:
+                flash('No se pudo conectar a la base de datos. Intente más tarde.', 'error')
+                return redirect(url_for('main.dashboard'))
+            
+            # Obtener lista de amigos
+            friends = []
+            with connector.driver.session() as db_session:
+                # Modificar para buscar tanto FRIEND como FRIEND_OF relaciones
+                result = db_session.run("""
+                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(f:User)
+                    RETURN f.id as friend_id, f.username as friend_username
+                """, user_id=user_id)
+                
+                friends = [{"id": record["friend_id"], "username": record["friend_username"]} 
+                          for record in result]
+            
+            # Si no hay amigos, mostrar página con mensaje
+            if not friends:
+                return render_template('motos_recomendadas.html', friends_data=None)
+            
+            # Preparar datos para la plantilla
+            ideal_motos = {}
+            liked_motos = []
+            propagation_motos = []
+            
+            # Crear instancia del algoritmo de label propagation
+            label_propagation = MotoLabelPropagation()
+            
+            # Procesar cada amigo
+            for friend in friends:
+                friend_id = friend["id"]
+                friend_username = friend["username"]
+                
+                # 1. Obtener moto ideal del amigo
+                try:
+                    with connector.driver.session() as db_session:
+                        result = db_session.run("""
+                            MATCH (f:User {id: $friend_id})-[:IDEAL_MOTO|:IDEAL]->(m:Moto)
+                            RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                   m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                        """, friend_id=friend_id)
+                        
+                        record = result.single()
+                        if record:
+                            ideal_motos[friend_username] = {
+                                "id": record["id"],
+                                "marca": record["marca"],
+                                "modelo": record["modelo"],
+                                "tipo": record["tipo"],
+                                "precio": record["precio"],
+                                "imagen": record["imagen"]
+                            }
+                except Exception as e:
+                    logger.error(f"Error al obtener moto ideal de {friend_username}: {e}")
+                
+                # 2. Obtener motos con like del amigo
+                try:
+                    with connector.driver.session() as db_session:
+                        result = db_session.run("""
+                            MATCH (f:User {id: $friend_id})-[r:INTERACTED]->(m:Moto)
+                            WHERE r.type = 'like'
+                            RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                   m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                        """, friend_id=friend_id)
+                        
+                        for record in result:
+                            liked_motos.append({
+                                "friend_name": friend_username,
+                                "moto": {
+                                    "id": record["id"],
+                                    "marca": record["marca"],
+                                    "modelo": record["modelo"],
+                                    "tipo": record["tipo"],
+                                    "precio": record["precio"],
+                                    "imagen": record["imagen"]
+                                }
+                            })
+                except Exception as e:
+                    logger.error(f"Error al obtener motos con like de {friend_username}: {e}")
+                
+                # 3. Generar recomendaciones con label propagation - igual implementación que arriba
+                try:
+                    # Obtener interacciones del usuario y su amigo
+                    with connector.driver.session() as db_session:
+                        interactions_result = db_session.run("""
+                            MATCH (u:User)-[r:INTERACTED]->(m:Moto)
+                            WHERE u.id IN [$user_id, $friend_id] AND r.type = 'like'
+                            RETURN u.id as user_id, m.id as moto_id,
+                                   m.marca as marca, m.modelo as modelo, r.weight as weight
+                        """, user_id=user_id, friend_id=friend_id)
+                        
+                        # Preparar datos para el algoritmo
+                        interactions = []
+                        for record in interactions_result:
+                            interactions.append({
+                                "user_id": record["user_id"],
+                                "moto_id": record["moto_id"],
+                                "weight": record["weight"] if record["weight"] else 1.0
+                            })
+                        
+                        # Ejecutar propagación si hay suficientes datos
+                        if interactions:
+                            # Inicializar el algoritmo con los datos
+                            label_propagation.initialize_from_interactions(interactions)
+                            
+                            # Obtener recomendaciones para el usuario actual
+                            prop_recommendations = label_propagation.get_recommendations(user_id)
+                            
+                            # Obtener detalles de las motos recomendadas
+                            if prop_recommendations:
+                                for rec in prop_recommendations[:5]:  # Limitar a 5 recomendaciones por amigo
+                                    moto_id = rec["moto_id"]
+                                    score = rec["score"]
+                                    
+                                    # Obtener detalles de la moto
+                                    moto_result = db_session.run("""
+                                        MATCH (m:Moto {id: $moto_id})
+                                        RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                               m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                                    """, moto_id=moto_id)
+                                    
+                                    moto_record = moto_result.single()
+                                    if moto_record:
+                                        propagation_motos.append({
+                                            "friend_name": friend_username,
+                                            "score": score,
+                                            "moto": {
+                                                "id": moto_record["id"],
+                                                "marca": moto_record["marca"],
+                                                "modelo": moto_record["modelo"],
+                                                "tipo": moto_record["tipo"],
+                                                "precio": moto_record["precio"],
+                                                "imagen": moto_record["imagen"]
+                                            }
+                                        })
+                except Exception as e:
+                    logger.error(f"Error al generar recomendaciones con label propagation para {friend_username}: {e}")
+            
+            # Ordenar motos recomendadas por puntuación
+            propagation_motos.sort(key=lambda x: x["score"], reverse=True)
+            
+            # Renderizar plantilla con los datos
+            return render_template('motos_recomendadas.html', 
+                                  friends_data=friends,
+                                  ideal_motos=ideal_motos,
+                                  liked_motos=liked_motos,
+                                  propagation_motos=propagation_motos)
+    except Exception as e:
+        logger.error(f"Error en la página de motos recomendadas: {str(e)}")
+        flash(f'Error al cargar recomendaciones: {str(e)}', 'error')
+        return redirect(url_for('main.dashboard'))
+
+@fixed_routes.route('/moto-detail/<moto_id>')
+@login_required
+def moto_detail(moto_id):
+    """
+    Mostrar detalles de una moto específica.
+    
+    Args:
+        moto_id: ID de la moto a mostrar
+    """
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        
+        if not adapter:
+            flash('Sistema de recomendaciones no disponible.', 'error')
+            return redirect(url_for('main.dashboard'))
+        
+        # Intentar usar el adaptador para obtener detalles de la moto
+        if hasattr(adapter, 'get_moto_details'):
+            moto = adapter.get_moto_details(moto_id)
+        else:
+            # Usar conexión directa a Neo4j como fallback
+            connector = get_db_connection()
+            if not connector:
+                flash('No se pudo conectar a la base de datos.', 'error')
+                return redirect(url_for('main.dashboard'))
+                
+            with connector.driver.session() as session:
+                result = session.run("""
+                    MATCH (m:Moto {id: $moto_id})
                     RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
-                           m.tipo as tipo, m.precio as precio, m.imagen as imagen
-                """, friend_id=friend_id)
+                           m.tipo as tipo, m.precio as precio, m.imagen as imagen,
+                           m.motor as motor, m.cilindrada as cilindrada, 
+                           m.potencia as potencia, m.peso as peso
+                """, moto_id=moto_id)
                 
                 record = result.single()
                 if record:
-                    ideal_motos[friend_username] = {
+                    moto = {
                         "id": record["id"],
                         "marca": record["marca"],
                         "modelo": record["modelo"],
                         "tipo": record["tipo"],
                         "precio": record["precio"],
-                        "imagen": record["imagen"]
+                        "imagen": record["imagen"],
+                        "motor": record.get("motor", "No disponible"),
+                        "cilindrada": record.get("cilindrada", "No disponible"),
+                        "potencia": record.get("potencia", "No disponible"),
+                        "peso": record.get("peso", "No disponible")
                     }
-        except Exception as e:
-            print(f"Error al obtener moto ideal de {friend_username}: {e}")
-        
-        # 2. Obtener motos con like del amigo
+                else:
+                    flash('Moto no encontrada.', 'error')
+                    return redirect(url_for('main.dashboard'))
+                    
+        # Obtener opiniones/reviews de la moto
+        reviews = []
         try:
-            with connector.driver.session() as db_session:
-                result = db_session.run("""
-                    MATCH (f:User {id: $friend_id})-[r:INTERACTED]->(m:Moto)
-                    WHERE r.type = 'like'
-                    RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
-                           m.tipo as tipo, m.precio as precio, m.imagen as imagen
-                """, friend_id=friend_id)
+            with connector.driver.session() as session:
+                result = session.run("""
+                    MATCH (u:User)-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                    WHERE r.type = 'review' OR r.comment IS NOT NULL
+                    RETURN u.username as username, r.comment as comment, 
+                           r.rating as rating, r.timestamp as timestamp
+                    ORDER BY r.timestamp DESC
+                """, moto_id=moto_id)
                 
                 for record in result:
-                    liked_motos.append({
-                        "friend_name": friend_username,
-                        "moto": {
-                            "id": record["id"],
-                            "marca": record["marca"],
-                            "modelo": record["modelo"],
-                            "tipo": record["tipo"],
-                            "precio": record["precio"],
-                            "imagen": record["imagen"]
-                        }
+                    reviews.append({
+                        "username": record["username"],
+                        "comment": record["comment"],
+                        "rating": record["rating"],
+                        "timestamp": record["timestamp"]
                     })
         except Exception as e:
-            print(f"Error al obtener motos con like de {friend_username}: {e}")
+            logger.error(f"Error al obtener reviews de la moto {moto_id}: {str(e)}")
         
-        # 3. Generar recomendaciones con label propagation
-        try:
-            # Obtener interacciones del usuario y su amigo
-            with connector.driver.session() as db_session:
-                interactions_result = db_session.run("""
-                    MATCH (u:User)-[r:INTERACTED]->(m:Moto)
-                    WHERE u.id IN [$user_id, $friend_id] AND r.type = 'like'
-                    RETURN u.id as user_id, m.id as moto_id,
-                           m.marca as marca, m.modelo as modelo, r.weight as weight
-                """, user_id=user_id, friend_id=friend_id)
-                
-                # Preparar datos para el algoritmo
-                interactions = []
-                for record in interactions_result:
-                    interactions.append({
-                        "user_id": record["user_id"],
-                        "moto_id": record["moto_id"],
-                        "weight": record["weight"] if record["weight"] else 1.0
-                    })
-                
-                # Ejecutar propagación si hay suficientes datos
-                if interactions:
-                    # Inicializar el algoritmo con los datos
-                    label_propagation.initialize_from_interactions(interactions)
-                    
-                    # Obtener recomendaciones para el usuario actual
-                    prop_recommendations = label_propagation.get_recommendations(user_id)
-                    
-                    # Obtener detalles de las motos recomendadas
-                    if prop_recommendations:
-                        for rec in prop_recommendations[:5]:  # Limitar a 5 recomendaciones por amigo
-                            moto_id = rec["moto_id"]
-                            score = rec["score"]
-                            
-                            # Obtener detalles de la moto
-                            moto_result = db_session.run("""
-                                MATCH (m:Moto {id: $moto_id})
-                                RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
-                                       m.tipo as tipo, m.precio as precio, m.imagen as imagen
-                            """, moto_id=moto_id)
-                            
-                            moto_record = moto_result.single()
-                            if moto_record:
-                                propagation_motos.append({
-                                    "friend_name": friend_username,
-                                    "score": score,
-                                    "moto": {
-                                        "id": moto_record["id"],
-                                        "marca": moto_record["marca"],
-                                        "modelo": moto_record["modelo"],
-                                        "tipo": moto_record["tipo"],
-                                        "precio": moto_record["precio"],
-                                        "imagen": moto_record["imagen"]
-                                    }
-                                })
-        except Exception as e:
-            print(f"Error al generar recomendaciones con label propagation para {friend_username}: {e}")
-    
-    # Ordenar motos recomendadas por puntuación
-    propagation_motos.sort(key=lambda x: x["score"], reverse=True)
-    
-    # Renderizar plantilla con los datos
-    return render_template('motos_recomendadas.html', 
-                           friends_data=friends,
-                           ideal_motos=ideal_motos,
-                           liked_motos=liked_motos,
-                           propagation_motos=propagation_motos)
+        return render_template('moto_detail.html', moto=moto, reviews=reviews)
+        
+    except Exception as e:
+        logger.error(f"Error al mostrar detalles de la moto {moto_id}: {str(e)}")
+        flash('Error al cargar los detalles de la moto.', 'error')
+        return redirect(url_for('main.dashboard'))

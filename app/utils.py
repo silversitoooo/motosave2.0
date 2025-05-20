@@ -53,11 +53,13 @@ def get_db_connection():
             from app.algoritmo.utils import DatabaseConnector
             
             neo4j_config = current_app.config.get('NEO4J_CONFIG', {})
-            g._database_connector = DatabaseConnector(
-                uri=neo4j_config.get('uri', 'bolt://localhost:7687'),
-                user=neo4j_config.get('user', 'neo4j'),
-                password=neo4j_config.get('password', '22446688')
-            )
+            uri = neo4j_config.get('uri', 'bolt://localhost:7687')
+            user = neo4j_config.get('user', 'neo4j')
+            password = neo4j_config.get('password', '22446688')
+            
+            # Crear la instancia del conector con los parámetros correctamente
+            connector = DatabaseConnector(uri=uri, user=user, password=password)
+            g._database_connector = connector
         except Exception as e:
             logger.error(f"Error al crear conexión a Neo4j: {str(e)}")
             g._database_connector = None

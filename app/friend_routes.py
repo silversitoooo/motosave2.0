@@ -120,9 +120,8 @@ def friend_recommendations_view():
     if not user_id:
         flash('Debes iniciar sesión para ver las recomendaciones', 'error')
         return redirect(url_for('login'))
-    
-    # Obtener los amigos del usuario
-    connector = get_db_connection()
+      # Obtener los amigos del usuario
+    connector = create_db_connector()
     if not connector:
         flash('No se pudo conectar a la base de datos', 'error')
         return redirect(url_for('dashboard'))
@@ -154,3 +153,21 @@ def friend_recommendations_view():
     return render_template('friend_recommendations.html', 
                            all_recommendations=all_recommendations,
                            friends=friends)
+
+def create_db_connector():
+    """
+    Helper function to create a database connector with proper parameters.
+    """
+    try:
+        from app.algoritmo.utils import DatabaseConnector
+        from flask import current_app
+        
+        neo4j_config = current_app.config.get('NEO4J_CONFIG', {})
+        uri = neo4j_config.get('uri', 'bolt://localhost:7687')
+        user = neo4j_config.get('user', 'neo4j')
+        password = neo4j_config.get('password', '22446688')
+        
+        return DatabaseConnector(uri=uri, user=user, password=password)
+    except Exception as e:
+        logger.error(f"Error creating database connector: {str(e)}")
+        return None

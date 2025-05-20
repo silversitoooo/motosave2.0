@@ -94,11 +94,11 @@ def get_friend_ideal_moto(friend_id, connector):
         # Consultar Neo4j para obtener la moto ideal del amigo
         with connector.driver.session() as session:
             result = session.run("""
-                MATCH (u:User {id: $friend_id})-[r:IDEAL]->(m:Moto)
+                MATCH (u:User {id: $friend_id})-[r:IDEAL|IDEAL_MOTO]->(m:Moto)
                 RETURN m.id as moto_id, m.marca as marca, m.modelo as modelo, 
                        m.precio as precio, m.tipo as tipo, m.imagen as imagen,
                        r.reasons as reasons
-            """, friend_id=friend_id)
+            """, {"friend_id": friend_id})
             
             record = result.single()
             if record:
