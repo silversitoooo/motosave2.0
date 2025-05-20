@@ -488,30 +488,25 @@ def friends():
                                  error="El sistema de recomendaciones no está disponible en este momento.")
         
         # SIEMPRE mostrar amigos de ejemplo para desarrollo
-        amigos = [
-            {
-                "username": "motoloco", 
-                "user_id": "user_example1", 
-                "moto_ideal": {
-                    "modelo": "MT-07", 
-                    "marca": "Yamaha", 
-                    "imagen": "https://www.yamaha-motor.eu/es/es/products/motorcycles/hyper-naked/mt-07/_jcr_content/root/verticalnavigationcontainer/verticalnavigation/image_copy.img.jpg/1690276125341.jpg"
-                }
-            },
-            {
-                "username": "roadrider", 
-                "user_id": "user_example2", 
-                "moto_ideal": {
-                    "modelo": "Monster", 
-                    "marca": "Ducati", 
-                    "imagen": "https://www.motofichas.com/images/phocagallery/Ducati/monster-2021/01-ducati-monster-2021-estudio-rojo.jpg"
-                }
-            }
-        ]
+        amigos_example = ["motoloco", "roadrider", "bikerboy"]
+        
+        # Lista de usuarios de ejemplo para sugerencias
+        usuarios_example = ["racer99", "motogirl", "speedking", "cruiser42"]
+        sugerencias = [u for u in usuarios_example if u != username and u not in amigos_example]
+        
+        # Datos de likes por usuario para mostrar en el popup
+        motos_likes = {
+            "motoloco": "Yamaha MT-07",
+            "roadrider": "Ducati Monster",
+            "bikerboy": "Honda CBR 600RR",
+            "admin": "Kawasaki Ninja ZX-10R"
+        }
         
         return render_template('friends.html', 
                             username=username,
-                            amigos=amigos)
+                            amigos=amigos_example,
+                            sugerencias=sugerencias,
+                            motos_likes=motos_likes)
         
     except Exception as e:
         logger.error(f"Error en página de amigos: {str(e)}")
@@ -520,6 +515,47 @@ def friends():
         return render_template('error.html', 
                             title="Error al cargar amigos",
                             error=f"Ocurrió un error al cargar la lista de amigos: {str(e)}")
+
+# Variable para almacenar las relaciones de amistad (simulado)
+amigos_por_usuario_fixed = {}
+
+@fixed_routes.route('/agregar_amigo', methods=['POST'])
+def agregar_amigo():
+    """Agregar un amigo a la lista de amigos del usuario."""
+    if 'username' not in session:
+        return redirect(url_for('main.login'))
+        
+    username = session.get('username')
+    nuevo_amigo = request.form.get('amigo')
+    
+    if username and nuevo_amigo and nuevo_amigo != username:
+        # Inicializar la lista de amigos si no existe
+        if username not in amigos_por_usuario_fixed:
+            amigos_por_usuario_fixed[username] = []
+        
+        # Agregar el amigo si no está ya en la lista
+        if nuevo_amigo not in amigos_por_usuario_fixed[username]:
+            amigos_por_usuario_fixed[username].append(nuevo_amigo)
+    
+    return redirect(url_for('main.friends'))
+
+@fixed_routes.route('/eliminar_amigo', methods=['POST'])
+def eliminar_amigo():
+    """Eliminar un amigo de la lista de amigos del usuario."""
+    if 'username' not in session:
+        return redirect(url_for('main.login'))
+        
+    username = session.get('username')
+    amigo_a_eliminar = request.form.get('amigo')
+    
+    if username and amigo_a_eliminar:
+        # Verificar si el usuario tiene amigos
+        if username in amigos_por_usuario_fixed:
+            # Eliminar el amigo si está en la lista
+            if amigo_a_eliminar in amigos_por_usuario_fixed[username]:
+                amigos_por_usuario_fixed[username].remove(amigo_a_eliminar)
+    
+    return redirect(url_for('main.friends'))
 
 @fixed_routes.route('/set_ideal_moto', methods=['POST'])
 def set_ideal_moto():
