@@ -152,37 +152,27 @@ def verify_ideal_moto_flow(driver, test_user, test_moto):
             
             record1 = result1.single()
             if record1:
-                print(f"✓ Moto ideal encontrada por user_id: {record1['moto_id']}")
+                print(f"✓ Moto ideal encontrada por ID de usuario: {record1['moto_id']}")
                 print(f"  Score: {record1['score']}")
-                
-                # Verificar razones
-                reasons_str = record1['reasons']
-                print(f"  Razones (raw): {reasons_str}")
-                
-                if isinstance(reasons_str, str):
-                    try:
-                        reasons = json.loads(reasons_str)
-                        print(f"✓ Razones parseadas correctamente: {reasons}")
-                    except:
-                        print(f"✗ Error parseando razones JSON: {reasons_str}")
-                elif isinstance(reasons_str, list):
-                    print(f"✓ Razones ya están en formato lista: {reasons_str}")
-                else:
-                    print(f"✗ Formato de razones desconocido: {type(reasons_str)}")
+                if 'reasons' in record1:
+                    reasons_json = record1['reasons']
+                    reasons = json.loads(reasons_json) if reasons_json else []
+                    print(f"  Razones: {reasons}")
             else:
-                print("✗ No se encontró moto ideal por user_id")
-                
-            # Buscar por nombre de usuario
+                print("✗ No se encontró moto ideal para el usuario por ID")
+
+            # También probar buscar por username (como lo hace la interfaz web)
             result2 = session.run("""
                 MATCH (u:User {username: $username})-[r:IDEAL]->(m:Moto)
-                RETURN m.id as moto_id
+                RETURN m.id as moto_id, r.score as score, r.reasons as reasons
             """, username=test_user['username'])
             
             record2 = result2.single()
             if record2:
                 print(f"✓ Moto ideal encontrada por username: {record2['moto_id']}")
             else:
-                print("✗ No se encontró moto ideal por username")
+                print("✗ No se encontró moto ideal para el usuario por username")
+
     except Exception as e:
         print(f"✗ Error recuperando moto ideal: {str(e)}")
         traceback.print_exc()

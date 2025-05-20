@@ -417,11 +417,17 @@ class DatabaseConnector:
         """Guarda la moto ideal de un usuario en Neo4j"""
         try:
             with self.driver.session() as session:
-                # Actualizar o crear la relación de IDEAL_MOTO
+                # Primero eliminar cualquier relación IDEAL existente para evitar duplicados
+                session.run("""
+                MATCH (u:User {id: $user_id})-[r:IDEAL]->(:Moto)
+                DELETE r
+                """, user_id=user_id)
+                
+                # Ahora crear la nueva relación IDEAL
                 result = session.run("""
                 MATCH (u:User {id: $user_id})
                 MATCH (m:Moto {id: $moto_id})
-                MERGE (u)-[r:IDEAL_MOTO]->(m)
+                MERGE (u)-[r:IDEAL]->(m)
                 SET r.score = $score,
                     r.reasons = $reasons,
                     r.timestamp = timestamp()
