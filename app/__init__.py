@@ -39,8 +39,7 @@ def create_app():
     model_path = os.path.join(app.root_path, 'algoritmo', app.config.get('RECOMMENDATION_CONFIG', {}).get('model_path', 'models/'))
     if not os.path.exists(model_path):
         os.makedirs(model_path)
-        
-    # Importar y registrar el blueprint principal
+          # Importar y registrar el blueprint principal
     try:
         # Primero intentar con routes_fixed (nuestro fallback seguro)
         from .routes_fixed import fixed_routes
@@ -54,6 +53,13 @@ def create_app():
             app.logger.info("Rutas de recomendaciones de amigos registradas correctamente")
         except ImportError as e:
             app.logger.warning(f"No se pudo registrar el blueprint de amigos: {str(e)}")
+        
+        # Asegurar que las importaciones de utils estén disponibles
+        try:
+            from .utils import login_required
+            app.logger.info("Utilidades cargadas correctamente")
+        except ImportError as e:
+            app.logger.warning(f"No se pudieron cargar algunas utilidades: {str(e)}")
         
         # # Comentamos temporalmente el registro de routes.py para evitar conflictos
         # try:

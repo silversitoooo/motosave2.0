@@ -3,7 +3,8 @@ Utilidades para la aplicación MotoMatch.
 Este módulo proporciona funciones de ayuda para interactuar con los algoritmos
 de recomendación y la base de datos.
 """
-from flask import current_app, g
+from flask import current_app, g, redirect, url_for, session, flash
+from functools import wraps
 from .algoritmo.utils import DatabaseConnector
 from .algoritmo.pagerank import MotoPageRank
 from .algoritmo.label_propagation import MotoLabelPropagation
@@ -17,6 +18,24 @@ logging.basicConfig(level=logging.INFO,
                    format='%(asctime)s - %(levelname)s - %(message)s',
                    handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
+
+def login_required(f):
+    """
+    Decorador para requerir inicio de sesión en rutas.
+    
+    Args:
+        f: La función decorada
+    
+    Returns:
+        La función decorada que verifica la sesión
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session and 'username' not in session:
+            flash('Por favor inicia sesión para acceder a esta página', 'warning')
+            return redirect(url_for('main.login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def get_db_connection():
     """

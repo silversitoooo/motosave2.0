@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Motos que podrían gustarte - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/friend_recommendation_notifications.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+    <style>
+        .recommendation-section {
+            margin-bottom: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        
+        .recommendation-section h2 {
+            margin-bottom: 1.5rem;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .card {
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .card-img-top {
+            height: 180px;
+            object-fit: cover;
+        }
+        
+        .no-image {
+            height: 180px;
+            background-color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+        
+        .recommendation-badge {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 12px;
+            color: white;
+            font-weight: 500;
+            font-size: 0.85rem;
+            z-index: 1;
+        }
+        
+        .ideal-badge {
+            background-color: #3f51b5;
+        }
+        
+        .like-badge {
+            background-color: #ff5722;
+        }
+        
+        .propagation-badge {
+            background-color: #4caf50;
+        }
+        
+        .progress {
+            height: 10px;
+            border-radius: 5px;
+        }
+        
+        .progress-bar {
+            background-color: #4caf50;
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Motos que podrían gustarte</h1>
+        <p class="lead">Descubre motos basadas en tus amigos y sus preferencias</p>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver al Dashboard</a>
+    </header>
+
+    <div class="main-container">
+        {% if not friends_data %}
+            <div class="alert alert-info">
+                <p>Aún no tienes amigos en la plataforma o tus amigos no han interactuado con suficientes motos.</p>
+                <a href="{{ url_for('main.friends') }}" class="btn btn-primary">Buscar Amigos</a>
+            </div>
+        {% else %}
+            <!-- Sección de motos ideales -->
+            <section class="recommendation-section">
+                <h2>Motos ideales de tus amigos</h2>
+                <div class="row">
+                    {% for friend_name, moto in ideal_motos.items() %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="recommendation-badge ideal-badge">Moto ideal de {{ friend_name }}</div>
+                                {% if moto.imagen %}
+                                    <img src="{{ moto.imagen }}" class="card-img-top" alt="{{ moto.marca }} {{ moto.modelo }}">
+                                {% else %}
+                                    <div class="no-image">Sin imagen disponible</div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ moto.marca }} {{ moto.modelo }}</h5>
+                                    <p class="card-text">
+                                        <strong>Tipo:</strong> {{ moto.tipo }}<br>
+                                        <strong>Precio:</strong> ${{ moto.precio }}
+                                    </p>
+                                    <a href="{{ url_for('main.moto_detail', moto_id=moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="col-12">
+                            <p>Tus amigos aún no han definido motos ideales.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Sección de motos con like -->
+            <section class="recommendation-section">
+                <h2>Motos con like de tus amigos</h2>
+                <div class="row">
+                    {% for item in liked_motos %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="recommendation-badge like-badge">{{ item.friend_name }} le dio like a esta moto</div>
+                                {% if item.moto.imagen %}
+                                    <img src="{{ item.moto.imagen }}" class="card-img-top" alt="{{ item.moto.marca }} {{ item.moto.modelo }}">
+                                {% else %}
+                                    <div class="no-image">Sin imagen disponible</div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ item.moto.marca }} {{ item.moto.modelo }}</h5>
+                                    <p class="card-text">
+                                        <strong>Tipo:</strong> {{ item.moto.tipo }}<br>
+                                        <strong>Precio:</strong> ${{ item.moto.precio }}
+                                    </p>
+                                    <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="col-12">
+                            <p>Tus amigos aún no han dado like a motos.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Sección de motos por propagación de etiquetas -->
+            <section class="recommendation-section">
+                <h2>Motos recomendadas según análisis de preferencias</h2>
+                <div class="row">
+                    {% for item in propagation_motos %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="recommendation-badge propagation-badge">Según tus preferencias y las de {{ item.friend_name }} esta moto te gustará</div>
+                                {% if item.moto.imagen %}
+                                    <img src="{{ item.moto.imagen }}" class="card-img-top" alt="{{ item.moto.marca }} {{ item.moto.modelo }}">
+                                {% else %}
+                                    <div class="no-image">Sin imagen disponible</div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ item.moto.marca }} {{ item.moto.modelo }}</h5>
+                                    <p class="card-text">
+                                        <strong>Tipo:</strong> {{ item.moto.tipo }}<br>
+                                        <strong>Precio:</strong> ${{ item.moto.precio }}<br>
+                                        <strong>Coincidencia:</strong> {{ (item.score * 100)|int }}%
+                                    </p>
+                                    <div class="progress mb-3">
+                                        <div class="progress-bar" role="progressbar" style="width: {{ (item.score * 100)|int }}%;" 
+                                            aria-valuenow="{{ (item.score * 100)|int }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ (item.score * 100)|int }}%
+                                        </div>
+                                    </div>
+                                    <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="col-12">
+                            <p>No hay suficientes datos para generar recomendaciones personalizadas.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    </div>
+
+    <footer>
+        <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="{{ url_for('main.home') }}" class="link">Inicio</a></p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
