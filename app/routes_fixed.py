@@ -529,8 +529,7 @@ def friends():
         
         # Filtrar sugerencias para que no incluyan al usuario actual ni a sus amigos actuales
         sugerencias = [u for u in todos_usuarios if u != username and u not in amigos]
-        
-        # Datos de likes por usuario para mostrar en el popup
+          # Datos de likes por usuario para mostrar en el popup
         motos_likes = {}
         
         # Obtener los likes reales de la base de datos
@@ -539,7 +538,8 @@ def friends():
                 adapter._ensure_neo4j_connection()
                 with adapter.driver.session() as neo4j_session:
                     result = neo4j_session.run("""
-                        MATCH (u:User)-[r:LIKES]->(m:Moto)
+                        MATCH (u:User)-[r:INTERACTED]->(m:Moto)
+                        WHERE r.type = 'like'
                         RETURN u.username as username, m.marca as marca, m.modelo as modelo
                     """)
                     for record in result:
@@ -552,10 +552,10 @@ def friends():
                 "motoloco": "Yamaha MT-07",
                 "roadrider": "Ducati Monster",
                 "bikerboy": "Honda CBR 600RR",
-                "admin": "Kawasaki Ninja ZX-10R"
-            }
+                "admin": "Kawasaki Ninja ZX-10R"            }
             
-        return render_template('friends.html', 
+        # Usar la plantilla que incluye soporte para las recomendaciones de amigos
+        return render_template('friends_with_recommendations.html', 
                             username=username,
                             amigos=amigos,
                             sugerencias=sugerencias,
@@ -594,6 +594,9 @@ def agregar_amigo():
     if nuevo_amigo_username not in amigos_por_usuario_fixed[username]:
         amigos_por_usuario_fixed[username].append(nuevo_amigo_username)
     
+    # Variable para guardar el ID del amigo si se encuentra
+    amigo_id = None
+    
     # Guardar en Neo4j
     try:
         adapter = current_app.config.get('MOTO_RECOMMENDER')
@@ -621,6 +624,31 @@ def agregar_amigo():
     except Exception as e:
         logger.error(f"Error al guardar amistad en Neo4j: {str(e)}")
     
+    # Si la amistad se creó exitosamente y tenemos el ID del amigo,
+    # redirigir a la página de recomendaciones de ese amigo
+    if amigo_id:
+        # Importar las funciones necesarias para generar recomendaciones
+        from .friend_recommendations import get_friend_profile_recommendations, generate_recommendations_notification
+        
+        try:
+            # Generar recomendaciones basadas en el nuevo amigo
+            recommendations = get_friend_profile_recommendations(user_id, amigo_id)
+            
+            if recommendations and (recommendations.get('ideal_moto') or recommendations.get('liked_motos')):
+                # Generamos un flash con las recomendaciones
+                notification = generate_recommendations_notification(nuevo_amigo_username, recommendations)
+                if notification:
+                    flash(notification, 'friend-recommendations')
+                    
+                # Redirigir a la página de amigos con flash message
+                return redirect(url_for('main.friends'))
+            
+            # Si no hay recomendaciones, simplemente redirigir a la página de recomendaciones del amigo
+            return redirect(url_for('friend.amigo_recomendaciones', friend_username=nuevo_amigo_username))
+        except Exception as e:
+            logger.error(f"Error al generar recomendaciones del amigo: {str(e)}")
+    
+    # Si algo falló o no hay recomendaciones, redirigir a la página de amigos
     return redirect(url_for('main.friends'))
 
 @fixed_routes.route('/eliminar_amigo', methods=['POST'])

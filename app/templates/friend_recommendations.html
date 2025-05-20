@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Recomendaciones de Amigos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Recomendaciones basadas en tus amigos</h1>
+    
+    {% if not friends %}
+        <div class="alert alert-info">
+            <p>Aún no tienes amigos en la plataforma. ¡Agrega amigos para recibir recomendaciones personalizadas!</p>
+            <a href="{{ url_for('friends') }}" class="btn btn-primary">Buscar Amigos</a>
+        </div>
+    {% elif not all_recommendations %}
+        <div class="alert alert-info">
+            <p>No se encontraron recomendaciones basadas en tus amigos actuales.</p>
+            <p>Esto puede ocurrir cuando tus amigos aún no han interactuado con motos en la plataforma.</p>
+        </div>
+    {% else %}
+        <div class="friend-recommendations-container">
+            {% for friend_username, recommendations in all_recommendations.items() %}
+                <div class="friend-recommendation-card">
+                    <h2>Recomendaciones basadas en {{ friend_username }}</h2>
+                    
+                    <!-- Moto ideal -->
+                    {% if recommendations.ideal_moto %}
+                        <div class="recommendation-section ideal-moto">
+                            <h3>Moto ideal de {{ friend_username }}</h3>
+                            <div class="moto-card">
+                                <img src="{{ recommendations.ideal_moto.imagen }}" alt="{{ recommendations.ideal_moto.marca }} {{ recommendations.ideal_moto.modelo }}">
+                                <div class="moto-info">
+                                    <h4>{{ recommendations.ideal_moto.marca }} {{ recommendations.ideal_moto.modelo }}</h4>
+                                    <p class="moto-price">Precio: ${{ recommendations.ideal_moto.precio }}</p>
+                                    <p class="moto-type">Tipo: {{ recommendations.ideal_moto.tipo }}</p>
+                                    
+                                    {% if recommendations.ideal_moto.reasons %}
+                                        <div class="reasons">
+                                            <h5>Por qué le gusta:</h5>
+                                            <ul>
+                                                {% for reason in recommendations.ideal_moto.reasons %}
+                                                    <li>{{ reason }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <a href="{{ url_for('moto_detail', moto_id=recommendations.ideal_moto.moto_id) }}" class="btn btn-primary">Ver detalles</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Motos con likes -->
+                    {% if recommendations.liked_motos %}
+                        <div class="recommendation-section liked-motos">
+                            <h3>Motos que le gustaron a {{ friend_username }}</h3>
+                            <div class="moto-cards-container">
+                                {% for moto in recommendations.liked_motos %}
+                                    <div class="moto-card">
+                                        <img src="{{ moto.imagen }}" alt="{{ moto.marca }} {{ moto.modelo }}">
+                                        <div class="moto-info">
+                                            <h4>{{ moto.marca }} {{ moto.modelo }}</h4>
+                                            <p class="moto-price">Precio: ${{ moto.precio }}</p>
+                                            <p class="moto-type">Tipo: {{ moto.tipo }}</p>
+                                            <a href="{{ url_for('moto_detail', moto_id=moto.moto_id) }}" class="btn btn-primary">Ver detalles</a>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Recomendaciones por propagación de etiquetas -->
+                    {% if recommendations.label_propagation_recommendations %}
+                        <div class="recommendation-section label-prop">
+                            <h3>Recomendadas para ti basadas en gustos similares</h3>
+                            <div class="moto-cards-container">
+                                {% for moto in recommendations.label_propagation_recommendations %}
+                                    <div class="moto-card">
+                                        <img src="{{ moto.imagen }}" alt="{{ moto.marca }} {{ moto.modelo }}">
+                                        <div class="moto-info">
+                                            <h4>{{ moto.marca }} {{ moto.modelo }}</h4>
+                                            <p class="moto-price">Precio: ${{ moto.precio }}</p>
+                                            <p class="moto-type">Tipo: {{ moto.tipo }}</p>
+                                            {% if moto.score %}
+                                                <div class="match-score">
+                                                    <div class="score-bar" style="width: {{ moto.score * 100 }}%"></div>
+                                                    <span>{{ (moto.score * 100)|int }}% de coincidencia</span>
+                                                </div>
+                                            {% endif %}
+                                            <a href="{{ url_for('moto_detail', moto_id=moto.moto_id) }}" class="btn btn-primary">Ver detalles</a>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .friend-recommendations-container {
+        margin-top: 2rem;
+    }
+    
+    .friend-recommendation-card {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .recommendation-section {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .recommendation-section:last-child {
+        border-bottom: none;
+    }
+    
+    .moto-cards-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .moto-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    
+    .moto-card img {
+        width: 150px;
+        height: 100px;
+        object-fit: cover;
+    }
+    
+    .moto-info {
+        padding: 1rem;
+        flex-grow: 1;
+    }
+    
+    .moto-info h4 {
+        margin-top: 0;
+        font-size: 1.2rem;
+    }
+    
+    .reasons ul {
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .match-score {
+        margin: 0.5rem 0;
+        background: #eee;
+        height: 20px;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .score-bar {
+        background: linear-gradient(to right, #4CAF50, #8BC34A);
+        height: 100%;
+        border-radius: 10px;
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+    
+    .match-score span {
+        position: relative;
+        padding-left: 0.5rem;
+        font-weight: bold;
+        font-size: 0.9rem;
+        line-height: 20px;
+        color: #333;
+    }
+    
+    .label-prop {
+        background-color: #f1f8e9;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #8BC34A;
+    }
+    
+    @media (max-width: 768px) {
+        .moto-card {
+            flex-direction: column;
+        }
+        
+        .moto-card img {
+            width: 100%;
+            height: 150px;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recomendaciones de {{ friend_username }} - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .friend-rec-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            color: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .friend-rec-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #f97316;
+            padding-bottom: 15px;
+        }
+
+        .friend-rec-avatar {
+            width: 60px;
+            height: 60px;
+            background-color: #f97316;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 15px;
+        }
+
+        .friend-rec-title {
+            margin: 0;
+            font-size: 28px;
+            color: #f97316;
+        }
+
+        .sections-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .section {
+            flex: 1;
+            min-width: 300px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-title {
+            color: #f97316;
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title i {
+            margin-right: 10px;
+        }
+
+        .moto-card {
+            display: flex;
+            background-color: rgba(32, 32, 32, 0.7);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+
+        .moto-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .moto-img {
+            width: 150px;
+            height: 100px;
+            object-fit: cover;
+        }
+
+        .moto-details {
+            padding: 10px 15px;
+            flex: 1;
+        }
+
+        .moto-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin: 0 0 5px 0;
+        }
+
+        .moto-info {
+            font-size: 14px;
+            color: #ccc;
+            margin: 3px 0;
+        }
+
+        .moto-reasons {
+            margin-top: 10px;
+            padding-left: 10px;
+            border-left: 2px solid #f97316;
+        }
+
+        .reason-item {
+            font-size: 12px;
+            color: #aaa;
+            margin: 3px 0;
+            font-style: italic;
+        }
+
+        .back-btn {
+            background-color: transparent;
+            color: #f97316;
+            border: 1px solid #f97316;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background-color: #f97316;
+            color: black;
+        }
+
+        .no-content {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .add-to-ideal {
+            background-color: #f97316;
+            color: black;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .add-to-ideal:hover {
+            background-color: #e86106;
+        }
+
+        .like-btn {
+            background-color: transparent;
+            color: white;
+            border: 1px solid #f97316;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 5px;
+            transition: all 0.3s;
+        }
+
+        .like-btn:hover {
+            background-color: #f97316;
+            color: black;
+        }
+
+        .like-btn i {
+            color: #f97316;
+        }
+
+        .like-btn:hover i {
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="friend-rec-container">
+        <div class="friend-rec-header">
+            <div class="friend-rec-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <h1 class="friend-rec-title">Recomendaciones de {{ friend_username }}</h1>
+        </div>
+
+        <div class="sections-container">
+            {% if recommendations and recommendations.ideal_moto %}
+            <div class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-trophy"></i> Moto Ideal
+                </h2>
+                <div class="moto-card">
+                    <img src="{{ recommendations.ideal_moto.imagen }}" alt="{{ recommendations.ideal_moto.marca }} {{ recommendations.ideal_moto.modelo }}" class="moto-img">
+                    <div class="moto-details">
+                        <h3 class="moto-name">{{ recommendations.ideal_moto.marca }} {{ recommendations.ideal_moto.modelo }}</h3>
+                        <p class="moto-info"><strong>Tipo:</strong> {{ recommendations.ideal_moto.tipo }}</p>
+                        <p class="moto-info"><strong>Precio:</strong> ${{ recommendations.ideal_moto.precio|int }}</p>
+                        
+                        {% if recommendations.ideal_moto.reasons %}
+                        <div class="moto-reasons">
+                            {% for reason in recommendations.ideal_moto.reasons[:2] %}
+                            <p class="reason-item">{{ reason }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <button class="add-to-ideal" data-moto-id="{{ recommendations.ideal_moto.moto_id }}">
+                            Establecer como mi moto ideal
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recommendations and recommendations.liked_motos %}
+            <div class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-heart"></i> Motos que le gustan
+                </h2>
+                
+                {% for moto in recommendations.liked_motos %}
+                <div class="moto-card">
+                    <img src="{{ moto.imagen }}" alt="{{ moto.marca }} {{ moto.modelo }}" class="moto-img">
+                    <div class="moto-details">
+                        <h3 class="moto-name">{{ moto.marca }} {{ moto.modelo }}</h3>
+                        <p class="moto-info"><strong>Tipo:</strong> {{ moto.tipo }}</p>
+                        <p class="moto-info"><strong>Precio:</strong> ${{ moto.precio|int }}</p>
+                        
+                        <button class="like-btn" data-moto-id="{{ moto.moto_id }}">
+                            <i class="fas fa-heart"></i> Me gusta
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if not recommendations or (not recommendations.ideal_moto and not recommendations.liked_motos) %}
+            <div class="section" style="flex-basis: 100%;">
+                <div class="no-content">
+                    <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #666; margin-bottom: 15px;"></i>
+                    <p>{{ friend_username }} aún no ha seleccionado una moto ideal ni ha dado like a ninguna moto.</p>
+                    <p>Vuelve a revisar más tarde para ver sus recomendaciones.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <a href="{{ url_for('main.friends') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Volver a amigos
+        </a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Funcionalidad para establecer moto ideal
+            const idealButtons = document.querySelectorAll('.add-to-ideal');
+            idealButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const motoId = this.getAttribute('data-moto-id');
+                    setIdealMoto(motoId, this);
+                });
+            });
+
+            // Funcionalidad para dar like
+            const likeButtons = document.querySelectorAll('.like-btn');
+            likeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const motoId = this.getAttribute('data-moto-id');
+                    likeMoto(motoId, this);
+                });
+            });
+
+            // Función para establecer moto ideal
+            function setIdealMoto(motoId, button) {
+                fetch('/set_ideal_moto', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ moto_id: motoId }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        button.textContent = '¡Establecida como tu moto ideal!';
+                        button.disabled = true;
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ocurrió un error al establecer la moto ideal');
+                });
+            }
+
+            // Función para dar like
+            function likeMoto(motoId, button) {
+                fetch('/like_moto', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ moto_id: motoId }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        button.innerHTML = '<i class="fas fa-heart"></i> ¡Te gusta!';
+                        button.disabled = true;
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ocurrió un error al dar like');
+                });
+            }
+        });
+    </script>
+
+    {% include 'footer.html' %}
+</body>
+</html>

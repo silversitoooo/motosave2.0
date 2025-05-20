@@ -35,16 +35,25 @@ def create_app():
     except Exception as e:
         app.logger.error(f"Error al conectar con Neo4j: {str(e)}")
         # No interrumpimos la ejecución, pero registramos el error
-    
-    # Crear directorio para modelos si no existe
+      # Crear directorio para modelos si no existe
     model_path = os.path.join(app.root_path, 'algoritmo', app.config.get('RECOMMENDATION_CONFIG', {}).get('model_path', 'models/'))
     if not os.path.exists(model_path):
-        os.makedirs(model_path)    # Importar y registrar el blueprint principal
+        os.makedirs(model_path)
+        
+    # Importar y registrar el blueprint principal
     try:
         # Primero intentar con routes_fixed (nuestro fallback seguro)
         from .routes_fixed import fixed_routes
         app.register_blueprint(fixed_routes)
         app.logger.info("Rutas corregidas registradas correctamente")
+        
+        # Registrar blueprint de recomendaciones de amigos
+        try:
+            from .friend_routes import friend_routes
+            app.register_blueprint(friend_routes, url_prefix='/friend')
+            app.logger.info("Rutas de recomendaciones de amigos registradas correctamente")
+        except ImportError as e:
+            app.logger.warning(f"No se pudo registrar el blueprint de amigos: {str(e)}")
         
         # # Comentamos temporalmente el registro de routes.py para evitar conflictos
         # try:
