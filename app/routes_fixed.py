@@ -477,6 +477,7 @@ def friends():
         return redirect(url_for('main.login'))
     
     username = session.get('username', 'anonymous')
+    user_id = session.get('user_id', '')
     
     try:
         # Obtener el adaptador
@@ -487,24 +488,76 @@ def friends():
                                  title="Sistema no disponible",
                                  error="El sistema de recomendaciones no está disponible en este momento.")
         
-        # SIEMPRE mostrar amigos de ejemplo para desarrollo
-        amigos_example = ["motoloco", "roadrider", "bikerboy"]
+        # Obtener los amigos actuales del usuario desde Neo4j
+        amigos = []
+        if hasattr(adapter, '_ensure_neo4j_connection'):
+            adapter._ensure_neo4j_connection()
+            with adapter.driver.session() as neo4j_session:
+                # Consultar amigos desde Neo4j (relación FRIEND_OF)
+                result = neo4j_session.run("""
+                    MATCH (u:User {id: $user_id})-[:FRIEND_OF]->(a:User)
+                    RETURN a.username as amigo
+                """, user_id=user_id)
+                amigos = [record['amigo'] for record in result if record['amigo']]
         
-        # Lista de usuarios de ejemplo para sugerencias
-        usuarios_example = ["racer99", "motogirl", "speedking", "cruiser42"]
-        sugerencias = [u for u in usuarios_example if u != username and u not in amigos_example]
+        # Si no hay amigos en Neo4j, usar la variable en memoria como respaldo
+        if not amigos:
+            amigos = amigos_por_usuario_fixed.get(username, [])
+        else:
+            # Actualizar la variable en memoria para mantenerla sincronizada
+            amigos_por_usuario_fixed[username] = amigos
+        
+        # Obtener todos los usuarios reales de la base de datos
+        todos_usuarios = []
+        if hasattr(adapter, 'users_df') and adapter.users_df is not None:
+            todos_usuarios = adapter.users_df['username'].tolist()
+        else:
+            # Si no podemos acceder al DataFrame, intentar consultar directamente a Neo4j
+            try:
+                if hasattr(adapter, '_ensure_neo4j_connection'):
+                    adapter._ensure_neo4j_connection()
+                    with adapter.driver.session() as neo4j_session:
+                        result = neo4j_session.run("""
+                            MATCH (u:User)
+                            RETURN u.username as username
+                        """)
+                        todos_usuarios = [record['username'] for record in result]
+            except Exception as e:
+                logger.error(f"Error al obtener usuarios de Neo4j: {str(e)}")
+                # Usuarios de respaldo si falla la consulta
+                todos_usuarios = ["motoloco", "roadrider", "bikerboy", "racer99", "motogirl", "speedking"]
+        
+        # Filtrar sugerencias para que no incluyan al usuario actual ni a sus amigos actuales
+        sugerencias = [u for u in todos_usuarios if u != username and u not in amigos]
         
         # Datos de likes por usuario para mostrar en el popup
-        motos_likes = {
-            "motoloco": "Yamaha MT-07",
-            "roadrider": "Ducati Monster",
-            "bikerboy": "Honda CBR 600RR",
-            "admin": "Kawasaki Ninja ZX-10R"
-        }
+        motos_likes = {}
         
+        # Obtener los likes reales de la base de datos
+        try:
+            if hasattr(adapter, '_ensure_neo4j_connection'):
+                adapter._ensure_neo4j_connection()
+                with adapter.driver.session() as neo4j_session:
+                    result = neo4j_session.run("""
+                        MATCH (u:User)-[r:LIKES]->(m:Moto)
+                        RETURN u.username as username, m.marca as marca, m.modelo as modelo
+                    """)
+                    for record in result:
+                        if record['username'] and record['marca'] and record['modelo']:
+                            motos_likes[record['username']] = f"{record['marca']} {record['modelo']}"
+        except Exception as e:
+            logger.error(f"Error al obtener likes de motos: {str(e)}")
+            # Datos de respaldo si falla la consulta
+            motos_likes = {
+                "motoloco": "Yamaha MT-07",
+                "roadrider": "Ducati Monster",
+                "bikerboy": "Honda CBR 600RR",
+                "admin": "Kawasaki Ninja ZX-10R"
+            }
+            
         return render_template('friends.html', 
                             username=username,
-                            amigos=amigos_example,
+                            amigos=amigos,
                             sugerencias=sugerencias,
                             motos_likes=motos_likes)
         
@@ -516,7 +569,8 @@ def friends():
                             title="Error al cargar amigos",
                             error=f"Ocurrió un error al cargar la lista de amigos: {str(e)}")
 
-# Variable para almacenar las relaciones de amistad (simulado)
+# Variable para almacenar las relaciones de amistad temporalmente en memoria
+# (se perderán al reiniciar el servidor, pero se almacenarán permanentemente en Neo4j)
 amigos_por_usuario_fixed = {}
 
 @fixed_routes.route('/agregar_amigo', methods=['POST'])
@@ -526,16 +580,46 @@ def agregar_amigo():
         return redirect(url_for('main.login'))
         
     username = session.get('username')
-    nuevo_amigo = request.form.get('amigo')
+    user_id = session.get('user_id')
+    nuevo_amigo_username = request.form.get('amigo')
     
-    if username and nuevo_amigo and nuevo_amigo != username:
-        # Inicializar la lista de amigos si no existe
-        if username not in amigos_por_usuario_fixed:
-            amigos_por_usuario_fixed[username] = []
-        
-        # Agregar el amigo si no está ya en la lista
-        if nuevo_amigo not in amigos_por_usuario_fixed[username]:
-            amigos_por_usuario_fixed[username].append(nuevo_amigo)
+    if not username or not nuevo_amigo_username or nuevo_amigo_username == username:
+        return redirect(url_for('main.friends'))
+    
+    # Inicializar la lista de amigos en memoria si no existe
+    if username not in amigos_por_usuario_fixed:
+        amigos_por_usuario_fixed[username] = []
+    
+    # Agregar el amigo si no está ya en la lista en memoria
+    if nuevo_amigo_username not in amigos_por_usuario_fixed[username]:
+        amigos_por_usuario_fixed[username].append(nuevo_amigo_username)
+    
+    # Guardar en Neo4j
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if adapter and hasattr(adapter, '_ensure_neo4j_connection'):
+            adapter._ensure_neo4j_connection()
+            
+            with adapter.driver.session() as neo4j_session:
+                # Primero buscamos el ID del amigo
+                result = neo4j_session.run("""
+                    MATCH (u:User {username: $username})
+                    RETURN u.id as amigo_id
+                """, username=nuevo_amigo_username)
+                
+                record = result.single()
+                if record and record.get('amigo_id'):
+                    amigo_id = record['amigo_id']
+                    
+                    # Crear relación de amistad
+                    neo4j_session.run("""
+                        MATCH (u1:User {id: $user_id}), (u2:User {id: $amigo_id})
+                        MERGE (u1)-[:FRIEND_OF]->(u2)
+                    """, user_id=user_id, amigo_id=amigo_id)
+                    
+                    logger.info(f"Usuario {username} agregó a {nuevo_amigo_username} como amigo")
+    except Exception as e:
+        logger.error(f"Error al guardar amistad en Neo4j: {str(e)}")
     
     return redirect(url_for('main.friends'))
 
@@ -546,14 +630,42 @@ def eliminar_amigo():
         return redirect(url_for('main.login'))
         
     username = session.get('username')
-    amigo_a_eliminar = request.form.get('amigo')
+    user_id = session.get('user_id')
+    amigo_username = request.form.get('amigo')
     
-    if username and amigo_a_eliminar:
-        # Verificar si el usuario tiene amigos
-        if username in amigos_por_usuario_fixed:
-            # Eliminar el amigo si está en la lista
-            if amigo_a_eliminar in amigos_por_usuario_fixed[username]:
-                amigos_por_usuario_fixed[username].remove(amigo_a_eliminar)
+    if not username or not amigo_username:
+        return redirect(url_for('main.friends'))
+    
+    # Eliminar el amigo de la lista en memoria
+    if username in amigos_por_usuario_fixed and amigo_username in amigos_por_usuario_fixed[username]:
+        amigos_por_usuario_fixed[username].remove(amigo_username)
+    
+    # Eliminar en Neo4j
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if adapter and hasattr(adapter, '_ensure_neo4j_connection'):
+            adapter._ensure_neo4j_connection()
+            
+            with adapter.driver.session() as neo4j_session:
+                # Primero buscamos el ID del amigo
+                result = neo4j_session.run("""
+                    MATCH (u:User {username: $username})
+                    RETURN u.id as amigo_id
+                """, username=amigo_username)
+                
+                record = result.single()
+                if record and record.get('amigo_id'):
+                    amigo_id = record['amigo_id']
+                    
+                    # Eliminar relación de amistad
+                    neo4j_session.run("""
+                        MATCH (u1:User {id: $user_id})-[r:FRIEND_OF]->(u2:User {id: $amigo_id})
+                        DELETE r
+                    """, user_id=user_id, amigo_id=amigo_id)
+                    
+                    logger.info(f"Usuario {username} eliminó a {amigo_username} como amigo")
+    except Exception as e:
+        logger.error(f"Error al eliminar amistad en Neo4j: {str(e)}")
     
     return redirect(url_for('main.friends'))
 
