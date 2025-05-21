@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}MotoMatch{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  {% block extra_css %}{% endblock %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  {% block content %}{% endblock %}
+  
+  <footer>
+    <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="{{ url_for('main.home', _external=True) }}" class="link">Inicio</a></p>
+  </footer>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Función para verificar y corregir enlaces problemáticos
+    function fixBrokenLinks() {
+      document.querySelectorAll('a').forEach(function(link) {
+        if (link.href.includes('undefined') || link.href.includes('None')) {
+          // Intentar corregir el enlace según su texto o contenido
+          const linkText = link.textContent.trim().toLowerCase();
+          
+          if (linkText.includes('inicio') || linkText.includes('home')) {
+            link.href = '/';
+          } else if (linkText.includes('login') || linkText.includes('iniciar')) {
+            link.href = '/login';
+          } else if (linkText.includes('registro') || linkText.includes('regístrate')) {
+            link.href = '/register';
+          } else if (linkText.includes('amigos')) {
+            link.href = '/friends';
+          } else if (linkText.includes('populares')) {
+            link.href = '/populares';
+          } else if (linkText.includes('test')) {
+            link.href = '/test';
+          } else if (linkText.includes('ideal')) {
+            link.href = '/moto_ideal';
+          } else if (linkText.includes('recomendadas') || linkText.includes('gustarte')) {
+            link.href = '/motos-recomendadas';
+          }
+        }
+      });
+    }
+    
+    // Función para verificar y corregir formularios problemáticos
+    function fixBrokenForms() {
+      document.querySelectorAll('form').forEach(function(form) {
+        if (form.action.includes('undefined') || form.action.includes('None')) {
+          // Intentar corregir la acción del formulario según los campos o clases
+          if (form.querySelector('input[name="username"]') && form.querySelector('input[name="password"]')) {
+            form.action = '/login';
+          } else if (form.classList.contains('register-form') || document.title.toLowerCase().includes('registro')) {
+            form.action = '/register';
+          } else if (form.classList.contains('test-form') || document.title.toLowerCase().includes('test')) {
+            form.action = '/guardar_test';
+          }
+        }
+      });
+    }
+    
+    // Ejecutar correcciones
+    fixBrokenLinks();
+    fixBrokenForms();
+  });
+  </script>
+  
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

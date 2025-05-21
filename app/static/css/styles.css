@@ -1164,3 +1164,21 @@ a[href="/dashboard"], a[href="/dashboard"] button {
   margin: 3px 0;
   font-size: 0.9rem;
 }
+/* Estilos para indicadores de recomendación */
+.recommendation-type {
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.recommendation-type.social {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.recommendation-type.catalog {
+    background-color: #fff8e1;
+    color: #ff8f00;
+}

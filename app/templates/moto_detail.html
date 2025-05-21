@@ -176,11 +176,64 @@
                     No hay opiniones para esta moto aún.
                 </div>
             {% endif %}
-        </div>
-    </div>
+        </div>    </div>
     
     <footer>
         <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="{{ url_for('main.home') }}" class="link">Inicio</a></p>
     </footer>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para verificar y corregir enlaces problemáticos
+        function fixBrokenLinks() {
+            document.querySelectorAll('a').forEach(function(link) {
+                if (link.href.includes('undefined') || link.href.includes('None')) {
+                    // Intentar corregir el enlace según su texto o contenido
+                    const linkText = link.textContent.trim().toLowerCase();
+                    
+                    if (linkText.includes('volver') || link.classList.contains('btn-outline-secondary')) {
+                        // Si es el botón de volver
+                        link.href = '/dashboard';
+                    } else if (linkText.includes('inicio')) {
+                        link.href = '/';
+                    }
+                }
+            });
+        }
+        
+        // Ejecutar correcciones
+        fixBrokenLinks();
+        
+        // Manejar el botón para seleccionar como moto ideal
+        const setIdealBtn = document.querySelector('.set-ideal-btn');
+        if (setIdealBtn) {
+            setIdealBtn.addEventListener('click', function() {
+                const motoId = this.getAttribute('data-moto-id');
+                if (motoId) {
+                    fetch('/set_ideal_moto', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            moto_id: motoId
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('¡Moto guardada como tu moto ideal!');
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>

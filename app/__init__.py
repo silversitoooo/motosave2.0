@@ -78,11 +78,27 @@ def create_app():
         from .utils import close_db_connection
         app.teardown_appcontext(close_db_connection)
     except ImportError as e:
-        app.logger.error(f"Error al importar utils: {str(e)}")
-
-    # Inicializar el adaptador y guardarlo en app.config
+        app.logger.error(f"Error al importar utils: {str(e)}")    # Inicializar el adaptador y guardarlo en app.config
     adapter = create_adapter(app)
     app.config['MOTO_RECOMMENDER'] = adapter
+    
+    # Registrar rutas actualizadas (nueva funcionalidad)
+    try:
+        from update_routes import register_updated_routes
+        # Obtener el blueprint principal (fixed_routes/main)
+        for rule in app.url_map.iter_rules():
+            if rule.endpoint.startswith('main.'):
+                blueprint_name = rule.endpoint.split('.')[0]
+                break
+        
+        # Encontrar y registrar las rutas actualizadas en el blueprint correcto
+        for blueprint in app.blueprints.values():
+            if blueprint.name == 'main':
+                register_updated_routes(blueprint)
+                app.logger.info("Rutas actualizadas registradas correctamente")
+                break
+    except Exception as e:
+        app.logger.warning(f"No se pudieron registrar las rutas actualizadas: {str(e)}")
     
     return app
 

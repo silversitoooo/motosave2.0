@@ -78,5 +78,43 @@
 <footer>
 <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
 </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para verificar y corregir enlaces problemáticos
+    function fixBrokenLinks() {
+        document.querySelectorAll('a').forEach(function(link) {
+            if (link.href.includes('undefined') || link.href.includes('None')) {
+                // Intentar corregir el enlace según su texto o contenido
+                const linkText = link.textContent.trim().toLowerCase();
+                
+                if (linkText.includes('dashboard') || linkText.includes('regresar')) {
+                    link.href = '/dashboard';
+                } else if (linkText.includes('inicio')) {
+                    link.href = '/';
+                }
+            }
+        });
+    }
+    
+    // Corregir los formularios con problemas
+    function fixBrokenForms() {
+        document.querySelectorAll('form').forEach(function(form) {
+            if (form.action.includes('undefined') || form.action.includes('None')) {
+                // Intentar corregir la acción del formulario según los elementos
+                if (form.querySelector('.add-friend-btn')) {
+                    form.action = '/agregar_amigo';
+                } else if (form.querySelector('.remove-friend-btn')) {
+                    form.action = '/eliminar_amigo';
+                }
+            }
+        });
+    }
+    
+    // Ejecutar correcciones
+    fixBrokenLinks();
+    fixBrokenForms();
+});
+</script>
 </body>
 </html>

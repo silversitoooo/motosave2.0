@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solución de Problemas - MotoMatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .troubleshoot-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        
+        .code {
+            font-family: monospace;
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .table th, .table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .table th {
+            background-color: #f2f2f2;
+        }
+        
+        .table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+        
+        .status-ok {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .status-warning {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .status-error {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="troubleshoot-container">
+        <h1>Solución de Problemas MotoMatch</h1>
+        
+        <div class="section">
+            <h2>Estado de la Conexión</h2>
+            <p>Este diagnóstico te ayudará a identificar y resolver problemas comunes en la aplicación.</p>
+            
+            <table class="table">
+                <tr>
+                    <th>Servicio</th>
+                    <th>Estado</th>
+                    <th>Detalles</th>
+                </tr>
+                <tr>
+                    <td>Aplicación Flask</td>
+                    <td><span class="status status-ok">Funcionando</span></td>
+                    <td>La aplicación está en ejecución</td>
+                </tr>
+                <tr>
+                    <td>Base de Datos Neo4j</td>
+                    <td>
+                        <span id="neo4j-status" class="status status-warning">Verificando...</span>
+                    </td>
+                    <td id="neo4j-details">Intentando conectar a Neo4j...</td>
+                </tr>
+                <tr>
+                    <td>Rutas</td>
+                    <td>
+                        <span id="routes-status" class="status status-warning">Verificando...</span>
+                    </td>
+                    <td id="routes-details">Comprobando las rutas...</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>Enlaces Principales</h2>
+            <p>Verifica que puedes acceder a estas páginas:</p>
+            
+            <ul>
+                <li><a href="{{ url_for('main.home') }}">Página de Inicio</a></li>
+                <li><a href="{{ url_for('main.login') }}">Iniciar Sesión</a></li>
+                <li><a href="{{ url_for('main.register') }}">Registro</a></li>
+                <li><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('main.friends') }}">Amigos</a></li>
+                <li><a href="{{ url_for('main.test') }}">Test de Preferencias</a></li>
+                <li><a href="{{ url_for('main.moto_ideal') }}">Mi Moto Ideal</a></li>
+                <li><a href="{{ url_for('main.motos_recomendadas') }}">Motos Recomendadas</a></li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>URLs Directas</h2>
+            <p>Si los enlaces anteriores no funcionan, prueba estas URLs directas:</p>
+            
+            <ul>
+                <li><a href="/">/</a> - Página de Inicio</li>
+                <li><a href="/login">/login</a> - Iniciar Sesión</li>
+                <li><a href="/register">/register</a> - Registro</li>
+                <li><a href="/dashboard">/dashboard</a> - Dashboard</li>
+                <li><a href="/friends">/friends</a> - Amigos</li>
+                <li><a href="/test">/test</a> - Test de Preferencias</li>
+                <li><a href="/moto_ideal">/moto_ideal</a> - Mi Moto Ideal</li>
+                <li><a href="/motos-recomendadas">/motos-recomendadas</a> - Motos Recomendadas</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>Diagnóstico de Neo4j</h2>
+            <p>Verifica la conexión a Neo4j:</p>
+            <a href="/check_neo4j" class="btn btn-primary">Comprobar Conexión Neo4j</a>
+        </div>
+        
+        <div class="section">
+            <h2>Diagnóstico de Rutas</h2>
+            <p>Ver todas las rutas disponibles:</p>
+            <a href="/check_routes" class="btn btn-primary">Comprobar Rutas</a>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
+    </footer>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Verificar Neo4j
+        fetch('/check_neo4j')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('neo4j-status').className = 'status status-ok';
+                    document.getElementById('neo4j-status').textContent = 'Conectado';
+                    document.getElementById('neo4j-details').textContent = 'Conexión a Neo4j establecida correctamente';
+                } else {
+                    document.getElementById('neo4j-status').className = 'status status-error';
+                    document.getElementById('neo4j-status').textContent = 'Error';
+                    document.getElementById('neo4j-details').textContent = 'Error al conectar con Neo4j';
+                }
+            })
+            .catch(error => {
+                document.getElementById('neo4j-status').className = 'status status-error';
+                document.getElementById('neo4j-status').textContent = 'Error';
+                document.getElementById('neo4j-details').textContent = 'Error al verificar Neo4j: ' + error;
+            });
+        
+        // Verificar rutas
+        fetch('/check_routes')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('routes-status').className = 'status status-ok';
+                document.getElementById('routes-status').textContent = 'OK';
+                document.getElementById('routes-details').textContent = `${data.routes.length} rutas y ${data.blueprints.length} blueprints registrados`;
+            })
+            .catch(error => {
+                document.getElementById('routes-status').className = 'status status-error';
+                document.getElementById('routes-status').textContent = 'Error';
+                document.getElementById('routes-details').textContent = 'Error al verificar rutas: ' + error;
+            });
+    });
+    </script>
+</body>
+</html>

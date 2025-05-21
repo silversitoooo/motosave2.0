@@ -75,37 +75,76 @@ class TestLabelPropagation(unittest.TestCase):
             ("user3", "moto4", 3.0),
             ("user4", "moto1", 3.5)
         ]
-        
-    def test_label_propagation_algorithm(self):
-        # Inicializar Label Propagation
+    
+    def test_build_social_graph(self):
+        """Test para verificar la construcción del grafo social"""
         label_prop = MotoLabelPropagation()
-        
-        # Construir grafo social
         social_graph = label_prop.build_social_graph(self.friendships)
         
-        # Verificar que el grafo se construyó correctamente
-        self.assertIn("user1", social_graph)
-        self.assertIn("user2", social_graph)
-        self.assertIn("user3", social_graph)
-        self.assertIn("user4", social_graph)
+        # Verificar que todos los usuarios están en el grafo
+        self.assertEqual(len(social_graph), 4)
         
-        # Establecer preferencias
+        # Verificar las conexiones de cada usuario
+        self.assertIn("user2", social_graph["user1"])
+        self.assertIn("user3", social_graph["user1"])
+        self.assertIn("user1", social_graph["user2"])
+        self.assertIn("user4", social_graph["user2"])
+        self.assertIn("user1", social_graph["user3"])
+        self.assertIn("user4", social_graph["user3"])
+        self.assertIn("user2", social_graph["user4"])
+        self.assertIn("user3", social_graph["user4"])
+    
+    def test_set_user_preferences(self):
+        """Test para verificar la configuración de preferencias de usuario"""
+        label_prop = MotoLabelPropagation()
+        user_prefs = label_prop.set_user_preferences(self.user_ratings)
+        
+        # Verificar que todos los usuarios están presentes
+        self.assertIn("user1", user_prefs)
+        self.assertIn("user2", user_prefs)
+        self.assertIn("user3", user_prefs)
+        self.assertIn("user4", user_prefs)
+        
+        # Verificar algunas preferencias específicas
+        self.assertEqual(user_prefs["user1"]["moto1"], 5.0)
+        self.assertEqual(user_prefs["user3"]["moto2"], 4.5)
+    
+    def test_propagate_labels(self):
+        """Test para verificar la propagación de etiquetas"""
+        label_prop = MotoLabelPropagation(max_iterations=5)
+        label_prop.build_social_graph(self.friendships)
         label_prop.set_user_preferences(self.user_ratings)
         
-        # Propagar etiquetas
+        propagated_scores = label_prop.propagate_labels()
+        
+        # Verificar que todos los usuarios tienen puntuaciones propagadas
+        self.assertIn("user1", propagated_scores)
+        self.assertIn("user2", propagated_scores)
+        self.assertIn("user3", propagated_scores)
+        self.assertIn("user4", propagated_scores)
+        
+        # Verificar que los usuarios tienen puntuaciones para motos que no han calificado directamente
+        # Por ejemplo, user1 debe tener ahora una puntuación para moto3 y moto4
+        self.assertIn("moto3", propagated_scores["user1"])
+        self.assertIn("moto4", propagated_scores["user1"])
+    
+    def test_get_friend_recommendations(self):
+        """Test para verificar la generación de recomendaciones"""
+        label_prop = MotoLabelPropagation(max_iterations=5)
+        label_prop.build_social_graph(self.friendships)
+        label_prop.set_user_preferences(self.user_ratings)
         label_prop.propagate_labels()
         
-        # Obtener recomendaciones
+        # Probar recomendaciones para user1
         recommendations = label_prop.get_friend_recommendations("user1", top_n=2)
         
-        # Verificar que se devuelven recomendaciones
-        self.assertIsInstance(recommendations, list)
+        # Debe haber exactamente 2 recomendaciones
+        self.assertEqual(len(recommendations), 2)
         
-        # Si hay recomendaciones, verificar estructura
-        if recommendations:
-            self.assertEqual(len(recommendations[0]), 2)  # (moto_id, score)
-            self.assertIsInstance(recommendations[0][0], str)
-            self.assertIsInstance(recommendations[0][1], float)
-
-if __name__ == '__main__':
-    unittest.main()
+        # Las recomendaciones deben ser tuplas (moto_id, score)
+        self.assertEqual(len(recommendations[0]), 2)
+        
+        # Las motos recomendadas no deben ser las que el usuario ya ha calificado
+        recommended_motos = [rec[0] for rec in recommendations]
+        self.assertNotIn("moto1", recommended_motos)
+        self.assertNotIn("moto2", recommended_motos)

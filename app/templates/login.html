@@ -24,5 +24,35 @@
   <footer>
     <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="{{ url_for('main.home') }}" class="link">Inicio</a> </p>
   </footer>
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Verificar que los enlaces funcionen correctamente
+    const checkLink = function(link) {
+      if (link.href.includes('undefined') || link.href.includes('None')) {
+        // Corregir enlaces problemáticos
+        if (link.textContent.toLowerCase().includes('regístrate')) {
+          link.href = '/register';
+        } else if (link.textContent.toLowerCase().includes('inicio')) {
+          link.href = '/';
+        }
+      }
+    };
+    
+    // Comprobar todos los enlaces en la página
+    document.querySelectorAll('a').forEach(checkLink);
+    
+    // Asegurar que el formulario de login funcione correctamente
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+      // Si la acción del formulario tiene problemas, corregirla
+      if (form.action.includes('undefined') || form.action.includes('None')) {
+        e.preventDefault();
+        form.action = '/login';
+        form.submit();
+      }
+    });
+  });
+  </script>
 </body>
 </html>

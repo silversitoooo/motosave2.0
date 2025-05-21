@@ -79,7 +79,8 @@ def test_label_propagation():
     logger.info(f"Preferencias establecidas para {len(user_prefs)} usuarios")
     
     # Propagar etiquetas
-    label_prop.propagate_labels()
+    propagated_scores = label_prop.propagate_labels()
+    logger.info(f"Etiquetas propagadas para {len(propagated_scores)} usuarios")
     
     # Obtener recomendaciones para user1
     recommendations = label_prop.get_friend_recommendations("user1", top_n=2)

@@ -11,14 +11,26 @@ from neo4j import GraphDatabase
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Agregar la ruta del proyecto al path para importaciones
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
 def main():
     """Función principal para ejecutar la aplicación"""
     logger.info("Iniciando aplicación MotoMatch con carga anticipada de datos...")
-      # Asegurar que los módulos son encontrados
+    # Asegurar que los módulos son encontrados
     sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
     
-    # IMPORTANTE: Este monkey patch ya no es necesario en la versión actual, ya que
-    # DatabaseConnector ahora tiene parámetros correctos, pero lo dejamos por compatibilidad
+    # Importar algoritmos necesarios
+    try:
+        from app.algoritmo.label_propagation import MotoLabelPropagation
+        from app.algoritmo.pagerank import MotoPageRank
+        from app.algoritmo.moto_ideal import MotoIdealRecommender
+        logger.info("Algoritmos de recomendación importados correctamente")
+    except ImportError as e:
+        logger.error(f"Error al importar algoritmos: {str(e)}")
+        logger.error("Asegúrate de que los módulos de algoritmos estén en la ruta correcta")
+    
+    # IMPORTANTE: Este monkey patch ya no es necesario en la versión actual, pero lo dejamos por compatibilidad
     # con versiones antiguas o en caso de que la clase se modifique en el futuro.
     from app.algoritmo.utils import DatabaseConnector
     original_init = DatabaseConnector.__init__
@@ -47,8 +59,7 @@ def main():
     # Ahora importar la app y el factory de adaptador
     from app import create_app
     from app.adapter_factory import create_adapter
-    
-    # Crear la aplicación Flask
+      # Crear la aplicación Flask
     app = create_app()
     
     # AÑADE ESTA CONFIGURACIÓN EXPLÍCITA DE NEO4J
@@ -74,16 +85,33 @@ def main():
     # Crear e inicializar el adaptador - cargará datos inmediatamente
     adapter = create_adapter(app)
     
-    # Verificar si se cargaron datos
-    if adapter and hasattr(adapter, 'motos_df') and adapter.motos_df is not None:
-        logger.info(f"Datos precargados: {len(adapter.motos_df)} motos, {len(adapter.users_df) if adapter.users_df is not None else 0} usuarios")
+    # Verificar que el adaptador se ha creado correctamente y tiene los algoritmos adecuados
+    if adapter:
+        logger.info(f"Adaptador creado correctamente")
+        
+        # Verificar que el algoritmo de Label Propagation está disponible
+        if hasattr(adapter, 'label_propagation'):
+            logger.info("Algoritmo Label Propagation disponible en el adaptador")
+            
+            # Verificar que los demás algoritmos están disponibles
+            if hasattr(adapter, 'pagerank'):
+                logger.info("Algoritmo PageRank disponible en el adaptador")
+            if hasattr(adapter, 'moto_ideal'):
+                logger.info("Algoritmo MotoIdeal disponible en el adaptador")
+        else:
+            logger.warning("Algoritmo Label Propagation NO disponible en el adaptador")
+    
+        # Verificar si se cargaron datos
+        if hasattr(adapter, 'motos_df') and adapter.motos_df is not None:
+            logger.info(f"Datos precargados: {len(adapter.motos_df)} motos, {len(adapter.users_df) if adapter.users_df is not None else 0} usuarios")
+        else:
+            logger.warning("No se pudieron cargar datos anticipadamente")
     else:
-        logger.warning("No se pudieron cargar datos anticipadamente")
+        logger.error("No se pudo crear el adaptador")
     
     # Registrar el adaptador en la aplicación
     app.config['MOTO_RECOMMENDER'] = adapter
-    
-    # Añade una ruta para diagnosticar conexión a Neo4j
+      # Añade una ruta para diagnóstico de conexión a Neo4j
     @app.route('/check_neo4j')
     def check_neo4j():
         """Ruta para verificar la conexión a Neo4j"""
@@ -98,6 +126,48 @@ def main():
         except Exception as e:
             return f"<h1>Error</h1><p>No se pudo conectar a Neo4j: {str(e)}</p>"
     
+    # Añade una ruta para probar el algoritmo de label propagation
+    @app.route('/test_label_propagation/<user_id>')
+    def test_label_propagation(user_id):
+        """Ruta para probar el algoritmo de Label Propagation"""
+        try:
+            if not adapter:
+                return "<h1>Error</h1><p>No hay un adaptador de recomendación disponible.</p>"
+                
+            if not hasattr(adapter, 'label_propagation'):
+                return "<h1>Error</h1><p>El adaptador no tiene el algoritmo de Label Propagation configurado.</p>"
+            
+            # Obtener recomendaciones usando Label Propagation
+            recommendations = adapter.get_recommendations(user_id, algorithm='label_propagation', top_n=5)
+            
+            # Formatear las recomendaciones para mostrarlas
+            html_output = f"<h1>Recomendaciones para {user_id} usando Label Propagation</h1>"
+            html_output += "<ul>"
+            
+            for rec in recommendations:
+                if isinstance(rec, dict):
+                    # Formato si son diccionarios
+                    moto_id = rec.get('moto_id', 'Unknown')
+                    score = rec.get('score', 0)
+                    note = rec.get('note', '')
+                    html_output += f"<li>Moto ID: {moto_id}, Score: {score:.2f}, Nota: {note}</li>"
+                elif isinstance(rec, tuple) and len(rec) >= 2:
+                    # Formato si son tuplas
+                    html_output += f"<li>Moto ID: {rec[0]}, Score: {rec[1]:.2f}</li>"
+                else:
+                    html_output += f"<li>{rec}</li>"
+                    
+            html_output += "</ul>"
+            html_output += "<p><a href='/check_routes'>Volver a rutas disponibles</a></p>"
+            
+            return html_output
+            
+        except Exception as e:
+            logger.error(f"Error al probar Label Propagation: {str(e)}")
+            import traceback
+            trace = traceback.format_exc()
+            return f"<h1>Error al probar Label Propagation</h1><p>{str(e)}</p><pre>{trace}</pre>"
+            
     # Añade una ruta raíz para depuración
     @app.route('/debug')
     def debug_root():
@@ -120,6 +190,121 @@ def main():
         except Exception as e:
             logger.error(f"Error en la redirección desde la ruta raíz: {str(e)}")
             return "<h1>Error</h1><p>Hubo un problema con la redirección. <a href='/debug'>Ir a depuración</a></p>"
+    
+    # Añadir una ruta para recomendaciones sociales con label propagation
+    @app.route('/social_recommendations/<user_id>')
+    def social_recommendations(user_id):
+        """Ruta para mostrar recomendaciones sociales usando Label Propagation"""
+        try:
+            if not adapter:
+                return "<h1>Error</h1><p>No hay un adaptador de recomendación disponible.</p>"
+            
+            # 1. Obtener la moto ideal del usuario
+            ideal_moto = None
+            try:
+                if adapter.driver:
+                    with adapter.driver.session() as session:
+                        result = session.run("""
+                            MATCH (u:User {id: $user_id})-[:IDEAL_MOTO|:IDEAL]->(m:Moto)
+                            RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
+                                  m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                        """, user_id=user_id)
+                        record = result.single()
+                        if record:
+                            ideal_moto = {
+                                "id": record["id"],
+                                "marca": record["marca"],
+                                "modelo": record["modelo"],
+                                "tipo": record.get("tipo", "N/A"),
+                                "precio": record.get("precio", "N/A"),
+                                "imagen": record.get("imagen", "")
+                            }
+            except Exception as e:
+                logger.error(f"Error al obtener moto ideal: {str(e)}")
+            
+            # 2. Obtener amigos del usuario
+            friends = []
+            try:
+                if adapter.driver:
+                    with adapter.driver.session() as session:
+                        result = session.run("""
+                            MATCH (u:User {id: $user_id})-[:FRIEND_OF]-(f:User)
+                            RETURN f.id as id, f.username as username, f.profile_pic as pic
+                        """, user_id=user_id)
+                        for record in result:
+                            friends.append({
+                                "id": record["id"],
+                                "username": record["username"],
+                                "pic": record.get("pic", "")
+                            })
+            except Exception as e:
+                logger.error(f"Error al obtener amigos: {str(e)}")
+            
+            # 3. Obtener recomendaciones usando Label Propagation
+            label_prop_recs = adapter.get_recommendations(user_id, algorithm='label_propagation', top_n=5)
+            
+            # 4. Generar HTML para mostrar resultados
+            html = f"<html><head><title>Recomendaciones Sociales para {user_id}</title>"
+            html += "<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;line-height:1.6}"
+            html += "h1,h2{color:#336699} section{margin:20px 0;padding:20px;border:1px solid #ddd;border-radius:5px}"
+            html += "table{width:100%;border-collapse:collapse} table td, table th{border:1px solid #ddd;padding:8px;text-align:left}"
+            html += "table tr:nth-child(even){background-color:#f2f2f2} .friend{display:inline-block;margin:0 10px 10px 0;text-align:center} img{max-width:100px;border-radius:50%}</style>"
+            html += "</head><body>"
+            html += f"<h1>Recomendaciones Sociales para {user_id}</h1>"
+            
+            # Mostrar moto ideal
+            html += "<section><h2>Tu Moto Ideal</h2>"
+            if ideal_moto:
+                html += f"<p><strong>{ideal_moto['marca']} {ideal_moto['modelo']}</strong></p>"
+                html += f"<p>Tipo: {ideal_moto['tipo']}, Precio: {ideal_moto['precio']}</p>"
+                if ideal_moto['imagen']:
+                    html += f"<img src='{ideal_moto['imagen']}' alt='Moto Ideal' style='max-width:200px;'>"
+            else:
+                html += "<p>No has seleccionado una moto ideal todavía.</p>"
+            html += "</section>"
+            
+            # Mostrar amigos
+            html += "<section><h2>Tus Amigos</h2>"
+            if friends:
+                for friend in friends:
+                    html += f"<div class='friend'>"
+                    if friend.get('pic'):
+                        html += f"<img src='{friend['pic']}' alt='{friend['username']}'>"
+                    html += f"<p>{friend['username']}</p></div>"
+            else:
+                html += "<p>No tienes amigos agregados todavía.</p>"
+            html += "</section>"
+            
+            # Mostrar recomendaciones de Label Propagation
+            html += "<section><h2>Recomendaciones basadas en tus amigos (Label Propagation)</h2>"
+            if label_prop_recs:
+                html += "<table><tr><th>Moto ID</th><th>Puntuación</th><th>Nota</th></tr>"
+                for rec in label_prop_recs:
+                    if isinstance(rec, dict):
+                        moto_id = rec.get('moto_id', 'Unknown')
+                        score = rec.get('score', 0)
+                        note = rec.get('note', '')
+                        html += f"<tr><td>{moto_id}</td><td>{score:.2f}</td><td>{note}</td></tr>"
+                    elif isinstance(rec, tuple) and len(rec) >= 2:
+                        html += f"<tr><td>{rec[0]}</td><td>{rec[1]:.2f}</td><td>-</td></tr>"
+                    else:
+                        html += f"<tr><td colspan='3'>{rec}</td></tr>"
+                html += "</table>"
+            else:
+                html += "<p>No hay recomendaciones disponibles basadas en tus amigos.</p>"
+            html += "</section>"
+            
+            # Enlaces de navegación
+            html += "<p><a href='/check_routes'>Ver rutas disponibles</a> | <a href='/debug'>Ir a Depuración</a></p>"
+            html += "</body></html>"
+            
+            return html
+        
+        except Exception as e:
+            logger.error(f"Error en recomendaciones sociales: {str(e)}")
+            import traceback
+            trace = traceback.format_exc()
+            return f"<h1>Error en recomendaciones sociales</h1><p>{str(e)}</p><pre>{trace}</pre>"
     
     # Añadir una ruta para diagnóstico de rutas
     @app.route('/check_routes')
@@ -187,8 +372,7 @@ def main():
             <p>Ocurrió un error en el servidor: {{ error }}</p>
             <p><a href="/">Volver al inicio</a></p>
         """, error=error_str), 500
-    
-    # Ejecutar la aplicación
+      # Ejecutar la aplicación
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     

@@ -225,9 +225,7 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
-
-            {% if recommendations and recommendations.liked_motos %}
+            {% endif %}            {% if recommendations and recommendations.liked_motos %}
             <div class="section">
                 <h2 class="section-title">
                     <i class="fas fa-heart"></i> Motos que le gustan
@@ -249,8 +247,36 @@
                 {% endfor %}
             </div>
             {% endif %}
-
-            {% if not recommendations or (not recommendations.ideal_moto and not recommendations.liked_motos) %}
+            
+            {% if recommendations and recommendations.label_propagation_recommendations %}
+            <div class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-network-wired"></i> Recomendaciones para ti
+                </h2>
+                
+                {% for moto in recommendations.label_propagation_recommendations %}
+                <div class="moto-card">
+                    <img src="{{ moto.imagen|default('/static/images/default-moto.jpg') }}" alt="{{ moto.marca }} {{ moto.modelo }}" class="moto-img">
+                    <div class="moto-details">
+                        <h3 class="moto-name">{{ moto.marca|default('Moto') }} {{ moto.modelo|default('Recomendada') }}</h3>
+                        {% if moto.tipo %}
+                        <p class="moto-info"><strong>Tipo:</strong> {{ moto.tipo }}</p>
+                        {% endif %}
+                        {% if moto.precio %}
+                        <p class="moto-info"><strong>Precio:</strong> ${{ moto.precio|int }}</p>
+                        {% endif %}
+                        {% if moto.score %}
+                        <p class="moto-info"><strong>Coincidencia:</strong> {{ (moto.score * 100)|int }}%</p>
+                        {% endif %}
+                        
+                        <button class="like-btn" data-moto-id="{{ moto.moto_id }}">
+                            <i class="fas fa-heart"></i> Me gusta
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}            {% if not recommendations or (not recommendations.ideal_moto and not recommendations.liked_motos and not recommendations.label_propagation_recommendations) %}
             <div class="section" style="flex-basis: 100%;">
                 <div class="no-content">
                     <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #666; margin-bottom: 15px;"></i>
