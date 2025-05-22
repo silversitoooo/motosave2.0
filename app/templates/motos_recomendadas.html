@@ -65,9 +65,10 @@
         .like-badge {
             background-color: #ff5722;
         }
-        
-        .propagation-badge {
-            background-color: #4caf50;
+          .propagation-badge {
+            background-color: #007bff;
+            font-size: 0.8rem;
+            padding: 10px 12px;
         }
         
         .progress {
@@ -164,8 +165,8 @@
     </style>
 </head>
 <body>    <header>
-        <h1>Motos que podrían gustarte</h1>
-        <p class="lead">Descubre motos basadas en tus amigos y sus preferencias</p>
+        <h1>Recomendaciones personalizadas</h1>
+        <p class="lead">Motos recomendadas específicamente para ti mediante nuestro algoritmo de aprendizaje social</p>
         <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver al Dashboard</a>
     </header>
 
@@ -175,81 +176,15 @@
                 <p>Aún no tienes amigos en la plataforma o tus amigos no han interactuado con suficientes motos.</p>
                 <a href="{{ url_for('main.friends') }}" class="btn btn-primary">Buscar Amigos</a>
             </div>
-        {% else %}
-            <!-- Sección de motos ideales -->
+        {% else %}            <!-- Las secciones de motos ideales y motos con like se han eliminado -->
+            <!-- Solo se mostrará la sección de propagación de etiquetas -->            <!-- Sección de motos por propagación de etiquetas -->
             <section class="recommendation-section">
-                <h2>Motos ideales de tus amigos</h2>
-                <div class="row">
-                    {% for friend_name, moto in ideal_motos.items() %}
-                        <div class="col-md-4 mb-4">
-                            <div class="card h-100">
-                                <div class="recommendation-badge ideal-badge">Moto ideal de {{ friend_name }}</div>
-                                {% if moto.imagen %}
-                                    <img src="{{ moto.imagen }}" class="card-img-top" alt="{{ moto.marca }} {{ moto.modelo }}">
-                                {% else %}
-                                    <div class="no-image">Sin imagen disponible</div>
-                                {% endif %}
-                                <div class="card-body">
-                                    <h5 class="card-title">{{ moto.marca }} {{ moto.modelo }}</h5>
-                                    <p class="card-text">
-                                        <strong>Tipo:</strong> {{ moto.tipo }}<br>
-                                        <strong>Precio:</strong> ${{ moto.precio }}
-                                    </p>                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
-                                    {% if moto.id %}
-                                    <a href="{{ url_for('main.moto_detail', moto_id=moto.id) }}" class="btn btn-primary">Ver detalles</a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="col-12">
-                            <p>Tus amigos aún no han definido motos ideales.</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <!-- Sección de motos con like -->
-            <section class="recommendation-section">
-                <h2>Motos con like de tus amigos</h2>
-                <div class="row">
-                    {% for item in liked_motos %}
-                        <div class="col-md-4 mb-4">
-                            <div class="card h-100">
-                                <div class="recommendation-badge like-badge">{{ item.friend_name }} le dio like a esta moto</div>
-                                {% if item.moto.imagen %}
-                                    <img src="{{ item.moto.imagen }}" class="card-img-top" alt="{{ item.moto.marca }} {{ item.moto.modelo }}">
-                                {% else %}
-                                    <div class="no-image">Sin imagen disponible</div>
-                                {% endif %}
-                                <div class="card-body">
-                                    <h5 class="card-title">{{ item.moto.marca }} {{ item.moto.modelo }}</h5>
-                                    <p class="card-text">                                        <strong>Tipo:</strong> {{ item.moto.tipo }}<br>
-                                        <strong>Precio:</strong> ${{ item.moto.precio }}
-                                    </p>
-                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
-                                    {% if item.moto.id %}
-                                    <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary">Ver detalles</a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="col-12">
-                            <p>Tus amigos aún no han dado like a motos.</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <!-- Sección de motos por propagación de etiquetas -->
-            <section class="recommendation-section">
-                <h2>Motos recomendadas según análisis de preferencias</h2>
+                <h2>Recomendaciones personalizadas mediante Label Propagation</h2>
                 <div class="row">
                     {% for item in propagation_motos %}
                         <div class="col-md-4 mb-4">
                             <div class="card h-100">
-                                <div class="recommendation-badge propagation-badge">Según tus preferencias y las de {{ item.friend_name }} esta moto te gustará</div>
+                                <div class="recommendation-badge propagation-badge">Recomendada según análisis de tus preferencias y las de {{ item.friend_name }}</div>
                                 {% if item.moto.imagen %}
                                     <img src="{{ item.moto.imagen }}" class="card-img-top" alt="{{ item.moto.marca }} {{ item.moto.modelo }}">
                                 {% else %}
