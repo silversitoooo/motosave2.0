@@ -22,7 +22,9 @@ class MotoLabelPropagation:
         self.user_preferences = None
         self.propagated_scores = None
         self.logger = logging.getLogger(__name__)
-        
+        self.moto_features = {}  # Diccionario para almacenar características de motos
+        self.moto_similarity_matrix = {}  # Matriz de similitud entre motos
+    
     def build_social_graph(self, friendships):
         """
         Construye el grafo social basado en las relaciones de amistad.
@@ -154,7 +156,7 @@ class MotoLabelPropagation:
         except Exception as e:
             self.logger.error(f"Error generando recomendaciones para {user_id}: {str(e)}")
             return []
-    
+            
     def initialize_from_interactions(self, interactions_data):
         """Initialize the social graph and preferences from interaction data."""
         if not interactions_data or len(interactions_data) == 0:
@@ -230,7 +232,24 @@ class MotoLabelPropagation:
                             # Create synthetic preference with lower weight
                             self.user_preferences[user_id][moto_id] = weight * 0.5
                         break
-    
+                        
+        # 5. NUEVO: Recopilar características de las motos para recomendaciones basadas en contenido
+        moto_features = []
+        for interaction in interactions_data:
+            moto_data = {
+                'moto_id': interaction["moto_id"],
+                'marca': interaction.get("marca", ""),
+                'modelo': interaction.get("modelo", ""),
+                'tipo': interaction.get("tipo", ""),
+                'cilindrada': interaction.get("cilindrada", 0),
+                'potencia': interaction.get("potencia", 0),
+                'precio': interaction.get("precio", 0)
+            }
+            moto_features.append(moto_data)
+        
+        # Inicializar características de motos para recomendaciones basadas en contenido
+        self.add_moto_features(moto_features)
+        
         # 5. Run the label propagation algorithm
         try:
             self.propagate_labels()
@@ -248,14 +267,15 @@ class MotoLabelPropagation:
     
     def get_recommendations(self, user_id, top_n=5):
         """
-        Obtiene recomendaciones para un usuario basadas en el algoritmo de propagación.
+        Obtiene recomendaciones para un usuario basadas en el algoritmo de propagación
+        y también en características similares a las motos que le gustan.
         
         Args:
             user_id: ID del usuario para el que se generan recomendaciones
             top_n (int): Número de recomendaciones a generar
             
         Returns:
-            list: Lista de diccionarios {moto_id, score} ordenados por puntuación
+            list: Lista de diccionarios {moto_id, score, note} ordenadas por puntuación
         """
         # Asegurar que user_id sea string
         user_id = str(user_id)
@@ -277,13 +297,20 @@ class MotoLabelPropagation:
             rated_motos = set(self.user_preferences.get(user_id, {}).keys())
             print(f"DEBUG: User {user_id} has rated {len(rated_motos)} motos: {list(rated_motos)}")
             
+            # NUEVO: Obtener también las motos ideales del usuario y sus amigos
+            ideal_motos = self._get_ideal_motos(user_id)
+            
             # Get friend's motos
             friends_motos = []
             for friend_id in self.social_graph.get(user_id, []):
                 print(f"DEBUG: Checking motos from friend {friend_id}")
                 for moto_id, score in self.user_preferences.get(friend_id, {}).items():
                     if moto_id not in rated_motos:
-                        friends_motos.append({"moto_id": moto_id, "score": score * 0.9})
+                        friends_motos.append({
+                            "moto_id": moto_id, 
+                            "score": score * 0.9,
+                            "note": "A tu amigo le gusta esta moto"
+                        })
             
             # Get unrated motos from propagated scores
             propagated_motos = []
@@ -291,19 +318,30 @@ class MotoLabelPropagation:
                 print(f"DEBUG: User {user_id} found in propagated scores")
                 for moto_id, score in self.propagated_scores[user_id].items():
                     if moto_id not in rated_motos:
-                        propagated_motos.append({"moto_id": moto_id, "score": score})
+                        propagated_motos.append({
+                            "moto_id": moto_id, 
+                            "score": score,
+                            "note": "Recomendada según tus conexiones sociales"
+                        })
             else:
                 print(f"DEBUG: User {user_id} NOT found in propagated scores")
                 
-            # Combine both sources
-            all_recommendations = propagated_motos + friends_motos
+            # NUEVO: Obtener recomendaciones basadas en motos similares a las que le gustan al usuario y sus amigos
+            content_based_recs = self._get_content_based_recommendations(user_id, rated_motos, ideal_motos)
+            
+            # Combine all sources
+            all_recommendations = propagated_motos + friends_motos + content_based_recs
             
             # If still no recommendations, use all available motos
             if not all_recommendations:
                 print("DEBUG: No recommendations found, using all available motos")
                 for moto_id in all_motos:
                     if moto_id not in rated_motos:
-                        all_recommendations.append({"moto_id": moto_id, "score": 0.5})
+                        all_recommendations.append({
+                            "moto_id": moto_id, 
+                            "score": 0.5,
+                            "note": "Podría interesarte"
+                        })
             
             # IMPORTANT FIX: If user has already rated all available motos,
             # recommend the ones they might like based on propagation
@@ -431,50 +469,233 @@ class MotoLabelPropagation:
         
         return recommendations
 
-    def propagate_labels(self):
+    def add_moto_features(self, motos_list):
         """
-        Propagar etiquetas (puntuaciones) a través del grafo social.
-        Utiliza un algoritmo similar a PageRank para propagar preferencias.
-        """
-        if not hasattr(self, 'social_graph') or not self.social_graph:
-            # Use empty graph instead of raising error
-            self.social_graph = defaultdict(list)
+        Agrega características de motos para calcular similitudes.
+        
+        Args:
+            motos_list (list): Lista de diccionarios con datos de motos
             
-        if not hasattr(self, 'user_preferences') or not self.user_preferences:
-            # Use empty preferences instead of raising error
-            self.user_preferences = defaultdict(dict)
-        
-        # Initialize scores to original preferences
-        current_scores = {}
-        for user_id, prefs in self.user_preferences.items():
-            current_scores[user_id] = prefs.copy()
-        
-        # Iterative propagation
-        for _ in range(self.max_iterations):
-            new_scores = {}
-            for user_id, prefs in current_scores.items():
-                # Initialize with user's own preferences multiplied by (1-alpha)
-                new_scores[user_id] = {
-                    moto_id: score * (1 - self.alpha) 
-                    for moto_id, score in prefs.items()
+        Returns:
+            dict: Diccionario con características de motos
+        """
+        self.moto_features = {}
+        for moto in motos_list:
+            moto_id = moto.get('moto_id', moto.get('id', None))
+            if moto_id:
+                self.moto_features[moto_id] = {
+                    'marca': str(moto.get('marca', '')).lower(),
+                    'tipo': str(moto.get('tipo', '')).lower(),
+                    'cilindrada': float(moto.get('cilindrada', 0) or 0),
+                    'potencia': float(moto.get('potencia', 0) or 0),
+                    'precio': float(moto.get('precio', 0) or 0)
                 }
-                
-                # Add influence from friends
-                friends = self.social_graph.get(user_id, [])
-                if friends:
-                    for friend_id in friends:
-                        if friend_id in current_scores:
-                            friend_prefs = current_scores[friend_id]
-                            for moto_id, score in friend_prefs.items():
-                                # Add friend's score weighted by alpha and divided by number of friends
-                                weight = self.alpha / len(friends)
-                                if moto_id in new_scores[user_id]:
-                                    new_scores[user_id][moto_id] += score * weight
-                                else:
-                                    new_scores[user_id][moto_id] = score * weight
-            
-            current_scores = new_scores
         
-        # Store final propagated scores
-        self.propagated_scores = current_scores
-        return current_scores
+        # Calcular matriz de similitud entre motos
+        self._calculate_moto_similarity()
+        
+        return self.moto_features
+    
+    def _calculate_moto_similarity(self):
+        """
+        Calcula la similitud entre todas las motos basándose en sus características.
+        Esta matriz será usada para recomendar motos similares.
+        """
+        self.moto_similarity_matrix = {}
+        
+        if not self.moto_features:
+            self.logger.warning("No hay características de motos para calcular similitudes")
+            return
+            
+        # Para cada par de motos, calcular similitud
+        moto_ids = list(self.moto_features.keys())
+        
+        for i, moto1_id in enumerate(moto_ids):
+            self.moto_similarity_matrix[moto1_id] = {}
+            
+            for moto2_id in moto_ids:
+                # No calcular similitud consigo misma (es siempre 1.0)
+                if moto1_id == moto2_id:
+                    self.moto_similarity_matrix[moto1_id][moto2_id] = 1.0
+                    continue
+                
+                # Si ya calculamos la similitud inversa, usar el mismo valor
+                if moto2_id in self.moto_similarity_matrix and moto1_id in self.moto_similarity_matrix[moto2_id]:
+                    self.moto_similarity_matrix[moto1_id][moto2_id] = self.moto_similarity_matrix[moto2_id][moto1_id]
+                    continue
+                    
+                # Calcular similitud
+                sim = self._calculate_similarity(self.moto_features[moto1_id], self.moto_features[moto2_id])
+                self.moto_similarity_matrix[moto1_id][moto2_id] = sim
+    
+    def _calculate_similarity(self, moto1, moto2):
+        """
+        Calcula la similitud entre dos motos basándose en sus características.
+        
+        Args:
+            moto1 (dict): Características de la primera moto
+            moto2 (dict): Características de la segunda moto
+            
+        Returns:
+            float: Valor de similitud entre 0 y 1
+        """
+        similarity = 0.0
+        weight_sum = 0.0
+        
+        # Similitud por marca (peso: 0.3)
+        if moto1['marca'] == moto2['marca']:
+            similarity += 0.3
+            weight_sum += 0.3
+        
+        # Similitud por tipo (peso: 0.3)
+        if moto1['tipo'] == moto2['tipo']:
+            similarity += 0.3
+            weight_sum += 0.3
+            
+        # Similitud por cilindrada (peso: 0.15)
+        if moto1['cilindrada'] > 0 and moto2['cilindrada'] > 0:
+            cil_ratio = min(moto1['cilindrada'], moto2['cilindrada']) / max(moto1['cilindrada'], moto2['cilindrada'])
+            similarity += 0.15 * cil_ratio
+            weight_sum += 0.15
+            
+        # Similitud por potencia (peso: 0.15)
+        if moto1['potencia'] > 0 and moto2['potencia'] > 0:
+            pot_ratio = min(moto1['potencia'], moto2['potencia']) / max(moto1['potencia'], moto2['potencia'])
+            similarity += 0.15 * pot_ratio
+            weight_sum += 0.15
+            
+        # Similitud por precio (peso: 0.1)
+        if moto1['precio'] > 0 and moto2['precio'] > 0:
+            price_ratio = min(moto1['precio'], moto2['precio']) / max(moto1['precio'], moto2['precio'])
+            similarity += 0.1 * price_ratio
+            weight_sum += 0.1
+        
+        # Normalizar si hay peso
+        if weight_sum > 0:
+            similarity /= weight_sum
+            
+        return similarity
+    
+    def find_similar_motos(self, moto_id, top_n=5):
+        """
+        Encuentra motos similares a una moto dada usando la matriz de similitud.
+        
+        Args:
+            moto_id (str): ID de la moto para la que buscar similares
+            top_n (int): Número de motos similares a devolver
+            
+        Returns:
+            list: Lista de tuplas (moto_id, score) con las motos más similares
+        """
+        if not self.moto_similarity_matrix or moto_id not in self.moto_similarity_matrix:
+            return []
+            
+        # Obtener todas las similitudes para esta moto
+        similarities = [(other_id, sim) for other_id, sim in self.moto_similarity_matrix[moto_id].items()]
+        
+        # Ordenar por similitud descendente y devolver los top_n
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:top_n]
+    
+    def _get_ideal_motos(self, user_id):
+        """
+        Obtiene las motos ideales del usuario y sus amigos.
+        Una moto ideal es aquella con puntuación alta (> 0.8).
+        
+        Args:
+            user_id (str): ID del usuario
+            
+        Returns:
+            list: Lista de IDs de motos ideales
+        """
+        ideal_motos = []
+        
+        # Obtener motos ideales del usuario (aquellas con puntuación alta)
+        if user_id in self.user_preferences:
+            for moto_id, score in self.user_preferences[user_id].items():
+                if score > 0.8:  # Puntuación alta considera moto ideal
+                    ideal_motos.append(moto_id)
+        
+        # Obtener motos ideales de los amigos del usuario
+        for friend_id in self.social_graph.get(user_id, []):
+            if friend_id in self.user_preferences:
+                for moto_id, score in self.user_preferences[friend_id].items():
+                    if score > 0.8 and moto_id not in ideal_motos:
+                        ideal_motos.append(moto_id)
+        
+        return ideal_motos
+
+    def _get_content_based_recommendations(self, user_id, rated_motos, ideal_motos, max_per_moto=3):
+        """
+        Genera recomendaciones basadas en características similares a las motos ideales
+        y a las motos que le gustan al usuario y sus amigos.
+        
+        Args:
+            user_id (str): ID del usuario
+            rated_motos (set): Conjunto de IDs de motos ya valoradas por el usuario
+            ideal_motos (list): Lista de IDs de motos ideales para el usuario y sus amigos
+            max_per_moto (int): Número máximo de recomendaciones por moto referencia
+            
+        Returns:
+            list: Lista de diccionarios con recomendaciones {moto_id, score, note}
+        """
+        content_based_recs = []
+        seen_recommendations = set()
+        
+        if not self.moto_similarity_matrix:
+            print("DEBUG: No similarity matrix available for content-based recommendations")
+            return []
+        
+        # 1. Obtener recomendaciones basadas en motos ideales
+        print(f"DEBUG: Finding similar motos to {len(ideal_motos)} ideal motos")
+        for ideal_moto_id in ideal_motos:
+            similar_motos = self.find_similar_motos(ideal_moto_id, top_n=max_per_moto)
+            
+            for similar_moto_id, sim_score in similar_motos:
+                if similar_moto_id not in rated_motos and similar_moto_id not in seen_recommendations:
+                    content_based_recs.append({
+                        "moto_id": similar_moto_id,
+                        "score": sim_score * 0.95,  # Ligera reducción para priorizar motos reales del usuario
+                        "note": "Similar a una moto ideal para ti o tus amigos"
+                    })
+                    seen_recommendations.add(similar_moto_id)
+        
+        # 2. Obtener recomendaciones basadas en motos que le gustan al usuario
+        if user_id in self.user_preferences:
+            user_liked_motos = [(moto_id, score) for moto_id, score in self.user_preferences[user_id].items() 
+                               if score > 0.6 and moto_id not in ideal_motos]
+            
+            print(f"DEBUG: Finding similar motos to {len(user_liked_motos)} liked motos")
+            for liked_moto_id, user_score in user_liked_motos:
+                similar_motos = self.find_similar_motos(liked_moto_id, top_n=max_per_moto)
+                
+                for similar_moto_id, sim_score in similar_motos:
+                    if similar_moto_id not in rated_motos and similar_moto_id not in seen_recommendations:
+                        content_based_recs.append({
+                            "moto_id": similar_moto_id,
+                            "score": sim_score * 0.85,  # Reducción para priorizar motos ideales
+                            "note": "Similar a una moto que te gustó"
+                        })
+                        seen_recommendations.add(similar_moto_id)
+        
+        # 3. Obtener recomendaciones basadas en motos que les gustan a los amigos
+        for friend_id in self.social_graph.get(user_id, []):
+            if friend_id in self.user_preferences:
+                friend_liked_motos = [(moto_id, score) for moto_id, score in self.user_preferences[friend_id].items()
+                                     if score > 0.7 and moto_id not in ideal_motos]
+                
+                print(f"DEBUG: Finding similar motos to {len(friend_liked_motos)} motos liked by friend {friend_id}")
+                for liked_moto_id, friend_score in friend_liked_motos:
+                    similar_motos = self.find_similar_motos(liked_moto_id, top_n=2)  # Menos recomendaciones por moto de amigo
+                    
+                    for similar_moto_id, sim_score in similar_motos:
+                        if similar_moto_id not in rated_motos and similar_moto_id not in seen_recommendations:
+                            content_based_recs.append({
+                                "moto_id": similar_moto_id,
+                                "score": sim_score * 0.75,  # Reducción para priorizar motos del usuario
+                                "note": "Similar a una moto que le gustó a tu amigo"
+                            })
+                            seen_recommendations.add(similar_moto_id)
+        
+        print(f"DEBUG: Generated {len(content_based_recs)} content-based recommendations")
+        return content_based_recs

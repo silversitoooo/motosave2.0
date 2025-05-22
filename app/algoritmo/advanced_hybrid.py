@@ -695,7 +695,7 @@ class AdvancedHybridRecommender:
                         # Evitar recomendar la misma moto u otras ya valoradas
                         if similar_moto == moto_id or any(item[0] == similar_moto for item in user_items):
                             continue
-                            
+                        
                         score = similarity * rating if rating else similarity
                         reason = self._get_similarity_reason(moto_id, similar_moto)
                         

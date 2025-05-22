@@ -271,18 +271,24 @@ def moto_ideal():
                 logger.info(f"ID de usuario encontrado en la base de datos: {db_user_id}")
             else:
                 logger.warning(f"Usuario {username} no encontrado en la base de datos")
-                
-        # Obtener la moto ideal para el usuario de Neo4j
+        
+        # Obtener la moto ideal para el usuario de Neo4j con toda la información necesaria
         if hasattr(adapter, '_ensure_neo4j_connection'):
             adapter._ensure_neo4j_connection()
-            with adapter.driver.session() as neo4j_session:
+            with adapter.driver.session() as neo4j_session:                # Consulta mejorada para obtener directamente toda la información de la moto
+                # Ordenamos por timestamp para obtener la relación más reciente
                 result = neo4j_session.run(
                     """
                     MATCH (u:User {id: $user_id})-[r:IDEAL]->(m:Moto)
-                    RETURN m.id as moto_id, r.score as score, r.reasons as reasons
+                    RETURN m.id as moto_id, m.marca as marca, m.modelo as modelo, 
+                           m.potencia as potencia, m.precio as precio, m.tipo as tipo,
+                           m.imagen as imagen, m.cilindrada as cilindrada,
+                           r.score as score, r.reasons as reasons
+                    ORDER BY r.timestamp DESC
+                    LIMIT 1
                     """,
                     user_id=db_user_id
-                )                
+                )
                 record = result.single()
                 
                 if record:
@@ -302,25 +308,53 @@ def moto_ideal():
                         logger.warning(f"Error al parsear razones JSON '{reasons_str}': {str(e)}")
                         reasons = [reasons_str] if reasons_str else ["Recomendación personalizada"]
                     
-                    # Obtener los detalles de la moto
-                    moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
+                    # Crear objeto moto con todos los campos necesarios para la plantilla
+                    moto = {
+                        "moto_id": moto_id,
+                        "modelo": record.get('modelo', 'Modelo Desconocido'),
+                        "marca": record.get('marca', 'Marca Desconocida'),
+                        "precio": float(record.get('precio', 0)),
+                        "tipo": record.get('tipo', 'Estilo Desconocido'),
+                        "imagen": record.get('imagen', ''),
+                        "cilindrada": record.get('cilindrada', 'N/D'),
+                        "potencia": record.get('potencia', 'N/D'),
+                        "razones": reasons,
+                        "score": score,
+                        "año": None,  # La plantilla espera este campo aunque sea N/D
+                        "URL": "#",   # URL por defecto para el botón de detalles
+                        "likes": 0    # Contador de likes por defecto
+                    }
                     
-                    if not moto_info.empty:
-                        moto_row = moto_info.iloc[0]
-                        moto = {
-                            "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
-                            "marca": moto_row.get('marca', 'Marca Desconocida'),
-                            "precio": float(moto_row.get('precio', 0)),
-                            "tipo": moto_row.get('tipo', 'Estilo Desconocido'),
-                            "imagen": moto_row.get('imagen', ''),
-                            "razones": reasons,
-                            "score": score,
-                            "moto_id": moto_id
-                        }
-                        
-                        return render_template('moto_ideal.html', moto=moto)
-        
-        # Si no encontramos una moto ideal, mostrar ejemplo por defecto
+                    # Si no tenemos toda la información de la moto desde Neo4j, intentar completar desde el DataFrame
+                    if adapter.motos_df is not None:
+                        moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
+                        if not moto_info.empty:
+                            moto_row = moto_info.iloc[0]
+                            # Actualizar campos adicionales si están disponibles en el DataFrame
+                            if 'año' in moto_row:
+                                moto["año"] = moto_row.get('año')
+                            if 'URL' in moto_row:
+                                moto["URL"] = moto_row.get('URL')
+                    
+                    # Contar likes de la moto desde Neo4j
+                    try:
+                        likes_result = neo4j_session.run(
+                            """
+                            MATCH (u:User)-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                            WHERE r.type = 'like'
+                            RETURN count(r) as like_count
+                            """,
+                            moto_id=moto_id
+                        )
+                        like_record = likes_result.single()
+                        if like_record:
+                            moto["likes"] = like_record["like_count"]
+                    except Exception as e:
+                        logger.warning(f"Error al contar likes para moto {moto_id}: {str(e)}")
+                    
+                    logger.info(f"Moto ideal encontrada para usuario {username}: {moto['marca']} {moto['modelo']}")
+                    return render_template('moto_ideal.html', moto=moto)
+          # Si no encontramos una moto ideal, mostrar ejemplo por defecto
         logger.warning(f"No se encontró moto ideal para usuario {username}, mostrando ejemplo")
         moto = {
             "modelo": "MT-09", 
@@ -328,8 +362,14 @@ def moto_ideal():
             "precio": 9999.0,
             "tipo": "Naked",
             "imagen": "https://www.yamaha-motor.eu/es/es/products/motorcycles/hyper-naked/mt-09/_jcr_content/root/verticalnavigationcontainer/verticalnavigation/image_copy.img.jpg/1678272292818.jpg",
+            "moto_id": "moto_mt09",  # ID ficticio para fines de ejemplo
             "razones": ["Perfecta combinación de potencia y manejabilidad", "Se adapta a tu nivel de experiencia", "Dentro de tu presupuesto"],
-            "score": 95.8
+            "score": 0.958,  # 95.8% como decimal para consistencia
+            "cilindrada": "890 cc",
+            "potencia": "119 CV",
+            "año": 2023,
+            "URL": "https://www.yamaha-motor.eu/es/es/products/motorcycles/hyper-naked/mt-09/",
+            "likes": 0
         }
         
         return render_template('moto_ideal.html', moto=moto)

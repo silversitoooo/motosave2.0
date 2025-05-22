@@ -152,7 +152,7 @@ class MotoRecommenderAdapter:
             if self.motos_df.empty:
                 logger.error("No se obtuvieron datos de motos desde Neo4j")
                 raise ValueError("No hay datos de motos en Neo4j")
-                
+            
             logger.info(f"Datos cargados desde Neo4j: {len(self.motos_df)} motos, {len(self.users_df)} usuarios, {len(self.ratings_df)} ratings")
             
             # Inicializar algoritmos con los datos de Neo4j
@@ -171,6 +171,10 @@ class MotoRecommenderAdapter:
             # Inicializar otros algoritmos si tienen el método load_data
             if hasattr(self.label_propagation, 'load_data'):
                 self.label_propagation.load_data(self.users_df, self.motos_df, self.ratings_df)
+            elif hasattr(self.label_propagation, 'add_moto_features'):
+                # Convertir las motos a una lista de diccionarios para el algoritmo de similitud
+                moto_features_list = self.motos_df.to_dict('records')
+                self.label_propagation.add_moto_features(moto_features_list)
             
             if hasattr(self.moto_ideal, 'load_data'):
                 self.moto_ideal.load_data(self.users_df, self.motos_df, self.ratings_df)
@@ -242,8 +246,17 @@ class MotoRecommenderAdapter:
                 # Usar PageRank
                 return self.pagerank.get_recommendations(user_id, top_n)
             elif algorithm == 'label_propagation':
-                # Usar propagación de etiquetas
-                return self.label_propagation.get_recommendations(user_id, top_n)
+                # Usar propagación de etiquetas con características de motos
+                try:
+                    # Si no hay datos de interacciones, cargarlos
+                    if not self.label_propagation.user_preferences:
+                        # Preparar datos de interacciones con características detalladas de las motos
+                        interactions = self._get_enriched_interactions(user_id)
+                        self.label_propagation.initialize_from_interactions(interactions)
+                    return self.label_propagation.get_recommendations(user_id, top_n)
+                except Exception as e:
+                    logger.error(f"Error al obtener recomendaciones con Label Propagation: {str(e)}")
+                    return []
             elif algorithm == 'hybrid' or algorithm == 'moto_ideal':
                 # Si tenemos preferencias específicas del test, usarlas
                 if user_preferences:
@@ -378,7 +391,8 @@ class MotoRecommenderAdapter:
             except Exception as e:
                 logger.error(f"Error al obtener detalles de la moto: {str(e)}")
                 reasons = default_reasons
-              # Usar el DatabaseConnector para guardar en Neo4j
+            
+            # Usar el DatabaseConnector para guardar en Neo4j
             with self.driver.session() as session:
                 # Convertir reasons a formato JSON
                 reasons_json = json.dumps(reasons)
@@ -556,3 +570,72 @@ class MotoRecommenderAdapter:
             list: Lista de motos populares con sus puntuaciones
         """
         return self.get_popular_motos(top_n)
+    
+    def _get_enriched_interactions(self, user_id):
+        """
+        Obtiene interacciones enriquecidas con detalles de motos para el algoritmo de Label Propagation.
+        
+        Args:
+            user_id (str): ID del usuario
+            
+        Returns:
+            list: Lista de interacciones enriquecidas
+        """
+        try:
+            # Verificar conexión a Neo4j
+            if not self._ensure_neo4j_connection():
+                logger.warning("No hay conexión a Neo4j para obtener interacciones")
+                return []
+                
+            with self.driver.session() as session:
+                # Obtener interacciones del usuario y sus amigos
+                result = session.run("""
+                MATCH (u:User)-[:FRIEND_OF|FRIEND]-(f:User)
+                MATCH (u_or_f:User)-[r:INTERACTED|IDEAL|RATED]->(m:Moto)
+                WHERE u.id = $user_id AND (u_or_f.id = u.id OR u_or_f.id = f.id)
+                RETURN 
+                    u_or_f.id as user_id,
+                    m.id as moto_id,
+                    m.marca as marca,
+                    m.modelo as modelo,
+                    m.tipo as tipo,
+                    m.cilindrada as cilindrada,
+                    m.potencia as potencia,
+                    m.precio as precio,
+                    CASE type(r)
+                        WHEN 'INTERACTED' THEN r.weight
+                        WHEN 'IDEAL' THEN 1.0
+                        WHEN 'RATED' THEN r.rating / 5.0
+                        ELSE 0.5
+                    END as weight
+                """, user_id=user_id)
+                
+                interactions = [dict(record) for record in result]
+                
+                # Si no tenemos suficientes interacciones, obtener las motos más populares
+                if len(interactions) < 10:
+                    popular_result = session.run("""
+                    MATCH (u:User)-[r:INTERACTED|IDEAL|RATED]->(m:Moto)
+                    WITH m, count(r) as popularity
+                    ORDER BY popularity DESC
+                    LIMIT 20
+                    RETURN 
+                        'synthetic_user' as user_id,
+                        m.id as moto_id,
+                        m.marca as marca,
+                        m.modelo as modelo,
+                        m.tipo as tipo,
+                        m.cilindrada as cilindrada,
+                        m.potencia as potencia,
+                        m.precio as precio,
+                        0.5 as weight
+                    """)
+                    
+                    popular_interactions = [dict(record) for record in popular_result]
+                    interactions.extend(popular_interactions)
+                
+                return interactions
+                
+        except Exception as e:
+            logger.error(f"Error al obtener interacciones enriquecidas: {str(e)}")
+            return []
