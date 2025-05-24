@@ -372,12 +372,21 @@
       background-color: #111;
       color: white;
     }
-    
-    .help-text {
+      .help-text {
       font-size: 14px;
       color: #aaa;
       font-style: italic;
       margin-top: 5px;
+    }
+    
+    /* Estilos para las ramas condicionales */
+    .rama-tecnica, .rama-practica {
+      display: none !important;
+    }
+    
+    .rama-tecnica.active, .rama-practica.active {
+      display: block !important;
+      opacity: 1;
     }
   </style>
 </head>
@@ -418,142 +427,145 @@
             <button id="retry-button-marcas" class="retry-button" onclick="window.verificarYRestaurarCanvas('botón reintentar marcas')">Error al cargar. Reintentar</button>
           </div>
         </div>
+      </section>      <!-- Pregunta 3: Presupuesto -->
+      <section class="pregunta" id="pregunta-3" data-type="budget" data-key="presupuesto">
+        <h2>3. ¿Cuál es tu presupuesto? (mínimo y máximo)</h2>
+        <div style="display: flex; gap: 20px; align-items: center;">
+          <div style="flex: 1;">
+            <label for="presupuesto_min">Presupuesto mínimo (Q):</label>
+            <input type="number" name="presupuesto_min" id="presupuesto_min" value="15000" min="5000" max="200000" step="1000" required>
+          </div>
+          <div style="flex: 1;">
+            <label for="presupuesto_max">Presupuesto máximo (Q):</label>
+            <input type="number" name="presupuesto_max" id="presupuesto_max" value="50000" min="5000" max="200000" step="1000" required>
+          </div>
+        </div>
+        <p class="help-text">Define el rango de precios que puedes considerar</p>
       </section>
       
-      <!-- Pregunta 3: Nivel de experiencia (determina peso y siguientes preguntas) -->
-      <section class="pregunta" id="pregunta-3" data-type="select" data-key="experiencia" data-branch="true">
-        <h2>3. ¿Cuál es tu nivel de experiencia?</h2>
-        <select name="experiencia" id="experiencia">
-          <option value="inexperto">Inexperto</option>
-          <option value="experto">Muy Experto</option>
+      <!-- Pregunta 4: Preferencia de año -->
+      <section class="pregunta" id="pregunta-4" data-type="select" data-key="preferencia_ano">
+        <h2>4. ¿Prefieres motos recientes?</h2>
+        <select name="preferencia_ano" id="preferencia_ano">
+          <option value="recientes">Recientes (2022-2025)</option>
+          <option value="medias">De años medios (2018-2022)</option>
+          <option value="antiguas">Más antiguas (antes de 2018)</option>
+        </select>
+        <p class="help-text">Tu preferencia por el año del modelo</p>
+      </section>
+      
+      <!-- Pregunta 5: Peso preferido -->
+      <section class="pregunta" id="pregunta-5" data-type="select" data-key="preferencia_peso">
+        <h2>5. ¿Qué tan pesada prefieres que sea la moto?</h2>
+        <select name="preferencia_peso" id="preferencia_peso">
+          <option value="liviana">Liviana (menos de 150kg)</option>
+          <option value="media">Media (150-200kg)</option>
+          <option value="pesada">Pesada (más de 200kg)</option>
+        </select>
+        <p class="help-text">El peso influye en la maniobrabilidad y facilidad de manejo</p>
+      </section>
+      
+      <!-- Pregunta 6: Relación potencia/peso -->
+      <section class="pregunta" id="pregunta-6" data-type="select" data-key="preferencia_potencia_peso">
+        <h2>6. ¿Prefieres una moto con mejor relación potencia/peso?</h2>
+        <select name="preferencia_potencia_peso" id="preferencia_potencia_peso">
+          <option value="alta">Alta relación potencia/peso (más deportiva)</option>
+          <option value="media">Relación media potencia/peso (equilibrada)</option>
+          <option value="baja">Baja relación potencia/peso (más relajada)</option>
+        </select>
+        <p class="help-text">Una mejor relación potencia/peso significa más agilidad y aceleración</p>
+      </section>
+      
+      <!-- Pregunta 7: Rendimiento vs Economía -->
+      <section class="pregunta" id="pregunta-7" data-type="select" data-key="preferencia_rendimiento">
+        <h2>7. ¿Te interesa más rendimiento o economía?</h2>
+        <select name="preferencia_rendimiento" id="preferencia_rendimiento">
+          <option value="rendimiento">Rendimiento (potencia, velocidad, aceleración)</option>
+          <option value="economia">Economía (bajo consumo, mantenimiento económico)</option>
+          <option value="balance">Balance entre rendimiento y economía</option>
+        </select>
+        <p class="help-text">Tu prioridad principal en el uso de la moto</p>
+      </section>
+      
+      <!-- Pregunta 8: Condicional - Interés en especificaciones (PUNTO DE BIFURCACIÓN) -->
+      <section class="pregunta" id="pregunta-8" data-type="select" data-key="interesa_especificaciones" data-branch="true">
+        <h2>8. ¿Te interesan las especificaciones de la moto?</h2>
+        <select name="interesa_especificaciones" id="interesa_especificaciones">
+          <option value="si">Sí, me interesan los detalles técnicos</option>
+          <option value="no">No, prefiero información general de uso</option>
         </select>
         <p class="help-text">Esta respuesta determinará el tipo de preguntas que se te mostrarán a continuación</p>
-      </section>
-
-      <!-- RAMA INEXPERTO -->
-      <!-- Pregunta 4-I: Uso (determina potencia) -->
-      <section class="pregunta rama-inexperto" id="pregunta-4-inexperto" data-type="select" data-key="uso">
-        <h2>4. ¿Qué uso le darás a la moto?</h2>
-        <select name="uso" id="uso">
-          <option value="ciudad">Uso en ciudad</option>
-          <option value="paseo">Paseos ocasionales</option>
-          <option value="viajes">Viajes largos</option>
-          <option value="mixto">Uso mixto</option>
-          <option value="no_se">No estoy seguro</option>
+      </section>      <!-- RAMA TÉCNICA (SI en pregunta 8) -->
+      <!-- Pregunta 9a: Rango de potencia (Técnica) -->
+      <section class="pregunta rama-tecnica" id="pregunta-9a" data-type="select" data-key="rango_potencia" data-branch-target="si">
+        <h2>9. ¿Cuánta potencia prefieres?</h2>
+        <select name="rango_potencia" id="rango_potencia">
+          <option value="baja">Baja potencia (menos de 50hp)</option>
+          <option value="media">Media potencia (50-100hp)</option>
+          <option value="alta">Alta potencia (100-150hp)</option>
+          <option value="muy_alta">Muy alta potencia (más de 150hp)</option>
         </select>
+        <p class="help-text">HP = Caballos de potencia</p>
       </section>
-
-      <!-- Pregunta 5-I: Acompañantes (determina torque) -->
-      <section class="pregunta rama-inexperto" id="pregunta-5-inexperto" data-type="select" data-key="acompanantes">
-        <h2>5. ¿Viajarás con acompañantes, carga o solo?</h2>
-        <select name="acompanantes" id="acompanantes">
-          <option value="solo">Siempre solo</option>
-          <option value="ocasional">Ocasionalmente con acompañante</option>
-          <option value="frecuente">Frecuentemente con acompañante</option>
-          <option value="carga">Con carga</option>
-          <option value="no_se">No estoy seguro</option>
+      
+      <!-- Pregunta 10a: Desplazamiento (Técnica) -->
+      <section class="pregunta rama-tecnica" id="pregunta-10a" data-type="select" data-key="desplazamiento" data-branch-target="si">
+        <h2>10. ¿Qué desplazamiento del motor prefieres?</h2>
+        <select name="desplazamiento" id="desplazamiento">
+          <option value="pequeno">Pequeño (menos de 400cc)</option>
+          <option value="medio">Medio (400-800cc)</option>
+          <option value="grande">Grande (800-1200cc)</option>
+          <option value="muy_grande">Muy grande (más de 1200cc)</option>
         </select>
+        <p class="help-text">cc = centímetros cúbicos de desplazamiento del motor</p>
       </section>
-
-      <!-- Pregunta 6-I: Consumo vs Potencia (determina cilindrada) -->
-      <section class="pregunta rama-inexperto" id="pregunta-6-inexperto" data-type="select" data-key="consumo">
-        <h2>6. ¿Prefieres ahorrar gasolina o tener más potencia?</h2>
-        <select name="consumo" id="consumo">
-          <option value="ahorro">Priorizo el ahorro de combustible</option>
-          <option value="equilibrio">Equilibrio entre consumo y potencia</option>
-          <option value="potencia">Priorizo la potencia</option>
-          <option value="no_se">No estoy seguro</option>
-        </select>
-      </section>
-
-      <!-- Pregunta 7-I: Precio (determina precio) -->
-      <section class="pregunta rama-inexperto" id="pregunta-7-inexperto" data-type="select" data-key="precio">
-        <h2>7. ¿Tienes algún rango de precios?</h2>
-        <select name="precio" id="precio-inexperto">
-          <option value="bajo">Menos de Q30,000</option>
-          <option value="medio_bajo">Q30,000 - Q50,000</option>
-          <option value="medio">Q50,000 - Q80,000</option>
-          <option value="alto">Más de Q80,000</option>
-          <option value="no_se">No tengo un presupuesto definido</option>
-        </select>
-        <input type="number" name="presupuesto" id="presupuesto" value="8000" min="1000" max="50000" required>
-      </section>
-
-      <!-- RAMA EXPERTO -->
-      <!-- Pregunta 4-E: Potencia -->
-      <section class="pregunta rama-experto" id="pregunta-4-experto" data-type="select" data-key="potencia">
-        <h2>4. ¿Qué rango de potencia buscas?</h2>
-        <select name="potencia" id="potencia">
-          <option value="baja">Baja potencia (menos de 35HP)</option>
-          <option value="media_baja">Potencia media-baja (35-60HP)</option>
-          <option value="media">Potencia media (60-90HP)</option>
-          <option value="alta">Potencia alta (90-120HP)</option>
-          <option value="muy_alta">Potencia muy alta (más de 120HP)</option>
-          <option value="no_se">No tengo preferencia</option>
-        </select>
-      </section>
-
-      <!-- Pregunta 5-E: Torque -->
-      <section class="pregunta rama-experto" id="pregunta-5-experto" data-type="select" data-key="torque">
-        <h2>5. ¿Qué rango de torque prefieres?</h2>
+      
+      <!-- Pregunta 11a: Torque (Técnica) -->
+      <section class="pregunta rama-tecnica" id="pregunta-11a" data-type="select" data-key="torque" data-branch-target="si">
+        <h2>11. ¿Qué torque prefieres?</h2>
         <select name="torque" id="torque">
-          <option value="bajo">Torque bajo (menos de 30Nm)</option>
-          <option value="medio_bajo">Torque medio-bajo (30-50Nm)</option>
-          <option value="medio">Torque medio (50-80Nm)</option>
-          <option value="alto">Torque alto (80-120Nm)</option>
-          <option value="muy_alto">Torque muy alto (más de 120Nm)</option>
-          <option value="no_se">No tengo preferencia</option>
+          <option value="bajo">Bajo torque (menos de 50 Nm)</option>
+          <option value="medio">Medio torque (50-100 Nm)</option>
+          <option value="alto">Alto torque (100-150 Nm)</option>
+          <option value="muy_alto">Muy alto torque (más de 150 Nm)</option>
         </select>
+        <p class="help-text">Nm = Newton metros, el torque determina la fuerza de aceleración</p>
       </section>
-
-      <!-- Pregunta 6-E: Cilindrada -->
-      <section class="pregunta rama-experto" id="pregunta-6-experto" data-type="select" data-key="cilindrada">
-        <h2>6. ¿Qué cilindrada buscas?</h2>
-        <select name="cilindrada" id="cilindrada">
-          <option value="pequeña">Pequeña (menos de 250cc)</option>
-          <option value="media_baja">Media-baja (250-400cc)</option>
-          <option value="media">Media (400-650cc)</option>
-          <option value="alta">Alta (650-900cc)</option>
-          <option value="muy_alta">Muy alta (más de 900cc)</option>
-          <option value="no_se">No tengo preferencia</option>
+      
+      <!-- RAMA PRÁCTICA (NO en pregunta 8) -->
+      <!-- Pregunta 9b: Tipo de uso (Práctica) -->
+      <section class="pregunta rama-practica" id="pregunta-9b" data-type="select" data-key="tipo_uso" data-branch-target="no">
+        <h2>9. ¿Para qué la usarás principalmente?</h2>
+        <select name="tipo_uso" id="tipo_uso">
+          <option value="ciudad">Ciudad/Urbano</option>
+          <option value="carretera">Carretera/Viajes largos</option>
+          <option value="mixto">Mixto (ciudad y carretera)</option>
+          <option value="aventura">Aventura/Terreno mixto</option>
         </select>
+        <p class="help-text">El uso principal influye en el tipo de moto más conveniente</p>
       </section>
-
-      <!-- Pregunta 7-E: Uso (igual que para inexpertos) -->
-      <section class="pregunta rama-experto" id="pregunta-7-experto" data-type="select" data-key="uso_experto">
-        <h2>7. ¿Qué uso le darás a la moto?</h2>
-        <select name="uso_experto" id="uso_experto">
-          <option value="ciudad">Uso en ciudad</option>
-          <option value="paseo">Paseos ocasionales</option>
-          <option value="viajes">Viajes largos</option>
-          <option value="mixto">Uso mixto</option>
-          <option value="no_se">No estoy seguro</option>
+      
+      <!-- Pregunta 10b: Pasajeros y carga (Práctica) -->
+      <section class="pregunta rama-practica" id="pregunta-10b" data-type="select" data-key="pasajeros_carga" data-branch-target="no">
+        <h2>10. ¿Llevarás pasajeros o carga frecuentemente?</h2>
+        <select name="pasajeros_carga" id="pasajeros_carga">
+          <option value="solo">Solo yo la mayoría del tiempo</option>
+          <option value="ocasional">Ocasionalmente con pasajero</option>
+          <option value="frecuente">Frecuentemente con pasajero</option>
+          <option value="carga">Necesito cargar cosas seguido</option>
         </select>
+        <p class="help-text">Esto afecta el tipo de asiento y capacidad de carga necesaria</p>
       </section>
-
-      <!-- Pregunta 8-E: Acompañantes (igual que para inexpertos) -->
-      <section class="pregunta rama-experto" id="pregunta-8-experto" data-type="select" data-key="acompanantes_experto">
-        <h2>8. ¿Viajarás con acompañantes, carga o solo?</h2>
-        <select name="acompanantes_experto" id="acompanantes_experto">
-          <option value="solo">Siempre solo</option>
-          <option value="ocasional">Ocasionalmente con acompañante</option>
-          <option value="frecuente">Frecuentemente con acompañante</option>
-          <option value="carga">Con carga</option>
-          <option value="no_se">No estoy seguro</option>
+      
+      <!-- Pregunta 11b: Combustible vs Potencia (Práctica) -->
+      <section class="pregunta rama-practica" id="pregunta-11b" data-type="select" data-key="combustible_potencia" data-branch-target="no">
+        <h2>11. ¿Qué es más importante para ti?</h2>
+        <select name="combustible_potencia" id="combustible_potencia">
+          <option value="ahorro">Ahorro de combustible</option>
+          <option value="potencia">Tener potencia suficiente</option>
+          <option value="equilibrio">Un equilibrio entre ambos</option>
         </select>
-      </section>
-
-      <!-- Pregunta 9-E: Precio (determina precio) -->
-      <section class="pregunta rama-experto" id="pregunta-9-experto" data-type="select" data-key="precio_experto">
-        <h2>9. ¿Tienes algún rango de precios?</h2>
-        <select name="precio_experto" id="precio-experto">
-          <option value="bajo">Menos de Q30,000</option>
-          <option value="medio_bajo">Q30,000 - Q50,000</option>
-          <option value="medio">Q50,000 - Q80,000</option>
-          <option value="alto">Q80,000 - Q120,000</option>
-          <option value="muy_alta">Más de Q120,000</option>
-          <option value="no_se">No tengo un presupuesto definido</option>
-        </select>
+        <p class="help-text">Tu prioridad entre eficiencia y rendimiento</p>
       </section>
 
       <div class="nav-buttons">
@@ -571,7 +583,6 @@
       <button id="finish-btn" class="nav-button" onclick="finalizarTest()">Ver mis recomendaciones</button>
     </div>
   </div>
-
   <script>
   // Función para finalizar el test y enviar datos a recomendaciones
   function finalizarTest(testData) {
@@ -598,9 +609,44 @@
     console.log("Enviando datos del test:", testData);
     form.submit();
   }
-    // Modificar el comportamiento del botón de finalización en el modal
+
+  // Lógica de bifurcación para la pregunta 8
   document.addEventListener('DOMContentLoaded', function() {
-    // Buscar el botón de finalización en el modal
+    // Configurar listener específico para la pregunta de bifurcación
+    const pregunta8Select = document.getElementById('interesa_especificaciones');
+    if (pregunta8Select) {
+      pregunta8Select.addEventListener('change', function() {
+        const value = this.value;
+        console.log('Bifurcación seleccionada:', value);
+        
+        const ramaTecnica = document.querySelectorAll('.rama-tecnica');
+        const ramaPractica = document.querySelectorAll('.rama-practica');
+        
+        if (value === 'si') {
+          // Mostrar rama técnica, ocultar rama práctica
+          ramaTecnica.forEach(pregunta => {
+            pregunta.classList.remove('hidden-branch');
+            console.log('Mostrando pregunta técnica:', pregunta.id);
+          });
+          ramaPractica.forEach(pregunta => {
+            pregunta.classList.add('hidden-branch');
+            console.log('Ocultando pregunta práctica:', pregunta.id);
+          });
+        } else if (value === 'no') {
+          // Mostrar rama práctica, ocultar rama técnica
+          ramaTecnica.forEach(pregunta => {
+            pregunta.classList.add('hidden-branch');
+            console.log('Ocultando pregunta técnica:', pregunta.id);
+          });
+          ramaPractica.forEach(pregunta => {
+            pregunta.classList.remove('hidden-branch');
+            console.log('Mostrando pregunta práctica:', pregunta.id);
+          });
+        }
+      });
+    }
+    
+    // Modificar el comportamiento del botón de finalización en el modal
     const finishButton = document.querySelector('.completion-modal .modal-content button');
     
     if (finishButton) {
@@ -614,24 +660,57 @@
         window.testResults.estilos = window.respuestas ? window.respuestas.estilos : {};
         window.testResults.marcas = window.respuestas ? window.respuestas.marcas : {};
         
+        // Recolectar datos de todas las preguntas respondidas
+        const selects = document.querySelectorAll('.pregunta select');
+        selects.forEach(select => {
+          if (select.value) {
+            const key = select.name || select.id;
+            if (key) {
+              window.testResults[key] = select.value;
+            }
+          }
+        });
+        
+        // Recolectar datos de inputs (presupuesto)
+        const inputs = document.querySelectorAll('.pregunta input[type="number"]');
+        inputs.forEach(input => {
+          if (input.value && input.name) {
+            window.testResults[input.name] = input.value;
+          }
+        });
+        
         // Recolectar todos los datos del test
         const testData = {
           // Datos básicos del test
-          experiencia: window.testResults ? window.testResults.experiencia : 'intermedio',
-          presupuesto: window.testResults ? window.testResults.presupuesto : '10000',
-          uso: window.testResults ? window.testResults.uso : 'mixto',
+          experiencia: window.testResults.experiencia || 'intermedio',
+          presupuesto: window.testResults.presupuesto || window.testResults.presupuesto_min || '15000',
+          presupuesto_min: window.testResults.presupuesto_min || '15000',
+          presupuesto_max: window.testResults.presupuesto_max || '50000',
+          
+          // Nuevas respuestas del cuestionario
+          preferencia_ano: window.testResults.preferencia_ano || 'recientes',
+          preferencia_peso: window.testResults.preferencia_peso || 'media',
+          preferencia_potencia_peso: window.testResults.preferencia_potencia_peso || 'media',
+          preferencia_rendimiento: window.testResults.preferencia_rendimiento || 'balance',
+          interesa_especificaciones: window.testResults.interesa_especificaciones || 'no',
+          
+          // Rama técnica
+          rango_potencia: window.testResults.rango_potencia || '',
+          desplazamiento: window.testResults.desplazamiento || '',
+          torque: window.testResults.torque || '',
+          
+          // Rama práctica
+          tipo_uso: window.testResults.tipo_uso || '',
+          pasajeros_carga: window.testResults.pasajeros_carga || '',
+          combustible_potencia: window.testResults.combustible_potencia || '',
           
           // Usar window.testResults para las selecciones 
-          estilos: window.testResults ? window.testResults.estilos : {},
-          marcas: window.testResults ? window.testResults.marcas : {}
+          estilos: window.testResults.estilos || {},
+          marcas: window.testResults.marcas || {}
         };
         
         // Log para depuración
-        console.log("Datos completos del test:", {
-          ...testData,
-          "Fuente estilos": window.respuestas ? "window.respuestas" : "vacío",
-          "Contenido respuestas": window.respuestas
-        });
+        console.log("Datos completos del test:", testData);
         
         // Enviar los datos a la ruta de procesamiento
         finalizarTest(testData);

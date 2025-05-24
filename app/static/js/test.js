@@ -141,12 +141,47 @@ function setupSelectListeners() {
       
       console.log(`Seleccionado ${stageKey}: ${value}`);
       
+      // Si es la pregunta de bifurcación (interesa_especificaciones), configurar las ramas
+      if (stageKey === 'interesa_especificaciones') {
+        setupBranchQuestions(value);
+      }
+      
       // Si el select corresponde a experiencia, configurar la rama correspondiente
       if (stageKey === 'experiencia') {
         setupExperienceBranch(value);
       }
     });
   });
+}
+
+// Función para configurar las ramas según la respuesta a la pregunta 8
+function setupBranchQuestions(interesaEspecificaciones) {
+  const ramaTecnica = document.querySelectorAll('.rama-tecnica');
+  const ramaPractica = document.querySelectorAll('.rama-practica');
+  
+  if (interesaEspecificaciones === 'si') {
+    // Mostrar rama técnica, ocultar rama práctica
+    ramaTecnica.forEach(pregunta => {
+      pregunta.classList.remove('hidden-branch');
+      pregunta.style.display = 'none'; // Inicialmente oculta, se mostrará en navegación
+    });
+    ramaPractica.forEach(pregunta => {
+      pregunta.classList.add('hidden-branch');
+      pregunta.style.display = 'none';
+    });
+    console.log('Configurada rama técnica');
+  } else if (interesaEspecificaciones === 'no') {
+    // Mostrar rama práctica, ocultar rama técnica
+    ramaTecnica.forEach(pregunta => {
+      pregunta.classList.add('hidden-branch');
+      pregunta.style.display = 'none';
+    });
+    ramaPractica.forEach(pregunta => {
+      pregunta.classList.remove('hidden-branch');
+      pregunta.style.display = 'none'; // Inicialmente oculta, se mostrará en navegación
+    });
+    console.log('Configurada rama práctica');
+  }
 }
 
 // Configurar la rama según la experiencia seleccionada
@@ -384,36 +419,67 @@ function navigateToPreviousStage() {
     }
   }
   
+  // Guardar datos de selects
+  const select = currentStage.querySelector('select');
+  if (select && select.value) {
+    window.respuestas[currentKey] = select.value;
+    window.testResults[currentKey] = select.value;
+  }
+  
   // Ocultar etapa actual
   currentStage.classList.remove('active');
   
   // Buscar la etapa anterior visible
-  let prevIndex = currentIndex - 1;
-  while (prevIndex >= 0 && testState.stageContainers[prevIndex].hasAttribute('data-hidden')) {
-    prevIndex--;
-  }
+  let prevIndex = findPreviousVisibleStage(currentIndex);
   
-  if (prevIndex >= 0) {
+  if (prevIndex !== -1 && prevIndex >= 0) {
     // Mostrar etapa anterior
     testState.stageContainers[prevIndex].classList.add('active');
     testState.currentStageIndex = prevIndex;
     
     // Actualizar barra de progreso
-    updateProgressBar(prevIndex, testState.stageContainers.length);
+    updateProgressBar(prevIndex, getVisibleStagesCount());
     
     // Habilitar/deshabilitar botones según corresponda
     document.getElementById('prev-btn').disabled = (prevIndex === 0);
     document.getElementById('next-btn').disabled = false;
+    
+    // Restaurar texto del botón siguiente si no es la última etapa
+    if (!isLastVisibleStage(prevIndex)) {
+      document.getElementById('next-btn').innerHTML = 'Siguiente <i class="fas fa-arrow-right"></i>';
+    }
   }
   
   // Verificar integridad después de la navegación
   setTimeout(verificarYRestaurarCanvas, 100, 'navegación previa');
 }
 
+// Función para encontrar la etapa anterior visible
+function findPreviousVisibleStage(currentIndex) {
+  let prevIndex = currentIndex - 1;
+  
+  while (prevIndex >= 0) {
+    const stage = testState.stageContainers[prevIndex];
+    
+    // Si es una pregunta de rama, verificar si debe mostrarse
+    if (stage.classList.contains('rama-tecnica') || stage.classList.contains('rama-practica')) {
+      if (!stage.classList.contains('hidden-branch')) {
+        return prevIndex;
+      }
+    } else if (!stage.hasAttribute('data-hidden')) {
+      // Pregunta normal visible
+      return prevIndex;
+    }
+    
+    prevIndex--;
+  }
+  
+  return -1; // No se encontró etapa anterior visible
+}
+
 // Navegación a la siguiente etapa
 function navigateToNextStage() {
   const currentIndex = testState.currentStageIndex;
-  if (currentIndex >= testState.stageContainers.length - 1) return;
   
   // Obtener clave de la etapa actual para guardar datos
   const currentStage = testState.stageContainers[currentIndex];
@@ -428,32 +494,47 @@ function navigateToNextStage() {
     }
   }
   
+  // Guardar datos de selects
+  const select = currentStage.querySelector('select');
+  if (select && select.value) {
+    window.respuestas[stageKey] = select.value;
+    window.testResults[stageKey] = select.value;
+  }
+  
+  // Guardar datos de inputs (presupuesto)
+  const inputs = currentStage.querySelectorAll('input');
+  if (inputs.length > 0) {
+    inputs.forEach(input => {
+      if (input.name && input.value) {
+        window.respuestas[input.name] = input.value;
+        window.testResults[input.name] = input.value;
+      }
+    });
+  }
+  
   // Ocultar etapa actual
   currentStage.classList.remove('active');
   
   // Buscar la siguiente etapa visible
-  let nextIndex = currentIndex + 1;
-  while (nextIndex < testState.stageContainers.length && 
-         testState.stageContainers[nextIndex].hasAttribute('data-hidden')) {
-    nextIndex++;
-  }
+  let nextIndex = findNextVisibleStage(currentIndex);
   
-  if (nextIndex < testState.stageContainers.length) {
+  if (nextIndex !== -1 && nextIndex < testState.stageContainers.length) {
     // Mostrar siguiente etapa
     testState.stageContainers[nextIndex].classList.add('active');
     testState.currentStageIndex = nextIndex;
     
     // Actualizar barra de progreso
-    updateProgressBar(nextIndex, testState.stageContainers.length);
+    updateProgressBar(nextIndex, getVisibleStagesCount());
     
     // Habilitar/deshabilitar botones según corresponda
     document.getElementById('prev-btn').disabled = false;
-    document.getElementById('next-btn').disabled = false; // Mantener habilitado para poder finalizar
+    document.getElementById('next-btn').disabled = false;
     
-    // Si es la última etapa, cambiar texto del botón
-    if (nextIndex === testState.stageContainers.length - 1) {
+    // Si es la última etapa visible, cambiar texto del botón
+    if (isLastVisibleStage(nextIndex)) {
       document.getElementById('next-btn').innerHTML = 'Finalizar <i class="fas fa-check"></i>';
-      document.getElementById('next-btn').addEventListener('click', showCompletionModal, { once: true });
+    } else {
+      document.getElementById('next-btn').innerHTML = 'Siguiente <i class="fas fa-arrow-right"></i>';
     }
   } else {
     // No hay más etapas, mostrar modal de finalización
@@ -462,6 +543,47 @@ function navigateToNextStage() {
   
   // Verificar integridad después de la navegación
   setTimeout(verificarYRestaurarCanvas, 100, 'navegación siguiente');
+}
+
+// Función para encontrar la siguiente etapa visible
+function findNextVisibleStage(currentIndex) {
+  let nextIndex = currentIndex + 1;
+  
+  while (nextIndex < testState.stageContainers.length) {
+    const stage = testState.stageContainers[nextIndex];
+    
+    // Si es una pregunta de rama, verificar si debe mostrarse
+    if (stage.classList.contains('rama-tecnica') || stage.classList.contains('rama-practica')) {
+      if (!stage.classList.contains('hidden-branch')) {
+        return nextIndex;
+      }
+    } else if (!stage.hasAttribute('data-hidden')) {
+      // Pregunta normal visible
+      return nextIndex;
+    }
+    
+    nextIndex++;
+  }
+  
+  return -1; // No se encontró próxima etapa visible
+}
+
+// Función para verificar si es la última etapa visible
+function isLastVisibleStage(index) {
+  return findNextVisibleStage(index) === -1;
+}
+
+// Función para contar etapas visibles
+function getVisibleStagesCount() {
+  let count = 0;
+  testState.stageContainers.forEach(stage => {
+    if (!stage.hasAttribute('data-hidden') && 
+        (!stage.classList.contains('rama-tecnica') && !stage.classList.contains('rama-practica') || 
+         !stage.classList.contains('hidden-branch'))) {
+      count++;
+    }
+  });
+  return count;
 }
 
 // Mostrar modal de finalización
