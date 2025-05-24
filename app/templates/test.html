@@ -378,8 +378,7 @@
       font-style: italic;
       margin-top: 5px;
     }
-    
-    /* Estilos para las ramas condicionales */
+      /* Estilos para las ramas condicionales */
     .rama-tecnica, .rama-practica {
       display: none !important;
     }
@@ -387,6 +386,151 @@
     .rama-tecnica.active, .rama-practica.active {
       display: block !important;
       opacity: 1;
+    }
+      /* Estilos para el rango slider de presupuesto */
+    .budget-range-container {
+      margin: 20px auto;
+      padding: 25px;
+      max-width: 600px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      box-sizing: border-box;
+    }
+    
+    .budget-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 25px;
+      font-size: 16px;
+      color: #f97316;
+      font-weight: 500;
+    }
+    
+    .range-slider-container {
+      position: relative;
+      height: 40px;
+      margin: 30px 15px;
+      padding: 0 10px;
+      box-sizing: border-box;
+    }
+    
+    .range-slider {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background: transparent;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      pointer-events: none;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+      box-sizing: border-box;
+    }
+    
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      background: #f97316;
+      border: 3px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: all;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 5;
+    }
+    
+    .range-slider::-webkit-slider-thumb:hover {
+      background: #ea580c;
+      transform: scale(1.15);
+      box-shadow: 0 5px 15px rgba(249, 115, 22, 0.6);
+    }
+    
+    .range-slider::-webkit-slider-thumb:active {
+      transform: scale(1.2);
+    }
+    
+    .range-slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      background: #f97316;
+      border: 3px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: all;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+      -moz-appearance: none;
+    }
+    
+    .range-slider::-moz-range-thumb:hover {
+      background: #ea580c;
+      transform: scale(1.15);
+      box-shadow: 0 5px 15px rgba(249, 115, 22, 0.6);
+    }
+    
+    .range-slider::-webkit-slider-track {
+      background: transparent;
+      height: 6px;
+    }
+    
+    .range-slider::-moz-range-track {
+      background: transparent;
+      height: 6px;
+      border: none;
+    }
+    
+    .range-track {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+      transform: translateY(-50%);
+      z-index: 1;
+      box-sizing: border-box;
+    }
+    
+    .range-progress {
+      position: absolute;
+      height: 100%;
+      background: linear-gradient(90deg, #f97316, #ea580c);
+      border-radius: 3px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+      z-index: 2;
+      top: 0;
+    }
+    
+    .range-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      padding: 0 10px;
+      font-size: 12px;
+      color: #aaa;
+      box-sizing: border-box;
+    }
+    
+    .range-min {
+      z-index: 4;
+    }
+    
+    .range-max {
+      z-index: 3;
+    }
+    
+    /* Contenedor para evitar overflow */
+    .budget-range-container * {
+      box-sizing: border-box;
     }
   </style>
 </head>
@@ -429,18 +573,41 @@
         </div>
       </section>      <!-- Pregunta 3: Presupuesto -->
       <section class="pregunta" id="pregunta-3" data-type="budget" data-key="presupuesto">
-        <h2>3. ¿Cuál es tu presupuesto? (mínimo y máximo)</h2>
-        <div style="display: flex; gap: 20px; align-items: center;">
-          <div style="flex: 1;">
-            <label for="presupuesto_min">Presupuesto mínimo (Q):</label>
-            <input type="number" name="presupuesto_min" id="presupuesto_min" value="15000" min="5000" max="200000" step="1000" required>
+        <h2>3. ¿Cuál es tu presupuesto? (mínimo y máximo)</h2>        <div class="budget-range-container">
+          <div class="budget-labels">
+            <span>Presupuesto mínimo: <strong id="min-budget-display">Q15,000</strong></span>
+            <span>Presupuesto máximo: <strong id="max-budget-display">Q50,000</strong></span>
           </div>
-          <div style="flex: 1;">
-            <label for="presupuesto_max">Presupuesto máximo (Q):</label>
-            <input type="number" name="presupuesto_max" id="presupuesto_max" value="50000" min="5000" max="200000" step="1000" required>
+          <div class="range-slider-container">
+            <div class="range-track">
+              <div class="range-progress" id="range-progress"></div>
+            </div>
+            <input type="range" 
+                   id="presupuesto_min" 
+                   name="presupuesto_min"
+                   min="5000" 
+                   max="200000" 
+                   value="15000" 
+                   step="1000"
+                   class="range-slider range-min">
+            <input type="range" 
+                   id="presupuesto_max" 
+                   name="presupuesto_max"
+                   min="5000" 
+                   max="200000" 
+                   value="50000" 
+                   step="1000"
+                   class="range-slider range-max">
+          </div>
+          <div class="range-scale">
+            <span>Q5,000</span>
+            <span>Q50,000</span>
+            <span>Q100,000</span>
+            <span>Q150,000</span>
+            <span>Q200,000</span>
           </div>
         </div>
-        <p class="help-text">Define el rango de precios que puedes considerar</p>
+        <p class="help-text">Arrastra los controles para definir tu rango de presupuesto</p>
       </section>
       
       <!-- Pregunta 4: Preferencia de año -->
@@ -715,8 +882,83 @@
         // Enviar los datos a la ruta de procesamiento
         finalizarTest(testData);
       });
+    }  });
+</script>
+
+<script>
+// JavaScript para el range slider de presupuesto
+document.addEventListener('DOMContentLoaded', function() {
+  const minSlider = document.getElementById('presupuesto_min');
+  const maxSlider = document.getElementById('presupuesto_max');
+  const minDisplay = document.getElementById('min-budget-display');
+  const maxDisplay = document.getElementById('max-budget-display');
+  const rangeProgress = document.getElementById('range-progress');
+  
+  // Función para formatear números como moneda
+  function formatCurrency(amount) {
+    return 'Q' + amount.toLocaleString();
+  }
+  
+  // Función para actualizar la visualización del rango
+  function updateRangeDisplay() {
+    const minVal = parseInt(minSlider.value);
+    const maxVal = parseInt(maxSlider.value);
+    
+    // Asegurar que el mínimo no sea mayor que el máximo
+    if (minVal >= maxVal) {
+      if (minSlider === document.activeElement) {
+        // Si el usuario está moviendo el slider mínimo, ajustar el máximo
+        maxSlider.value = minVal + 1000;
+      } else {
+        // Si el usuario está moviendo el slider máximo, ajustar el mínimo
+        minSlider.value = maxVal - 1000;
+      }
     }
+    
+    const finalMinVal = parseInt(minSlider.value);
+    const finalMaxVal = parseInt(maxSlider.value);
+    
+    // Actualizar las etiquetas de texto
+    minDisplay.textContent = formatCurrency(finalMinVal);
+    maxDisplay.textContent = formatCurrency(finalMaxVal);
+    
+    // Actualizar la barra de progreso visual
+    const minPercent = ((finalMinVal - 5000) / (200000 - 5000)) * 100;
+    const maxPercent = ((finalMaxVal - 5000) / (200000 - 5000)) * 100;
+    
+    rangeProgress.style.left = minPercent + '%';
+    rangeProgress.style.width = (maxPercent - minPercent) + '%';
+    
+    // Guardar los valores en el estado del test
+    if (window.testResults) {
+      window.testResults.presupuesto_min = finalMinVal;
+      window.testResults.presupuesto_max = finalMaxVal;
+    }
+    
+    if (window.respuestas) {
+      window.respuestas.presupuesto_min = finalMinVal;
+      window.respuestas.presupuesto_max = finalMaxVal;
+    }
+  }
+  
+  // Añadir event listeners a ambos sliders
+  minSlider.addEventListener('input', updateRangeDisplay);
+  maxSlider.addEventListener('input', updateRangeDisplay);
+  
+  // Inicializar la visualización
+  updateRangeDisplay();
+  
+  // Efecto visual al hacer hover
+  [minSlider, maxSlider].forEach(slider => {
+    slider.addEventListener('mouseenter', function() {
+      rangeProgress.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.5)';
+    });
+    
+    slider.addEventListener('mouseleave', function() {
+      rangeProgress.style.boxShadow = '0 2px 6px rgba(249, 115, 22, 0.3)';
+    });
   });
+});
 </script>
 
   <footer>
