@@ -432,12 +432,218 @@ def main():
             <p>Ocurrió un error en el servidor: {{ error }}</p>
             <p><a href="/">Volver al inicio</a></p>
         """, error=error_str), 500
-      # Ejecutar la aplicación
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     
-    logger.info(f"Iniciando servidor en puerto {port} (debug={debug})")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    # NUEVA RUTA: Test del sistema híbrido
+    @app.route('/test_hybrid/<user_id>')
+    def test_hybrid_recommendations(user_id):
+        """Ruta para probar el sistema híbrido de recomendaciones"""
+        try:
+            adapter = app.config.get('MOTO_RECOMMENDER')
+            if not adapter:
+                return "<h1>Error</h1><p>No hay adaptador disponible</p>"
+            
+            # Obtener recomendaciones híbridas
+            recommendations = adapter.get_recommendations(user_id, top_n=10)
+            
+            html = f"<html><head><title>Recomendaciones Híbridas para {user_id}</title>"
+            html += """<style>
+                body{font-family:Arial,sans-serif;max-width:1000px;margin:0 auto;padding:20px}
+                .rec{border:1px solid #ddd;margin:10px 0;padding:15px;border-radius:5px}
+                .score{color:#2196F3;font-weight:bold}
+                .methods{color:#4CAF50;font-size:0.9em}
+                .reasons{color:#666;font-style:italic}
+                .moto-info{background:#f5f5f5;padding:10px;margin:5px 0}
+            </style></head><body>"""
+            html += f"<h1>Recomendaciones Híbridas para {user_id}</h1>"
+            
+            if recommendations:
+                for i, rec in enumerate(recommendations):
+                    html += f"<div class='rec'>"
+                    html += f"<h3>#{i+1} - {rec.get('marca', 'N/A')} {rec.get('modelo', 'N/A')}</h3>"
+                    html += f"<div class='score'>Puntuación: {rec.get('score', 0):.2f}</div>"
+                    html += f"<div class='methods'>Métodos usados: {', '.join(rec.get('methods_used', []))}</div>"
+                    html += f"<div class='reasons'>Razones: {rec.get('note', 'N/A')}</div>"
+                    html += f"<div class='moto-info'>"
+                    html += f"Tipo: {rec.get('tipo', 'N/A')} | "
+                    html += f"Precio: €{rec.get('precio', 'N/A')} | "
+                    html += f"Cilindrada: {rec.get('cilindrada', 'N/A')}cc"
+                    html += f"</div></div>"
+            else:
+                html += "<p>No se encontraron recomendaciones</p>"
+            
+            html += "<p><a href='/dashboard'>Volver al Dashboard</a></p>"
+            html += "</body></html>"
+            
+            return html
+            
+        except Exception as e:
+            logger.error(f"Error en test híbrido: {str(e)}")
+            import traceback
+            return f"<h1>Error</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+    
+    # NUEVA RUTA: Comparar diferentes algoritmos
+    @app.route('/compare_algorithms/<user_id>')
+    def compare_algorithms(user_id):
+        """Compara resultados de diferentes algoritmos"""
+        try:
+            adapter = app.config.get('MOTO_RECOMMENDER')
+            if not adapter:
+                return "<h1>Error</h1><p>No hay adaptador disponible</p>"
+            
+            # Obtener recomendaciones de diferentes métodos
+            try:
+                hybrid_recs = adapter.get_recommendations(user_id, top_n=5)
+            except:
+                hybrid_recs = []
+            
+            try:
+                label_prop_recs = adapter.get_recommendations(user_id, algorithm='label_propagation', top_n=5)
+            except:
+                label_prop_recs = []
+                
+            try:
+                pagerank_recs = adapter.get_recommendations(user_id, algorithm='pagerank', top_n=5)
+            except:
+                pagerank_recs = []
+            
+            html = f"<html><head><title>Comparación de Algoritmos para {user_id}</title>"
+            html += """<style>
+                body{font-family:Arial,sans-serif;max-width:1200px;margin:0 auto;padding:20px}
+                .comparison{display:flex;gap:20px;flex-wrap:wrap}
+                .algorithm{flex:1;min-width:300px;border:1px solid #ddd;padding:15px;border-radius:5px;margin-bottom:20px}
+                .rec-item{background:#f9f9f9;margin:5px 0;padding:10px;border-radius:3px}
+                h2{color:#2196F3}
+            </style></head><body>"""
+            html += f"<h1>Comparación de Algoritmos para {user_id}</h1>"
+            html += "<div class='comparison'>"
+            
+            # Sistema Híbrido/Actual
+            html += "<div class='algorithm'><h2>Sistema Actual (Híbrido)</h2>"
+            if hybrid_recs:
+                for i, rec in enumerate(hybrid_recs[:5]):
+                    marca = rec.get('marca', 'N/A')
+                    modelo = rec.get('modelo', 'N/A')
+                    score = rec.get('score', 0)
+                    html += f"<div class='rec-item'>{i+1}. {marca} {modelo} - {score:.2f}</div>"
+            else:
+                html += "<p>No hay recomendaciones híbridas</p>"
+            html += "</div>"
+            
+            # Label Propagation
+            html += "<div class='algorithm'><h2>Label Propagation</h2>"
+            if label_prop_recs:
+                for i, rec in enumerate(label_prop_recs[:5]):
+                    if isinstance(rec, dict):
+                        moto_id = rec.get('moto_id', rec.get('id', 'N/A'))
+                        score = rec.get('score', 0)
+                        html += f"<div class='rec-item'>{i+1}. Moto {moto_id} - {score:.2f}</div>"
+                    else:
+                        html += f"<div class='rec-item'>{i+1}. {str(rec)}</div>"
+            else:
+                html += "<p>No hay recomendaciones de Label Propagation</p>"
+            html += "</div>"
+            
+            # PageRank
+            html += "<div class='algorithm'><h2>PageRank</h2>"
+            if pagerank_recs:
+                for i, rec in enumerate(pagerank_recs[:5]):
+                    if isinstance(rec, dict):
+                        moto_id = rec.get('moto_id', rec.get('id', 'N/A'))
+                        score = rec.get('score', 0)
+                        html += f"<div class='rec-item'>{i+1}. Moto {moto_id} - {score:.2f}</div>"
+                    else:
+                        html += f"<div class='rec-item'>{i+1}. {str(rec)}</div>"
+            else:
+                html += "<p>No hay recomendaciones de PageRank</p>"
+            html += "</div>"
+            
+            html += "</div>"
+            html += "<p><a href='/dashboard'>Volver al Dashboard</a> | "
+            html += f"<a href='/test_hybrid/{user_id}'>Ver Detalles Híbridos</a></p>"
+            html += "</body></html>"
+            
+            return html
+            
+        except Exception as e:
+            logger.error(f"Error en comparación: {str(e)}")
+            import traceback
+            return f"<h1>Error</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+
+    # NUEVA RUTA: Estadísticas del sistema
+    @app.route('/system_stats')
+    def system_stats():
+        """Muestra estadísticas del sistema de recomendaciones"""
+        try:
+            adapter = app.config.get('MOTO_RECOMMENDER')
+            if not adapter:
+                return "<h1>Error</h1><p>No hay adaptador disponible</p>"
+            
+            stats = {
+                'motos': len(adapter.motos_df) if adapter.motos_df is not None else 0,
+                'usuarios': len(adapter.users_df) if adapter.users_df is not None else 0,
+                'interacciones': len(adapter.interactions_df) if adapter.interactions_df is not None else 0,
+                'conexion_neo4j': 'Conectado' if adapter.driver else 'Desconectado',
+                'algoritmos_disponibles': []
+            }
+            
+            # Verificar algoritmos disponibles
+            if hasattr(adapter, 'label_propagation'):
+                stats['algoritmos_disponibles'].append('Label Propagation')
+            if hasattr(adapter, 'pagerank'):
+                stats['algoritmos_disponibles'].append('PageRank')
+            if hasattr(adapter, 'moto_ideal'):
+                stats['algoritmos_disponibles'].append('MotoIdeal')
+            
+            html = "<html><head><title>Estadísticas del Sistema</title>"
+            html += "<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px}"
+            html += "table{width:100%;border-collapse:collapse;margin:20px 0}"
+            html += "th,td{border:1px solid #ddd;padding:12px;text-align:left}"
+            html += "th{background-color:#f2f2f2}</style></head><body>"
+            html += "<h1>Estadísticas del Sistema MotoMatch</h1>"
+            html += "<table><tr><th>Métrica</th><th>Valor</th></tr>"
+            html += f"<tr><td>Total de Motocicletas</td><td>{stats['motos']}</td></tr>"
+            html += f"<tr><td>Total de Usuarios</td><td>{stats['usuarios']}</td></tr>"
+            html += f"<tr><td>Total de Interacciones</td><td>{stats['interacciones']}</td></tr>"
+            html += f"<tr><td>Estado Neo4j</td><td>{stats['conexion_neo4j']}</td></tr>"
+            html += f"<tr><td>Algoritmos Disponibles</td><td>{', '.join(stats['algoritmos_disponibles'])}</td></tr>"
+            html += "</table>"
+            html += "<h2>Rutas de Prueba</h2><ul>"
+            html += "<li><a href='/test_hybrid/user_69'>Probar Sistema Híbrido</a></li>"
+            html += "<li><a href='/compare_algorithms/user_69'>Comparar Algoritmos</a></li>"
+            html += "<li><a href='/social_recommendations/user_69'>Recomendaciones Sociales</a></li>"
+            html += "<li><a href='/check_routes'>Ver Todas las Rutas</a></li>"
+            html += "</ul>"
+            html += "<p><a href='/dashboard'>Volver al Dashboard</a></p>"
+            html += "</body></html>"
+            
+            return html
+            
+        except Exception as e:
+            logger.error(f"Error en estadísticas: {str(e)}")
+            import traceback
+            return f"<h1>Error</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>"
+
+    # IMPORTANTE: AGREGAR ESTAS LÍNEAS AL FINAL PARA INICIAR EL SERVIDOR
+    
+    logger.info(f"Iniciando servidor en puerto 5000 (debug=True)")
+    
+    try:
+        # Configuración de desarrollo
+        app.run(
+            host='0.0.0.0',  # Permite conexiones desde cualquier IP
+            port=5000,       # Puerto estándar
+            debug=True,      # Modo debug activado
+            threaded=True,   # Permite múltiples conexiones simultáneas
+            use_reloader=False  # Evita problemas con el recargador automático
+        )
+    except Exception as e:
+        logger.error(f"Error al iniciar el servidor: {str(e)}")
+        print(f"\n❌ Error al iniciar el servidor Flask: {str(e)}")
+        print("Verifica que el puerto 5000 no esté siendo usado por otra aplicación.")
+        print("Puedes cambiar el puerto modificando el valor en app.run(port=XXXX)")
+    except KeyboardInterrupt:
+        logger.info("Servidor detenido por el usuario")
+        print("\n✅ Servidor detenido correctamente")
 
 if __name__ == "__main__":
     main()
