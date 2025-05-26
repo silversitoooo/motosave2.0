@@ -39,7 +39,7 @@ class MotoRecommenderAdapter:
         else:
             self.neo4j_uri = "bolt://localhost:7687"
             self.neo4j_user = "neo4j"
-            self.neo4j_password = "22446688"
+            self.neo4j_R446688"
             
         self.driver = None
         

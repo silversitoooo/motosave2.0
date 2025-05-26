@@ -58,9 +58,20 @@ class Neo4jInitializer:
     def connect_to_neo4j(self):
         """Establece la conexión con la base de datos Neo4j"""
         try:
-            self.neo4j_driver = GraphDatabase.driver(DEFAULT_URI, auth=(DEFAULT_USER, DEFAULT_PASSWORD))
+            # CORRECCIÓN: Usar el URI, usuario y contraseña pasados al constructor
+            # en lugar de las constantes DEFAULT_*
+            uri = getattr(self, 'uri', DEFAULT_URI)
+            user = getattr(self, 'user', DEFAULT_USER)
+            password = getattr(self, 'password', DEFAULT_PASSWORD)
+            
+            self.neo4j_driver = GraphDatabase.driver(uri, auth=(user, password))
+            
+            # Verificar que la conexión funciona
+            with self.neo4j_driver.session() as session:
+                session.run("RETURN 1")
+                
             self.db_connected = True
-            logger.info("Conectado a Neo4j correctamente")
+            logger.info(f"Conectado a Neo4j correctamente (URI: {uri}, usuario: {user})")
         except Exception as e:
             logger.error(f"Error al conectar a Neo4j: {str(e)}")
             self.db_connected = False

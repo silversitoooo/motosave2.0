@@ -71,7 +71,7 @@ def main():
     # Generar recomendaciones para cada usuario
     print("\nGenerando recomendaciones:")
     for user in social_graph.keys():
-        recommendations = algorithm.get_friend_recommendations(user, top_n=2)
+        recommendations = algorithm.get_recommendations(user, top_n=3)
         if recommendations:
             print(f"  - {user}: {', '.join([f'{moto} ({score:.2f})' for moto, score in recommendations])}")
         else:

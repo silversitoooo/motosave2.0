@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Neo4j configuration
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "22446688"  # Using the password from moto_adapter_fixed.py
+R446688"  # Using the password from moto_adapter_fixed.py
 
 def test_set_ideal_moto():
     """Test the set_ideal_moto functionality directly with Neo4j"""

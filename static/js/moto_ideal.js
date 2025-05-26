@@ -27,12 +27,4 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '/test?dest=moto_ideal';
         });
     }
-    
-    // Manejar botón "Encontrar mi moto ideal"
-    const findButton = document.getElementById('find-moto-button');
-    if (findButton) {
-        findButton.addEventListener('click', function() {
-            window.location.href = '/test?dest=moto_ideal';
-        });
-    }
 });

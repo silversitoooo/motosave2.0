@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ moto_id: motoId });
+                body: JSON.stringify({ moto_id: motoId })
             })
             .then(response => {
                 if (!response.ok) {

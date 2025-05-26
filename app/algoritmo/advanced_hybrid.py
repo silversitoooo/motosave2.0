@@ -1258,7 +1258,7 @@ def get_recommendations_with_fixed_adapter(user_id, db_config=None, top_n=5, use
             db_config = {
                 'uri': 'bolt://localhost:7687',
                 'user': 'neo4j',
-                'password': 'password'
+                'password': '22446688'
             }
         
         # Crear instancia del adaptador

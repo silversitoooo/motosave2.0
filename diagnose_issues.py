@@ -41,7 +41,7 @@ def check_database_connector():
         
         # 2. Con parámetros con nombre
         try:
-            db2 = DatabaseConnector(uri="bolt://localhost:7687", user="neo4j", password="22446688")
+            db2 = DatabaseConnector(uri="bolt://localhost:7687", user="neo4j", R446688")
             logger.info("✓ Creación con parámetros con nombre exitosa")
         except Exception as e:
             logger.error(f"✗ Error al crear con parámetros con nombre: {str(e)}")
@@ -50,7 +50,7 @@ def check_database_connector():
             logger.info("Aplicando monkey patch a DatabaseConnector...")
             original_init = DatabaseConnector.__init__
             
-            def patched_init(self, uri="bolt://localhost:7687", user="neo4j", password="22446688", **kwargs):
+            def patched_init(self, uri="bolt://localhost:7687", user="neo4j", R446688", **kwargs):
                 """Constructor parcheado que acepta tanto parámetros posicionales como con nombre"""
                 # Valores posicionales tienen prioridad sobre kwargs
                 self.uri = uri
@@ -74,7 +74,7 @@ def check_database_connector():
             
             # Probar de nuevo
             try:
-                db3 = DatabaseConnector(uri="bolt://localhost:7687", user="neo4j", password="22446688")
+                db3 = DatabaseConnector(uri="bolt://localhost:7687", user="neo4j", R446688")
                 logger.info("✓ Creación con parámetros con nombre exitosa después del patch")
             except Exception as e:
                 logger.error(f"✗ Error al crear con parámetros con nombre después del patch: {str(e)}")

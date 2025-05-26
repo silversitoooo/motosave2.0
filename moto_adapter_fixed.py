@@ -18,35 +18,18 @@ logger = logging.getLogger('MotoRecommenderAdapter')
 class MotoRecommenderAdapter:
     """Adaptador que integra diferentes algoritmos de recomendación para motos."""
     
-    def __init__(self, neo4j_config=None, use_mock_data=False):
-        """
-        Inicializa el adaptador con la configuración proporcionada.
+    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="22446688"):
+        """Inicializa el adaptador con parámetros de conexión."""
+        self.neo4j_uri = uri
+        self.neo4j_user = user
+        self.neo4j_password = password
         
-        Args:
-            neo4j_config (dict): Configuración para la conexión a Neo4j
-            use_mock_data (bool): Ignorado - siempre se usa Neo4j
-        """
-        logger.info("Inicializando MotoRecommenderAdapter para uso exclusivo con Neo4j")
-        
-        # Forzar uso exclusivo de Neo4j
-        self.use_mock_data = False
-        
-        # Configuración Neo4j
-        if neo4j_config:
-            self.neo4j_uri = neo4j_config.get('uri', "bolt://localhost:7687")
-            self.neo4j_user = neo4j_config.get('user', "neo4j")
-            self.neo4j_password = neo4j_config.get('password', "22446688")
-        else:
-            self.neo4j_uri = "bolt://localhost:7687"
-            self.neo4j_user = "neo4j"
-            self.neo4j_password = "22446688"
-            
+        # Inicializar atributos
         self.driver = None
-        
-        # Datos
-        self.users_df = None
-        self.motos_df = None
-        self.ratings_df = None
+        self.data_loaded = False
+        self.user_data = None
+        self.moto_data = None
+        self.ratings_data = None
         self.friendships_df = None
         
         # Inicializar algoritmos de recomendación correctamente
@@ -639,3 +622,125 @@ class MotoRecommenderAdapter:
         except Exception as e:
             logger.error(f"Error al obtener interacciones enriquecidas: {str(e)}")
             return []
+    
+    def save_preferences(self, user_id, preferences):
+        """
+        Guarda las preferencias de usuario en Neo4j.
+        
+        Args:
+            user_id: ID del usuario
+            preferences: Diccionario con preferencias
+            
+        Returns:
+            bool: True si se guardaron correctamente, False en caso contrario
+        """
+        try:
+            self._ensure_neo4j_connection()
+            if not self.driver:
+                self.logger.error("No hay conexión a Neo4j para guardar preferencias")
+                return False
+                
+            with self.driver.session() as session:
+                # Verificar si existe el usuario
+                result = session.run("MATCH (u:User {id: $user_id}) RETURN count(u) as count", user_id=user_id)
+                user_exists = result.single()["count"] > 0
+                
+                if not user_exists:
+                    # Crear el usuario si no existe
+                    username = preferences.get('username', f"user_{user_id[-3:]}")
+                    session.run("""
+                        CREATE (u:User {id: $user_id, username: $username, created_at: timestamp()})
+                    """, user_id=user_id, username=username)
+                    self.logger.info(f"Usuario creado: {user_id}")
+                    
+                # MEJORADO: Manejar valores cuantitativos correctamente
+                quantitative_props = {}
+                for key, value in preferences.items():
+                    # Procesar solo valores numéricos
+                    if key in ['presupuesto', 'presupuesto_min', 'presupuesto_max', 
+                               'cilindrada', 'cilindrada_min', 'cilindrada_max',
+                               'potencia', 'potencia_min', 'potencia_max']:
+                        try:
+                            # Asegurar que son números
+                            quantitative_props[key] = int(value)
+                        except (ValueError, TypeError):
+                            self.logger.warning(f"Valor no numérico para {key}: {value}")
+                
+                # Guardar propiedades cuantitativas directamente en el nodo
+                if quantitative_props:
+                    query_parts = []
+                    for key in quantitative_props:
+                        query_parts.append(f"u.{key} = ${key}")
+                    
+                    query = f"""
+                        MATCH (u:User {{id: $user_id}})
+                        SET {', '.join(query_parts)}
+                    """
+                    session.run(query, user_id=user_id, **quantitative_props)
+                    self.logger.info(f"Propiedades cuantitativas guardadas: {list(quantitative_props.keys())}")
+                    
+                # Guardar preferencias de estilo
+                if 'estilos' in preferences and isinstance(preferences['estilos'], dict):
+                    # Eliminar relaciones anteriores
+                    session.run("""
+                        MATCH (u:User {id: $user_id})-[r:PREFERS_STYLE]->()
+                        DELETE r
+                    """, user_id=user_id)
+                    
+                    # Crear nuevas relaciones
+                    for estilo, peso in preferences['estilos'].items():
+                        session.run("""
+                            MATCH (u:User {id: $user_id})
+                            MERGE (s:Style {name: $estilo})
+                            MERGE (u)-[r:PREFERS_STYLE]->(s)
+                            SET r.weight = $peso
+                        """, user_id=user_id, estilo=estilo, peso=float(peso))
+                    
+                    self.logger.info(f"Preferencias de estilo guardadas: {list(preferences['estilos'].keys())}")
+                    
+                # Guardar preferencias de marca
+                if 'marcas' in preferences and isinstance(preferences['marcas'], dict):
+                    # Eliminar relaciones anteriores
+                    session.run("""
+                        MATCH (u:User {id: $user_id})-[r:PREFERS_BRAND]->()
+                        DELETE r
+                    """, user_id=user_id)
+                    
+                    # Crear nuevas relaciones
+                    for marca, peso in preferences['marcas'].items():
+                        session.run("""
+                            MATCH (u:User {id: $user_id})
+                            MERGE (b:Brand {name: $marca})
+                            MERGE (u)-[r:PREFERS_BRAND]->(b)
+                            SET r.weight = $peso
+                        """, user_id=user_id, marca=marca, peso=float(peso))
+                    
+                    self.logger.info(f"Preferencias de marca guardadas: {list(preferences['marcas'].keys())}")
+                    
+                # Guardar otras preferencias como nodo PreferenceSet
+                other_prefs = {k: v for k, v in preferences.items() if k not in ['estilos', 'marcas'] 
+                              and not k.startswith('presupuesto') and not k.startswith('cilindrada')
+                              and not k.startswith('potencia')}
+                
+                if other_prefs:
+                    # Convertir a formato JSON para guardar
+                    prefs_json = json.dumps(other_prefs)
+                    
+                    # Guardar en nodo de preferencias
+                    session.run("""
+                        MATCH (u:User {id: $user_id})
+                        MERGE (p:PreferenceSet {user_id: $user_id})
+                        SET p.preferences = $prefs,
+                            p.updated_at = timestamp()
+                        MERGE (u)-[:HAS_PREFERENCES]->(p)
+                    """, user_id=user_id, prefs=prefs_json)
+                    
+                    self.logger.info(f"Otras preferencias guardadas como JSON")
+                
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Error al guardar preferencias: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return False

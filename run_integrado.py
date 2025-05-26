@@ -24,7 +24,7 @@ def main():
     adapter = MotoRecommenderAdapter(
         uri=NEO4J_CONFIG.get('uri', 'bolt://localhost:7687'),
         user=NEO4J_CONFIG.get('user', 'neo4j'),
-        password=NEO4J_CONFIG.get('password', '333666999')
+        password=NEO4J_CONFIG.get('password', '22446688')
     )
     
     # Verificar conexión a Neo4j

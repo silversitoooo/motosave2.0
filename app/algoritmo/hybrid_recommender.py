@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 import random
 from typing import List, Dict, Any
+from .quantitative_evaluator import QuantitativeEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,6 @@ class HybridMotoRecommender:
     4. Diversificación activa
     5. Exploración vs Explotación
     """
-    
     def __init__(self, neo4j_connector=None):
         self.neo4j_connector = neo4j_connector
         self.motos_df = None
@@ -29,6 +29,7 @@ class HybridMotoRecommender:
         self.user_similarity_matrix = None
         self.moto_features_matrix = None
         self.scaler = StandardScaler()
+        self.quantitative_evaluator = QuantitativeEvaluator()
         self.logger = logging.getLogger(__name__)
         
     def _load_data(self):
@@ -226,122 +227,51 @@ class HybridMotoRecommender:
         return final_recs
     
     def _content_based_recommendations(self, user_id: str, preferences: Dict, top_n: int) -> List[Dict]:
-        """Recomendaciones basadas en contenido de las motos"""
-        if self.moto_features_matrix is None:
+        """Recomendaciones basadas en contenido usando FORZADAMENTE el evaluador cuantitativo"""
+        if self.motos_df is None:
+            self.logger.warning("No hay datos de motos cargados")
             return []
         
         scores = {}
+        self.logger.info(f"[HYBRID] FORZANDO uso de QuantitativeEvaluator para {len(self.motos_df)} motos")
+        self.logger.info(f"[HYBRID] Preferencias recibidas: {preferences}")
         
-        # Calcular puntuaciones basadas en preferencias
+        # FORZAR el uso del evaluador cuantitativo para TODAS las motos
+        motos_evaluadas = 0
         for idx, moto in self.motos_df.iterrows():
-            score = 0.0
-            reasons = []
-            
-            # Puntuación por estilos preferidos
-            if preferences.get('estilos'):
-                for estilo, peso in preferences['estilos'].items():
-                    if estilo.lower() in str(moto['tipo']).lower():
-                        score += float(peso) * 3.0
-                        reasons.append(f"Estilo {estilo} ({peso:.1f})")
-            
-            # Puntuación por marcas preferidas
-            if preferences.get('marcas'):
-                for marca, peso in preferences['marcas'].items():
-                    if marca.lower() in str(moto['marca']).lower():
-                        score += float(peso) * 2.0
-                        reasons.append(f"Marca {marca} ({peso:.1f})")
-            
-            # Puntuación por presupuesto
-            if preferences.get('presupuesto'):
-                budget = self._parse_numeric(preferences['presupuesto'])
-                moto_price = moto['precio']
-                if budget > 0 and moto_price > 0:
-                    price_ratio = min(moto_price / budget, 1.5)  # Penalizar si es > 150% del presupuesto
-                    if price_ratio <= 1.0:
-                        score += (1.0 - abs(price_ratio - 0.9)) * 2.0  # Mejor score cerca del 90% del presupuesto
-                        reasons.append(f"Precio ajustado ({moto_price}€)")
-                    elif price_ratio <= 1.1:
-                        score += 1.0
-                        reasons.append(f"Precio ligeramente alto ({moto_price}€)")
-                    else:
-                        score -= 1.0  # Penalizar precios muy altos
-            
-            # Puntuación por experiencia
-            if preferences.get('experiencia'):
-                exp_score = self._calculate_experience_score(moto['cilindrada'], preferences['experiencia'])
-                score += exp_score
-                if exp_score > 0:
-                    reasons.append(f"Adecuada para nivel {preferences['experiencia']}")
-            
-            if score > 0:
-                scores[moto['id']] = {
-                    'score': score,
-                    'reasons': reasons,
-                    'method': 'content',
-                    'moto_data': moto.to_dict()
-                }
+            try:
+                self.logger.info(f"[HYBRID] Evaluando moto {moto['id']} con QuantitativeEvaluator")
+                
+                # USAR OBLIGATORIAMENTE el evaluador cuantitativo
+                score, reasons = self.quantitative_evaluator.evaluate_moto_quantitative(preferences, moto)
+                
+                self.logger.info(f"[HYBRID] Moto {moto['id']} - Score obtenido: {score}")
+                
+                if score > 0:
+                    scores[moto['id']] = {
+                        'score': score,
+                        'reasons': reasons,
+                        'method': 'content_quantitative',
+                        'moto_data': moto.to_dict()
+                    }
+                
+                motos_evaluadas += 1
+                if motos_evaluadas >= 10:  # Limitar para debug
+                    break
+                    
+            except Exception as e:
+                self.logger.error(f"[HYBRID] ERROR evaluando moto {moto.get('id', 'unknown')}: {str(e)}")
+                import traceback
+                self.logger.error(f"[HYBRID] Traceback completo: {traceback.format_exc()}")
+                continue
+        
+        self.logger.info(f"[HYBRID] Motas evaluadas: {motos_evaluadas}, Motos con score > 0: {len(scores)}")
         
         # Ordenar y devolver top N
         sorted_scores = sorted(scores.items(), key=lambda x: x[1]['score'], reverse=True)
+        self.logger.info(f"[HYBRID] Top 5 motos por score: {[(k, v['score']) for k, v in sorted_scores[:5]]}")
+        
         return [{'moto_id': k, **v} for k, v in sorted_scores[:top_n]]
-    
-    def _collaborative_filtering_recommendations(self, user_id: str, top_n: int) -> List[Dict]:
-        """Recomendaciones basadas en usuarios similares"""
-        if self.user_similarity_matrix is None or self.users_df is None:
-            return []
-        
-        try:
-            user_idx = self.users_df[self.users_df['id'] == user_id].index[0]
-        except (IndexError, KeyError):
-            return []
-        
-        # Encontrar usuarios más similares
-        user_similarities = self.user_similarity_matrix[user_idx]
-        similar_users_idx = np.argsort(user_similarities)[::-1][1:6]  # Top 5 usuarios similares (excluyendo el mismo)
-        
-        recommendations = {}
-        
-        for similar_user_idx in similar_users_idx:
-            similarity_score = user_similarities[similar_user_idx]
-            if similarity_score < 0.1:  # Filtrar usuarios muy poco similares
-                continue
-                
-            similar_user_id = self.users_df.iloc[similar_user_idx]['id']
-            
-            # Obtener las motos que le gustaron al usuario similar
-            similar_user_interactions = self.interactions_df[
-                (self.interactions_df['user_id'] == similar_user_id) & 
-                (self.interactions_df['interaction_type'] == 'like')
-            ]
-            
-            for _, interaction in similar_user_interactions.iterrows():
-                moto_id = interaction['moto_id']
-                if moto_id not in recommendations:
-                    recommendations[moto_id] = {
-                        'score': 0.0,
-                        'similar_users': [],
-                        'method': 'collaborative'
-                    }
-                
-                recommendations[moto_id]['score'] += similarity_score * interaction['weight']
-                recommendations[moto_id]['similar_users'].append(similar_user_id)
-        
-        # Ordenar por puntuación
-        sorted_recs = sorted(recommendations.items(), key=lambda x: x[1]['score'], reverse=True)
-        
-        result = []
-        for moto_id, data in sorted_recs[:top_n]:
-            moto_data = self.motos_df[self.motos_df['id'] == moto_id]
-            if not moto_data.empty:
-                result.append({
-                    'moto_id': moto_id,
-                    'score': data['score'],
-                    'reasons': [f"Gustó a {len(data['similar_users'])} usuarios similares"],
-                    'method': 'collaborative',
-                    'moto_data': moto_data.iloc[0].to_dict()
-                })
-        
-        return result
     
     def _knowledge_based_recommendations(self, preferences: Dict, top_n: int) -> List[Dict]:
         """Recomendaciones basadas en reglas expertas"""

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Neo4j Configuration (using the correct password)
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "22446688"
+R446688"
 
 # Test Data
 TEST_USERNAME = "test_user"

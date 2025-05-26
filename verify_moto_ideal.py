@@ -30,6 +30,46 @@ NEO4J_PASSWORD = "22446688"
 # Configuración de la API
 API_BASE_URL = "http://localhost:5000"
 
+def test_neo4j_connection():
+    """Prueba la conexión a Neo4j y muestra información detallada de diagnóstico"""
+    logger.info("Probando conexión a Neo4j...")
+    
+    try:
+        driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        
+        # Prueba de conexión básica
+        with driver.session() as session:
+            result = session.run("RETURN 1 as test")
+            if result.single()["test"] == 1:
+                logger.info("✅ Conexión básica a Neo4j exitosa")
+            else:
+                logger.error("❌ Error en la consulta de prueba básica")
+                return False
+                
+        # Verificar versión de Neo4j
+        with driver.session() as session:
+            result = session.run("CALL dbms.components() YIELD name, versions, edition RETURN name, versions, edition")
+            record = result.single()
+            if record:
+                logger.info(f"✅ Versión de Neo4j: {record['name']} {record['versions'][0]} {record['edition']}")
+            
+        # Verificar permisos
+        with driver.session() as session:
+            try:
+                # Intenta crear y eliminar un nodo de prueba
+                session.run("CREATE (n:TestNode {id: 'test'}) RETURN n")
+                session.run("MATCH (n:TestNode {id: 'test'}) DELETE n")
+                logger.info("✅ Permisos de escritura verificados")
+            except Exception as e:
+                logger.warning(f"⚠️ Problemas con permisos de escritura: {str(e)}")
+        
+        driver.close()
+        return True
+    except Exception as e:
+        logger.error(f"❌ Error al conectar con Neo4j: {str(e)}")
+        logger.error(traceback.format_exc())
+        return False
+
 def verify_neo4j_connection():
     """Verificar conexión a Neo4j"""
     print("1. Verificando conexión a Neo4j...")
@@ -180,8 +220,23 @@ def verify_ideal_moto_flow(driver, test_user, test_moto):
     print("\n=== Verificación completada ===")
     return True
 
+def main():
+    """Función principal que ejecuta las validaciones"""
+    print("=== Validación de la funcionalidad de moto ideal ===")
+    
+    # 1. Probar conexión a Neo4j
+    print("\n1. Probando conexión a Neo4j...")
+    if not test_neo4j_connection():
+        print("❌ Error de conexión a Neo4j. Revisa los logs para más detalles.")
+        return
+    
+    print("✅ Conexión a Neo4j establecida correctamente")
+    
+    # Aquí continuaría con el resto de las validaciones...
+    # Por ahora solo implementamos el diagnóstico de conexión
+
 if __name__ == "__main__":
-    print("=== Verificación final de moto ideal ===\n")
+    main()
     
     driver = verify_neo4j_connection()
     if not driver:

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Configuración de Neo4j (usando la misma contraseña que en moto_adapter_fixed.py)
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "22446688"
+R446688"
 
 def diagnose_moto_ideal():
     """

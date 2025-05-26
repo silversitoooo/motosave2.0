@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class DatabaseConnector:
     """Clase para manejar conexiones y consultas a Neo4j"""
     
-    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="22446688"):
+    def __init__(self, uri="bolt://localhost:7687", user="neo4j", R446688"):
         """
         Inicializa el conector a Neo4j.
         

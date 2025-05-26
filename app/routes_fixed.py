@@ -390,56 +390,115 @@ def test_moto_ideal():
     
     return render_template('test_moto_ideal.html')
 
-@fixed_routes.route('/guardar_test', methods=['POST'])
+@fixed_routes.route("/guardar_test", methods=["POST"])
 def guardar_test():
-    """Ruta para guardar los resultados del test de preferencias."""
-    if 'username' not in session:
-        return redirect(url_for('main.login'))
-    
-    username = session.get('username', 'anonymous')
-    user_id = session.get('user_id', '')
-    
-    # Recopilar datos del test
-    test_data = {
-        'experiencia': request.form.get('experiencia', 'principiante'),
-        'presupuesto': request.form.get('presupuesto', '8000'),
-        'uso_previsto': request.form.get('uso', 'mixto'),
-        'uso': request.form.get('uso', 'mixto'),  # Mantener compatibilidad
-        'estilos': json.loads(request.form.get('estilos', '{}')),
-        'marcas': json.loads(request.form.get('marcas', '{}')),
-        'reset_recommendation': 'true'  # Forzar reinicio siempre
-    }
-    
-    logger.info(f"Guardando resultados del test para {username}: {test_data}")
-    
-    # Guardar datos en la sesión
-    session['test_data'] = test_data
-    
-    # Guardar preferencias en la base de datos si está disponible
-    try:
-        adapter = current_app.config.get('MOTO_RECOMMENDER')
-        if adapter and hasattr(adapter, '_ensure_neo4j_connection'):
-            adapter._ensure_neo4j_connection()
-            with adapter.driver.session() as neo4j_session:
-                # Guardar preferencias como propiedades del nodo User
-                neo4j_session.run("""
-                MATCH (u:User {id: $user_id})
-                SET u.experiencia = $experiencia,
-                    u.presupuesto = $presupuesto,
-                    u.uso_previsto = $uso_previsto,
-                    u.test_timestamp = timestamp()
-                """, 
-                user_id=user_id,
-                experiencia=test_data['experiencia'],
-                presupuesto=float(test_data['presupuesto']),
-                uso_previsto=test_data['uso_previsto'])
+    """Guarda los resultados del test y redirige a recomendaciones"""
+    if request.method == "POST":
+        # Obtener datos del formulario
+        form_data = request.form
+        
+        current_app.logger.info(f"Guardando resultados del test para {session.get('username')}: {dict(form_data)}")
+        
+        # Procesar datos - USAR RANGOS DIRECTOS SIN CONVERSIÓN
+        processed_data = {}
+        
+        # RANGOS CUANTITATIVOS - Usar valores directos del test
+        range_fields = [
+            'presupuesto_min', 'presupuesto_max',
+            'cilindrada_min', 'cilindrada_max', 
+            'potencia_min', 'potencia_max',
+            'torque_min', 'torque_max',
+            'peso_min', 'peso_max'
+        ]
+        
+        for field in range_fields:
+            if field in form_data:
+                try:
+                    processed_data[field] = int(form_data[field])
+                    current_app.logger.info(f"Rango capturado: {field} = {processed_data[field]}")
+                except (ValueError, TypeError):
+                    current_app.logger.warning(f"Error convirtiendo {field} a número: {form_data[field]}")
+                    # Valores predeterminados seguros por campo
+                    defaults = {
+                        'presupuesto_min': 5000, 'presupuesto_max': 50000,
+                        'cilindrada_min': 125, 'cilindrada_max': 1000,
+                        'potencia_min': 15, 'potencia_max': 200,
+                        'torque_min': 10, 'torque_max': 150,
+                        'peso_min': 100, 'peso_max': 300
+                    }
+                    processed_data[field] = defaults.get(field, 0)
+        
+        # VALIDAR RANGOS - Asegurar que min <= max
+        range_pairs = [
+            ('presupuesto_min', 'presupuesto_max'),
+            ('cilindrada_min', 'cilindrada_max'),
+            ('potencia_min', 'potencia_max'),
+            ('torque_min', 'torque_max'),
+            ('peso_min', 'peso_max')
+        ]
+        
+        for min_field, max_field in range_pairs:
+            if min_field in processed_data and max_field in processed_data:
+                if processed_data[min_field] > processed_data[max_field]:
+                    # Intercambiar valores si están invertidos
+                    processed_data[min_field], processed_data[max_field] = processed_data[max_field], processed_data[min_field]
+                    current_app.logger.warning(f"Intercambiados {min_field} y {max_field} porque estaban invertidos")
+        
+        # PROCESAR PREFERENCIAS CATEGÓRICAS (estilos, marcas)
+        for field in ['estilos', 'marcas']:
+            if field in form_data:
+                try:
+                    processed_data[field] = json.loads(form_data[field])
+                    current_app.logger.info(f"Preferencias {field}: {processed_data[field]}")
+                except Exception as e:
+                    current_app.logger.error(f"Error procesando JSON en {field}: {e}")
+                    processed_data[field] = {}
+        
+        # PROCESAR OTROS CAMPOS CUALITATIVOS
+        qualitative_fields = ['experiencia', 'uso', 'uso_previsto', 'reset_recommendation']
+        for field in qualitative_fields:
+            if field in form_data:
+                processed_data[field] = form_data[field]
+                current_app.logger.info(f"Campo cualitativo: {field} = {processed_data[field]}")
+        
+        # CREAR RETROCOMPATIBILIDAD - agregar presupuesto simple como punto medio
+        if 'presupuesto_min' in processed_data and 'presupuesto_max' in processed_data:
+            processed_data['presupuesto'] = (processed_data['presupuesto_min'] + processed_data['presupuesto_max']) // 2
+            current_app.logger.info(f"Presupuesto medio para retrocompatibilidad: {processed_data['presupuesto']}")
+        
+        # LOG DE RESUMEN DE RANGOS CAPTURADOS
+        current_app.logger.info("=== RESUMEN DE RANGOS CAPTURADOS ===")
+        for min_field, max_field in range_pairs:
+            if min_field in processed_data and max_field in processed_data:
+                current_app.logger.info(f"{min_field[:-4].upper()}: {processed_data[min_field]} - {processed_data[max_field]}")
+        current_app.logger.info("====================================")
+        
+        # Guardar resultados procesados en la sesión
+        for key, value in processed_data.items():
+            session[key] = value
+        
+        # Guardar en Neo4j si hay conexión disponible
+        try:
+            adapter = current_app.config.get('MOTO_RECOMMENDER')
+            if adapter:
+                # Asignar user_id a la sesión si no existe
+                if 'user_id' not in session and 'username' in session:
+                    username = session['username']
+                    user_id = f"user_{hash(username) % 1000}"
+                    session['user_id'] = user_id
                 
-                logger.info(f"Preferencias guardadas en Neo4j para {username}")
-    except Exception as e:
-        logger.error(f"Error al guardar preferencias en Neo4j: {str(e)}")
-    
-    # Redirigir a recomendaciones
-    return redirect(url_for('main.recomendaciones'))
+                user_id = session.get('user_id')
+                if user_id:
+                    # Guardar preferencias en Neo4j
+                    success = adapter.save_preferences(user_id, processed_data)
+                    if success:
+                        current_app.logger.info(f"Preferencias guardadas en Neo4j para {session.get('username')}")
+                    else:
+                        current_app.logger.error(f"Error guardando preferencias en Neo4j para {session.get('username')}")
+        except Exception as e:
+            current_app.logger.error(f"Error al guardar preferencias: {str(e)}")
+        
+        return redirect(url_for("main.motos_recomendadas"))
 
 @fixed_routes.route('/recomendaciones')
 def recomendaciones():

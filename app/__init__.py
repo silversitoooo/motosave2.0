@@ -121,10 +121,18 @@ class MotoRecommenderAdapter:
             self.neo4j_user = neo4j_config.get('user', "neo4j")
             self.neo4j_password = neo4j_config.get('password', "22446688")
         else:
-            self.neo4j_uri = "bolt://localhost:7687"
-            self.neo4j_user = "neo4j"
-            self.neo4j_password = "22446688"
-            
+            # Intentar obtener configuración de Neo4j desde la aplicación
+            if self.app.config.get('NEO4J_CONFIG'):
+                neo4j_config = self.app.config['NEO4J_CONFIG']
+                self.neo4j_uri = neo4j_config.get('uri', 'bolt://localhost:7687')
+                self.neo4j_user = neo4j_config.get('user', 'neo4j')
+                self.neo4j_password = neo4j_config.get('password', '22446688')
+            else:
+                # Configuración por defecto
+                self.neo4j_uri = 'bolt://localhost:7687'
+                self.neo4j_user = 'neo4j'
+                self.neo4j_password = '22446688'
+        
         self.driver = None
         
         # Datos

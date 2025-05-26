@@ -19,7 +19,7 @@ def test_neo4j_connection():
         # Configuración
         uri = "bolt://localhost:7687"
         user = "neo4j"
-        password = "22446688"
+        R446688"
         
         # Conectar
         logger.info(f"Conectando a Neo4j: {uri}")

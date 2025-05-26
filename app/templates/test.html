@@ -532,6 +532,134 @@
     .budget-range-container * {
       box-sizing: border-box;
     }
+
+    /* SECCIÓN DE PRESUPUESTO CON RANGO DUAL */
+    #presupuesto {
+      margin: 40px 0;
+    }
+    
+    .presupuesto-slider-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    .range-values {
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+      color: #f97316;
+      margin-bottom: 10px;
+    }
+    
+    .range-container {
+      position: relative;
+      height: 8px;
+      margin: 0 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background: transparent;
+      cursor: pointer;
+      z-index: 2;
+    }
+    
+    .slider.min-slider {
+      z-index: 3;
+    }
+    
+    .slider.max-slider {
+      z-index: 4;
+    }
+    
+    .range-progress {
+      position: absolute;
+      height: 100%;
+      background: linear-gradient(90deg, #f97316, #ea580c);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      z-index: 1;
+      top: 0;
+    }
+    
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: #aaa;
+      margin-top: 5px;
+    }
+    
+    .range-description {
+      font-size: 14px;
+      color: #ddd;
+      margin-top: 5px;
+      text-align: center;
+    }
+    
+    /* SECCIÓN DE CILINDRADA CON RANGO DUAL */
+    #cilindrada {
+      margin: 40px 0;
+    }
+    
+    .cilindrada-slider-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* SECCIÓN DE POTENCIA CON RANGO DUAL */
+    #potencia {
+      margin: 40px 0;
+    }
+    
+    .potencia-slider-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* SECCIÓN DE TORQUE CON RANGO DUAL (OPCIONAL) */
+    #torque {
+      margin: 40px 0;
+    }
+    
+    .torque-slider-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* SECCIÓN DE PESO CON RANGO DUAL (OPCIONAL) */
+    #peso {
+      margin: 40px 0;
+    }
+    
+    .peso-slider-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -571,45 +699,126 @@
             <button id="retry-button-marcas" class="retry-button" onclick="window.verificarYRestaurarCanvas('botón reintentar marcas')">Error al cargar. Reintentar</button>
           </div>
         </div>
-      </section>      <!-- Pregunta 3: Presupuesto -->
-      <section class="pregunta" id="pregunta-3" data-type="budget" data-key="presupuesto">
-        <h2>3. ¿Cuál es tu presupuesto? (mínimo y máximo)</h2>        <div class="budget-range-container">
-          <div class="budget-labels">
-            <span>Presupuesto mínimo: <strong id="min-budget-display">Q15,000</strong></span>
-            <span>Presupuesto máximo: <strong id="max-budget-display">Q50,000</strong></span>
-          </div>
-          <div class="range-slider-container">
-            <div class="range-track">
-              <div class="range-progress" id="range-progress"></div>
+      </section>      <!-- SECCIÓN DE PRESUPUESTO CON RANGO DUAL -->
+      <section id="presupuesto" class="test-section" data-section="3">
+        <h2>¿Cuál es tu rango de presupuesto?</h2>
+        <div class="presupuesto-slider-container">
+            <div class="range-slider">
+                <div class="range-values">
+                    <span id="min-budget-display">Q15,000</span>
+                    <span>-</span>
+                    <span id="max-budget-display">Q50,000</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="presupuesto_min" min="5000" max="100000" step="1000" value="15000" class="slider min-slider">
+                    <input type="range" id="presupuesto_max" min="5000" max="100000" step="1000" value="50000" class="slider max-slider">
+                    <div id="range-progress" class="range-progress"></div>
+                </div>
+                <div class="range-labels">
+                    <span>Q5,000</span>
+                    <span>Q100,000</span>
+                </div>
             </div>
-            <input type="range" 
-                   id="presupuesto_min" 
-                   name="presupuesto_min"
-                   min="5000" 
-                   max="200000" 
-                   value="15000" 
-                   step="1000"
-                   class="range-slider range-min">
-            <input type="range" 
-                   id="presupuesto_max" 
-                   name="presupuesto_max"
-                   min="5000" 
-                   max="200000" 
-                   value="50000" 
-                   step="1000"
-                   class="range-slider range-max">
-          </div>
-          <div class="range-scale">
-            <span>Q5,000</span>
-            <span>Q50,000</span>
-            <span>Q100,000</span>
-            <span>Q150,000</span>
-            <span>Q200,000</span>
-          </div>
+            <p class="range-description">Selecciona el rango de precios que se ajuste a tu presupuesto</p>
         </div>
-        <p class="help-text">Arrastra los controles para definir tu rango de presupuesto</p>
       </section>
-      
+
+      <!-- SECCIÓN DE CILINDRADA CON RANGO DUAL -->
+      <section id="cilindrada" class="test-section" data-section="4">
+        <h2>¿Qué rango de cilindrada prefieres?</h2>
+        <div class="cilindrada-slider-container">
+            <div class="range-slider">
+                <div class="range-values">
+                    <span id="min-cilindrada-display">125cc</span>
+                    <span>-</span>
+                    <span id="max-cilindrada-display">600cc</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="cilindrada_min" min="50" max="1500" step="25" value="125" class="slider min-slider">
+                    <input type="range" id="cilindrada_max" min="50" max="1500" step="25" value="600" class="slider max-slider">
+                    <div id="cilindrada-progress" class="range-progress"></div>
+                </div>
+                <div class="range-labels">
+                    <span>50cc</span>
+                    <span>1500cc</span>
+                </div>
+            </div>
+            <p class="range-description">Mayor cilindrada = más potencia pero más consumo</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN DE POTENCIA CON RANGO DUAL -->
+      <section id="potencia" class="test-section" data-section="5">
+        <h2>¿Qué rango de potencia buscas?</h2>
+        <div class="potencia-slider-container">
+            <div class="range-slider">
+                <div class="range-values">
+                    <span id="min-potencia-display">15CV</span>
+                    <span>-</span>
+                    <span id="max-potencia-display">100CV</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="potencia_min" min="5" max="300" step="5" value="15" class="slider min-slider">
+                    <input type="range" id="potencia_max" min="5" max="300" step="5" value="100" class="slider max-slider">
+                    <div id="potencia-progress" class="range-progress"></div>
+                </div>
+                <div class="range-labels">
+                    <span>5CV</span>
+                    <span>300CV</span>
+                </div>
+            </div>
+            <p class="range-description">Más potencia = mayor velocidad pero requiere más experiencia</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN DE TORQUE CON RANGO DUAL (OPCIONAL) -->
+      <section id="torque" class="test-section" data-section="6">
+        <h2>¿Qué rango de torque prefieres?</h2>
+        <div class="torque-slider-container">
+            <div class="range-slider">
+                <div class="range-values">
+                    <span id="min-torque-display">10Nm</span>
+                    <span>-</span>
+                    <span id="max-torque-display">80Nm</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="torque_min" min="5" max="200" step="5" value="10" class="slider min-slider">
+                    <input type="range" id="torque_max" min="5" max="200" step="5" value="80" class="slider max-slider">
+                    <div id="torque-progress" class="range-progress"></div>
+                </div>
+                <div class="range-labels">
+                    <span>5Nm</span>
+                    <span>200Nm</span>
+                </div>
+            </div>
+            <p class="range-description">Mayor torque = mejor aceleración y fuerza de arranque</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN DE PESO CON RANGO DUAL (OPCIONAL) -->
+      <section id="peso" class="test-section" data-section="7">
+        <h2>¿Qué rango de peso prefieres?</h2>
+        <div class="peso-slider-container">
+            <div class="range-slider">
+                <div class="range-values">
+                    <span id="min-peso-display">120kg</span>
+                    <span>-</span>
+                    <span id="max-peso-display">200kg</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="peso_min" min="80" max="400" step="10" value="120" class="slider min-slider">
+                    <input type="range" id="peso_max" min="80" max="400" step="10" value="200" class="slider max-slider">
+                    <div id="peso-progress" class="range-progress"></div>
+                </div>
+                <div class="range-labels">
+                    <span>80kg</span>
+                    <span>400kg</span>
+                </div>
+            </div>
+            <p class="range-description">Menos peso = mejor maniobrabilidad, más peso = mayor estabilidad</p>
+        </div>
+      </section>
+
       <!-- Pregunta 4: Preferencia de año -->
       <section class="pregunta" id="pregunta-4" data-type="select" data-key="preferencia_ano">
         <h2>4. ¿Prefieres motos recientes?</h2>
@@ -885,79 +1094,35 @@
     }  });
 </script>
 
+<!-- Agregar el script de ayuda para sliders -->
+<script src="{{ url_for('static', filename='js/test_slider_helpers.js') }}"></script>
+
 <script>
 // JavaScript para el range slider de presupuesto
 document.addEventListener('DOMContentLoaded', function() {
-  const minSlider = document.getElementById('presupuesto_min');
-  const maxSlider = document.getElementById('presupuesto_max');
-  const minDisplay = document.getElementById('min-budget-display');
-  const maxDisplay = document.getElementById('max-budget-display');
-  const rangeProgress = document.getElementById('range-progress');
-  
-  // Función para formatear números como moneda
-  function formatCurrency(amount) {
-    return 'Q' + amount.toLocaleString();
-  }
-  
-  // Función para actualizar la visualización del rango
-  function updateRangeDisplay() {
-    const minVal = parseInt(minSlider.value);
-    const maxVal = parseInt(maxSlider.value);
-    
-    // Asegurar que el mínimo no sea mayor que el máximo
-    if (minVal >= maxVal) {
-      if (minSlider === document.activeElement) {
-        // Si el usuario está moviendo el slider mínimo, ajustar el máximo
-        maxSlider.value = minVal + 1000;
-      } else {
-        // Si el usuario está moviendo el slider máximo, ajustar el mínimo
-        minSlider.value = maxVal - 1000;
-      }
-    }
-    
-    const finalMinVal = parseInt(minSlider.value);
-    const finalMaxVal = parseInt(maxSlider.value);
-    
-    // Actualizar las etiquetas de texto
-    minDisplay.textContent = formatCurrency(finalMinVal);
-    maxDisplay.textContent = formatCurrency(finalMaxVal);
-    
-    // Actualizar la barra de progreso visual
-    const minPercent = ((finalMinVal - 5000) / (200000 - 5000)) * 100;
-    const maxPercent = ((finalMaxVal - 5000) / (200000 - 5000)) * 100;
-    
-    rangeProgress.style.left = minPercent + '%';
-    rangeProgress.style.width = (maxPercent - minPercent) + '%';
-    
-    // Guardar los valores en el estado del test
-    if (window.testResults) {
-      window.testResults.presupuesto_min = finalMinVal;
-      window.testResults.presupuesto_max = finalMaxVal;
-    }
-    
-    if (window.respuestas) {
-      window.respuestas.presupuesto_min = finalMinVal;
-      window.respuestas.presupuesto_max = finalMaxVal;
-    }
-  }
-  
-  // Añadir event listeners a ambos sliders
-  minSlider.addEventListener('input', updateRangeDisplay);
-  maxSlider.addEventListener('input', updateRangeDisplay);
-  
-  // Inicializar la visualización
-  updateRangeDisplay();
-  
-  // Efecto visual al hacer hover
-  [minSlider, maxSlider].forEach(slider => {
-    slider.addEventListener('mouseenter', function() {
-      rangeProgress.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.5)';
-    });
-    
-    slider.addEventListener('mouseleave', function() {
-      rangeProgress.style.boxShadow = '0 2px 6px rgba(249, 115, 22, 0.3)';
-    });
+  // Marcar los sliders para captura automática
+  const sliders = document.querySelectorAll('input[type="range"]');
+  sliders.forEach(slider => {
+    slider.setAttribute('data-capture', 'true');
   });
+
+  // Inicializar el slider de presupuesto con nuestro helper
+  window.presupuestoSlider = SliderManager.initRangeSlider({
+    minSliderId: 'presupuesto_min',
+    maxSliderId: 'presupuesto_max',
+    minDisplayId: 'min-budget-display',
+    maxDisplayId: 'max-budget-display',
+    progressId: 'range-progress',
+    formatFn: (val) => `Q${val.toLocaleString()}`,
+    defaults: { min: 15000, max: 50000 },
+    storage: {
+      testResults: window.testResults || (window.testResults = {}),
+      respuestas: window.respuestas || (window.respuestas = {})
+    },
+    storageKey: 'presupuesto'
+  });
+  
+  console.log("Sliders inicializados correctamente");
 });
 </script>
 

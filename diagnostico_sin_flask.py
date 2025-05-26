@@ -28,7 +28,7 @@ logger = logging.getLogger("MotoMatch.Diagnostico")
 NEO4J_CONFIG = {
     'uri': 'bolt://localhost:7687',
     'user': 'neo4j',
-    'password': '333666999'
+    'password': '22446688'
 }
 
 # Paso 1: Intentar importar el adaptador
@@ -57,10 +57,10 @@ try:
     if connection_ok:
         logger.info("[OK] Conexión a Neo4j establecida correctamente")
     else:
-        logger.warning("[ADVERTENCIA] No se pudo conectar a Neo4j. Se usarán datos simulados")
+        logger.error("[ERROR] No se pudo conectar a Neo4j")
+        
 except Exception as e:
-    logger.error(f"[ERROR] Error al probar la conexión a Neo4j: {str(e)}")
-    logger.warning("[ADVERTENCIA] Se usarán datos simulados para las pruebas")
+    logger.error(f"[ERROR] Error al probar conexión: {str(e)}")
 
 # Paso 4: Cargar datos
 try:

@@ -12,7 +12,7 @@ def load_test_data():
     connector = DatabaseConnector(
         uri='bolt://localhost:7687',
         user='neo4j',
-        password='22446688'  # Cambia esto
+        R446688'  # Cambia esto
     )
     
     if not connector.is_connected:

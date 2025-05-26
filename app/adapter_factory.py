@@ -47,27 +47,64 @@ def ensure_neo4j_connection_patch(adapter):
         adapter._ensure_neo4j_connection = types.MethodType(_ensure_neo4j_connection, adapter)
         logger.info("Added _ensure_neo4j_connection method to adapter")
 
-def create_adapter(app):
-    """Crea un adaptador de recomendación para motos basado en la configuración de la app."""
+def create_adapter(app=None, use_mock_data=False):
+    """
+    Crea y configura un adaptador de recomendación para la aplicación.
+    
+    Args:
+        app: Aplicación Flask (opcional)
+        use_mock_data: Si es True, usa datos simulados en lugar de conectar a Neo4j
+        
+    Returns:
+        MotoRecommenderAdapter: Instancia configurada del adaptador
+    """
+    neo4j_config = None
+    
+    # Obtener configuración de Neo4j desde la aplicación
+    if app and app.config.get('NEO4J_CONFIG'):
+        neo4j_config = app.config.get('NEO4J_CONFIG')
+        app.logger.info(f"Creating adapter with Neo4j config: {neo4j_config}, use_mock_data={use_mock_data}")
+    
+    # Si se especificó usar datos simulados, no intentar conexión a Neo4j
+    if use_mock_data:
+        try:
+            from moto_adapter_fixed import MotoRecommenderAdapter
+            adapter = MotoRecommenderAdapter()  # Sin parámetros de conexión
+            adapter.use_mock_data = True
+            app.logger.info("Usando adaptador con datos simulados")
+            return adapter
+        except ImportError as e:
+            app.logger.error(f"No se pudo importar MotoRecommenderAdapter: {e}")
+            return None
+    
+    # Intentar crear el adaptador con conexión a Neo4j
     try:
-        # Configuración de Neo4j desde la app
-        neo4j_config = {
-            'uri': app.config.get('NEO4J_URI', 'bolt://localhost:7687'),
-            'user': app.config.get('NEO4J_USER', 'neo4j'),
-            'password': app.config.get('NEO4J_PASSWORD', '22446688')
-        }
+        from moto_adapter_fixed import MotoRecommenderAdapter
         
-        # Forzar uso exclusivo de Neo4j - nunca usar mock data
-        use_mock_data = False
+        # Extraer los parámetros individuales del diccionario neo4j_config
+        if neo4j_config:
+            uri = neo4j_config.get('uri', 'bolt://localhost:7687')
+            user = neo4j_config.get('user', 'neo4j')
+            password = neo4j_config.get('password', '22446688')
+            
+            # Crear el adaptador con parámetros individuales
+            adapter = MotoRecommenderAdapter(
+                uri=uri,
+                user=user, 
+                password=password
+            )
+        else:
+            # Si no hay configuración, usar valores predeterminados
+            adapter = MotoRecommenderAdapter()
         
-        logger.info(f"Creating adapter with Neo4j config: {neo4j_config}, use_mock_data={use_mock_data}")
-        
-        # Crear adaptador principal
-        adapter = MotoRecommenderAdapter(neo4j_config=neo4j_config, use_mock_data=use_mock_data)
+        # Establecer flag de datos simulados
+        adapter.use_mock_data = use_mock_data
         return adapter
         
     except Exception as e:
-        logger.error(f"Error creating adapter: {str(e)}", exc_info=True)
-        # No crear un adaptador de respaldo - la aplicación requiere Neo4j
-        logger.error("La aplicación requiere Neo4j. No se creará un adaptador de respaldo.")
+        if app:
+            app.logger.error(f"Error creating adapter: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
+            app.logger.error("La aplicación requiere Neo4j. No se creará un adaptador de respaldo.")
         return None

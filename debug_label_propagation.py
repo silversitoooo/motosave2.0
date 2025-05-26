@@ -6,7 +6,7 @@ def debug_label_propagation():
     # Connect to Neo4j
     uri = "bolt://localhost:7687"
     user = "neo4j"
-    password = "22446688"
+    R446688"
     
     driver = GraphDatabase.driver(uri, auth=(user, password))
     

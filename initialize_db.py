@@ -23,7 +23,7 @@ def main():
     # Parámetros de conexión
     uri = "bolt://localhost:7687"
     user = "neo4j"
-    password = "22446688"  # Cambiar según tu configuración
+    R446688"  # Cambiar según tu configuración
     
     # Importar la clase Neo4jInitializer desde el módulo correcto
     sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))

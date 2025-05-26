@@ -54,8 +54,8 @@ def main():
     # AÑADE ESTA CONFIGURACIÓN EXPLÍCITA DE NEO4J
     app.config['NEO4J_CONFIG'] = {
         'uri': 'bolt://localhost:7687',
-        'user': 'neo4j',  # Usuario predeterminado de Neo4j
-        'password': '22446688'  # CAMBIA ESTO SI USAS OTRA CONTRASEÑA
+        'user': 'neo4j',
+        'password': '22446688'
     }
     
     # Registrar la ruta actualizada de motos recomendadas

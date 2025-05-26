@@ -6,6 +6,7 @@ import numpy as np
 from ..models import User, Moto, UserPreference
 import logging
 from .hybrid_recommender import HybridMotoRecommender
+from .quantitative_evaluator import QuantitativeEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -13,17 +14,17 @@ class MotoIdealRecommender:
     """
     Clase mejorada que usa un sistema híbrido para mayor variabilidad y precisión
     """
-    
     def __init__(self, df_motos=None, neo4j_connector=None):
         self.df_motos = df_motos
         self.neo4j_connector = neo4j_connector
         self.hybrid_system = HybridMotoRecommender(neo4j_connector)
+        self.quantitative_evaluator = QuantitativeEvaluator()
         self.logger = logging.getLogger(__name__)
-        self.logger.info("MotoIdealRecommender inicializado con sistema híbrido")
+        self.logger.info("MotoIdealRecommender inicializado con sistema híbrido y evaluador cuantitativo")
     
     def get_recommendations(self, user_id, top_n=5, preferences=None):
         """
-        Obtiene recomendaciones usando el sistema híbrido mejorado
+        Obtiene recomendaciones usando el sistema híbrido mejorado con evaluación cuantitativa
         """
         self.logger.info(f"Calculando recomendaciones híbridas para {user_id} con preferencias: {preferences}")
         
@@ -36,7 +37,31 @@ class MotoIdealRecommender:
             preferences = {}
         
         try:
-            # Usar el sistema híbrido para obtener recomendaciones
+            # Detectar si hay preferencias cuantitativas disponibles
+            has_quantitative = self._has_quantitative_preferences(preferences)
+            
+            if has_quantitative:
+                self.logger.info("Detectadas preferencias cuantitativas, usando evaluador híbrido")
+                
+                # Combinar recomendaciones híbridas con evaluación cuantitativa
+                hybrid_recommendations = self.hybrid_system.get_hybrid_recommendations(
+                    user_id, preferences, top_n * 2  # Obtener más para diversificar
+                )
+                
+                quantitative_recommendations = self.get_quantitative_recommendations(
+                    user_id, preferences, top_n * 2
+                )
+                
+                # Combinar y rebalancear las recomendaciones
+                final_recommendations = self._combine_recommendations(
+                    hybrid_recommendations, quantitative_recommendations, top_n
+                )
+                
+                if final_recommendations:
+                    self.logger.info(f"Generadas {len(final_recommendations)} recomendaciones híbrido-cuantitativas")
+                    return final_recommendations
+            
+            # Si no hay datos cuantitativos o falló la combinación, usar solo híbridas
             hybrid_recommendations = self.hybrid_system.get_hybrid_recommendations(
                 user_id, preferences, top_n
             )
@@ -160,3 +185,171 @@ class MotoIdealRecommender:
         except Exception as e:
             self.logger.error(f"Error en recomendaciones de fallback: {str(e)}")
             return []
+    
+    def get_quantitative_recommendations(self, user_id, preferences, top_n=5):
+        """
+        Obtiene recomendaciones usando el evaluador cuantitativo
+        """
+        self.logger.info(f"Calculando recomendaciones cuantitativas para {user_id}")
+        
+        # Si no tenemos motos cargadas, cargarlas desde Neo4j
+        if self.df_motos is None:
+            self._load_motos_from_neo4j()
+        
+        if self.df_motos is None or len(self.df_motos) == 0:
+            self.logger.warning("No hay datos de motos disponibles para evaluación cuantitativa")
+            return []
+        
+        try:
+            # Usar el evaluador cuantitativo para obtener scores
+            scores = self.quantitative_evaluator.evaluate_preferences(preferences, self.df_motos)
+            
+            # Si no hay scores, devolver lista vacía
+            if not scores:
+                self.logger.warning("No se generaron scores cuantitativos")
+                return []
+            
+            # Convertir a lista de tuplas ordenadas por score
+            recommendations = [(moto_id, score) for moto_id, score in scores.items()]
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+            
+            # Limitar al top_n
+            recommendations = recommendations[:top_n]
+            
+            self.logger.info(f"Generadas {len(recommendations)} recomendaciones cuantitativas")
+            return recommendations
+            
+        except Exception as e:
+            self.logger.error(f"Error en evaluación cuantitativa: {str(e)}")
+            return []
+    
+    def _load_motos_from_neo4j(self):
+        """Carga datos de motos desde Neo4j a DataFrame"""
+        if not self.neo4j_connector:
+            return
+            
+        try:
+            with self.neo4j_connector.driver.session() as session:
+                result = session.run("""
+                    MATCH (m:Moto)
+                    RETURN m.id as id, m.marca as marca, m.modelo as modelo,
+                           m.tipo as tipo, m.cilindrada as cilindrada, m.precio as precio,
+                           m.potencia as potencia, m.peso as peso, m.torque as torque,
+                           m.descripcion as descripcion, m.imagen as imagen, m.año as año
+                """)
+                
+                motos_data = []
+                for record in result:
+                    motos_data.append({
+                        'id': record['id'],
+                        'marca': record['marca'],
+                        'modelo': record['modelo'],
+                        'tipo': record['tipo'],
+                        'cilindrada': self._parse_numeric(record['cilindrada']),
+                        'precio': self._parse_numeric(record['precio']),
+                        'potencia': self._parse_numeric(record['potencia']),
+                        'peso': self._parse_numeric(record['peso']),
+                        'torque': self._parse_numeric(record['torque']),
+                        'descripcion': record['descripcion'] or '',
+                        'imagen': record['imagen'] or '',
+                        'año': self._parse_numeric(record['año'])
+                    })
+                
+                self.df_motos = pd.DataFrame(motos_data)
+                self.logger.info(f"Cargadas {len(self.df_motos)} motos desde Neo4j")
+                
+        except Exception as e:
+            self.logger.error(f"Error al cargar motos desde Neo4j: {str(e)}")
+            
+    def _parse_numeric(self, value):
+        """Convierte un valor a numérico, manejando strings y valores None"""
+        if value is None:
+            return 0
+        if isinstance(value, (int, float)):
+            return float(value)
+        
+        # Si es string, intentar extraer números
+        import re
+        try:
+            if isinstance(value, str):
+                # Extraer solo los números
+                numbers = re.findall(r'\d+', value)
+                if numbers:
+                    return float(numbers[0])
+            return 0
+        except:
+            return 0
+    
+    def _has_quantitative_preferences(self, preferences):
+        """
+        Detecta si las preferencias contienen datos cuantitativos
+        """
+        quantitative_keys = ['potencia', 'torque', 'cilindrada', 'presupuesto_min', 'presupuesto_max']
+        
+        for key in quantitative_keys:
+            if key in preferences and preferences[key] is not None:
+                return True
+                
+        # También verificar si hay rangos de presupuesto
+        if 'presupuesto' in preferences:
+            value = preferences['presupuesto']
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                return True
+            elif isinstance(value, str) and '-' in value:
+                return True
+                
+        return False
+    
+    def _combine_recommendations(self, hybrid_recs, quantitative_recs, top_n):
+        """
+        Combina recomendaciones híbridas y cuantitativas con ponderación balanceada
+        """
+        try:
+            combined_scores = {}
+            
+            # Peso para cada tipo de recomendación
+            hybrid_weight = 0.6
+            quantitative_weight = 0.4
+            
+            # Procesar recomendaciones híbridas
+            if hybrid_recs:
+                for i, rec in enumerate(hybrid_recs):
+                    if isinstance(rec, dict):
+                        moto_id = rec.get('moto_id')
+                        score = rec.get('score', 0)
+                    elif isinstance(rec, tuple):
+                        moto_id = rec[0]
+                        score = rec[1] if len(rec) > 1 else 0
+                    else:
+                        continue
+                        
+                    if moto_id:
+                        # Normalizar score híbrido y aplicar peso
+                        normalized_score = score * hybrid_weight
+                        combined_scores[moto_id] = combined_scores.get(moto_id, 0) + normalized_score
+            
+            # Procesar recomendaciones cuantitativas
+            if quantitative_recs:
+                for i, rec in enumerate(quantitative_recs):
+                    if isinstance(rec, tuple) and len(rec) >= 2:
+                        moto_id = rec[0]
+                        score = rec[1]
+                    else:
+                        continue
+                        
+                    if moto_id:
+                        # Normalizar score cuantitativo y aplicar peso
+                        normalized_score = score * quantitative_weight
+                        combined_scores[moto_id] = combined_scores.get(moto_id, 0) + normalized_score
+            
+            # Convertir a lista ordenada
+            final_recommendations = [(moto_id, score) for moto_id, score in combined_scores.items()]
+            final_recommendations.sort(key=lambda x: x[1], reverse=True)
+            
+            # Limitar al top_n
+            return final_recommendations[:top_n]
+            
+        except Exception as e:
+            self.logger.error(f"Error al combinar recomendaciones: {str(e)}")
+            # En caso de error, devolver solo las híbridas
+            return hybrid_recs[:top_n] if hybrid_recs else []

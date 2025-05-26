@@ -65,8 +65,8 @@ def main():
     # AÑADE ESTA CONFIGURACIÓN EXPLÍCITA DE NEO4J
     app.config['NEO4J_CONFIG'] = {
         'uri': 'bolt://localhost:7687',
-        'user': 'neo4j',  # Usuario predeterminado de Neo4j
-        'password': '22446688'  # CAMBIA ESTO SI USAS OTRA CONTRASEÑA
+        'user': 'neo4j',
+        'password': '22446688'
     }
     
     # Configuración directa para el driver Neo4j
@@ -85,6 +85,11 @@ def main():
     # Crear e inicializar el adaptador - cargará datos inmediatamente
     adapter = create_adapter(app)
     
+    # FIX: Asegurar que el adaptador tenga logger
+    if adapter and not hasattr(adapter, 'logger'):
+        adapter.logger = logging.getLogger('MotoRecommenderAdapter')
+        adapter.logger.setLevel(logging.INFO)
+        
     # AÑADIR RUTA LIKE_MOTO FALTANTE
     @app.route('/like_moto', methods=['POST'])
     def like_moto():
@@ -647,3 +652,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# El algoritmo ahora busca motos que cumplan:
+# ✅ precio >= presupuesto_min AND precio <= presupuesto_max
+# ✅ cilindrada >= cilindrada_min AND cilindrada <= cilindrada_max  
+# ✅ potencia >= potencia_min AND potencia <= potencia_max
+
+# Ejemplo práctico:
+# Usuario: "Tengo €15,000 de presupuesto"
+# Sistema busca: Motos entre €15,000 y €125,000
+# Resultado: Encuentra más opciones realistas, no solo motos de exactamente €15,000
