@@ -699,125 +699,27 @@
             <button id="retry-button-marcas" class="retry-button" onclick="window.verificarYRestaurarCanvas('botón reintentar marcas')">Error al cargar. Reintentar</button>
           </div>
         </div>
-      </section>      <!-- SECCIÓN DE PRESUPUESTO CON RANGO DUAL -->
-      <section id="presupuesto" class="test-section" data-section="3">
-        <h2>¿Cuál es tu rango de presupuesto?</h2>
-        <div class="presupuesto-slider-container">
-            <div class="range-slider">
-                <div class="range-values">
-                    <span id="min-budget-display">Q15,000</span>
-                    <span>-</span>
-                    <span id="max-budget-display">Q50,000</span>
-                </div>
-                <div class="range-container">
-                    <input type="range" id="presupuesto_min" min="5000" max="100000" step="1000" value="15000" class="slider min-slider">
-                    <input type="range" id="presupuesto_max" min="5000" max="100000" step="1000" value="50000" class="slider max-slider">
-                    <div id="range-progress" class="range-progress"></div>
-                </div>
-                <div class="range-labels">
-                    <span>Q5,000</span>
-                    <span>Q100,000</span>
-                </div>
+      </section>      <!-- Pregunta 3: Rango de Presupuesto -->
+      <section class="pregunta" id="pregunta-3" data-type="range" data-key="presupuesto">
+        <h2>3. ¿Cuál es tu rango de presupuesto?</h2>
+        <div class="range-slider-container">
+            <div class="range-values">
+                <span id="min-budget-display">Q15,000</span>
+                <span>-</span>
+                <span id="max-budget-display">Q50,000</span>
+            </div>
+            <div class="range-container">
+                <input type="range" id="presupuesto_min" min="5000" max="100000" step="1000" value="15000" class="slider min-slider" data-capture="true">
+                <input type="range" id="presupuesto_max" min="5000" max="100000" step="1000" value="50000" class="slider max-slider" data-capture="true">
+                <div id="range-progress" class="range-progress"></div>
+                <div class="range-track"></div>
+            </div>
+            <div class="range-labels">
+                <span>Q5,000</span>
+                <span>Q100,000</span>
             </div>
             <p class="range-description">Selecciona el rango de precios que se ajuste a tu presupuesto</p>
-        </div>
-      </section>
-
-      <!-- SECCIÓN DE CILINDRADA CON RANGO DUAL -->
-      <section id="cilindrada" class="test-section" data-section="4">
-        <h2>¿Qué rango de cilindrada prefieres?</h2>
-        <div class="cilindrada-slider-container">
-            <div class="range-slider">
-                <div class="range-values">
-                    <span id="min-cilindrada-display">125cc</span>
-                    <span>-</span>
-                    <span id="max-cilindrada-display">600cc</span>
-                </div>
-                <div class="range-container">
-                    <input type="range" id="cilindrada_min" min="50" max="1500" step="25" value="125" class="slider min-slider">
-                    <input type="range" id="cilindrada_max" min="50" max="1500" step="25" value="600" class="slider max-slider">
-                    <div id="cilindrada-progress" class="range-progress"></div>
-                </div>
-                <div class="range-labels">
-                    <span>50cc</span>
-                    <span>1500cc</span>
-                </div>
-            </div>
-            <p class="range-description">Mayor cilindrada = más potencia pero más consumo</p>
-        </div>
-      </section>
-
-      <!-- SECCIÓN DE POTENCIA CON RANGO DUAL -->
-      <section id="potencia" class="test-section" data-section="5">
-        <h2>¿Qué rango de potencia buscas?</h2>
-        <div class="potencia-slider-container">
-            <div class="range-slider">
-                <div class="range-values">
-                    <span id="min-potencia-display">15CV</span>
-                    <span>-</span>
-                    <span id="max-potencia-display">100CV</span>
-                </div>
-                <div class="range-container">
-                    <input type="range" id="potencia_min" min="5" max="300" step="5" value="15" class="slider min-slider">
-                    <input type="range" id="potencia_max" min="5" max="300" step="5" value="100" class="slider max-slider">
-                    <div id="potencia-progress" class="range-progress"></div>
-                </div>
-                <div class="range-labels">
-                    <span>5CV</span>
-                    <span>300CV</span>
-                </div>
-            </div>
-            <p class="range-description">Más potencia = mayor velocidad pero requiere más experiencia</p>
-        </div>
-      </section>
-
-      <!-- SECCIÓN DE TORQUE CON RANGO DUAL (OPCIONAL) -->
-      <section id="torque" class="test-section" data-section="6">
-        <h2>¿Qué rango de torque prefieres?</h2>
-        <div class="torque-slider-container">
-            <div class="range-slider">
-                <div class="range-values">
-                    <span id="min-torque-display">10Nm</span>
-                    <span>-</span>
-                    <span id="max-torque-display">80Nm</span>
-                </div>
-                <div class="range-container">
-                    <input type="range" id="torque_min" min="5" max="200" step="5" value="10" class="slider min-slider">
-                    <input type="range" id="torque_max" min="5" max="200" step="5" value="80" class="slider max-slider">
-                    <div id="torque-progress" class="range-progress"></div>
-                </div>
-                <div class="range-labels">
-                    <span>5Nm</span>
-                    <span>200Nm</span>
-                </div>
-            </div>
-            <p class="range-description">Mayor torque = mejor aceleración y fuerza de arranque</p>
-        </div>
-      </section>
-
-      <!-- SECCIÓN DE PESO CON RANGO DUAL (OPCIONAL) -->
-      <section id="peso" class="test-section" data-section="7">
-        <h2>¿Qué rango de peso prefieres?</h2>
-        <div class="peso-slider-container">
-            <div class="range-slider">
-                <div class="range-values">
-                    <span id="min-peso-display">120kg</span>
-                    <span>-</span>
-                    <span id="max-peso-display">200kg</span>
-                </div>
-                <div class="range-container">
-                    <input type="range" id="peso_min" min="80" max="400" step="10" value="120" class="slider min-slider">
-                    <input type="range" id="peso_max" min="80" max="400" step="10" value="200" class="slider max-slider">
-                    <div id="peso-progress" class="range-progress"></div>
-                </div>
-                <div class="range-labels">
-                    <span>80kg</span>
-                    <span>400kg</span>
-                </div>
-            </div>
-            <p class="range-description">Menos peso = mejor maniobrabilidad, más peso = mayor estabilidad</p>
-        </div>
-      </section>
+        </div>      </section>
 
       <!-- Pregunta 4: Preferencia de año -->
       <section class="pregunta" id="pregunta-4" data-type="select" data-key="preferencia_ano">
@@ -829,16 +731,27 @@
         </select>
         <p class="help-text">Tu preferencia por el año del modelo</p>
       </section>
-      
-      <!-- Pregunta 5: Peso preferido -->
-      <section class="pregunta" id="pregunta-5" data-type="select" data-key="preferencia_peso">
-        <h2>5. ¿Qué tan pesada prefieres que sea la moto?</h2>
-        <select name="preferencia_peso" id="preferencia_peso">
-          <option value="liviana">Liviana (menos de 150kg)</option>
-          <option value="media">Media (150-200kg)</option>
-          <option value="pesada">Pesada (más de 200kg)</option>
-        </select>
-        <p class="help-text">El peso influye en la maniobrabilidad y facilidad de manejo</p>
+        <!-- Pregunta 5: Peso preferido -->
+      <section class="pregunta" id="pregunta-5" data-type="range" data-key="peso">
+        <h2>5. ¿Qué rango de peso prefieres?</h2>
+        <div class="range-slider-container">
+            <div class="range-values">
+                <span id="min-peso-display">120kg</span>
+                <span>-</span>
+                <span id="max-peso-display">200kg</span>
+            </div>
+            <div class="range-container">
+                <input type="range" id="peso_min" min="80" max="400" step="10" value="120" class="slider min-slider" data-capture="true">
+                <input type="range" id="peso_max" min="80" max="400" step="10" value="200" class="slider max-slider" data-capture="true">
+                <div id="peso-progress" class="range-progress"></div>
+                <div class="range-track"></div>
+            </div>
+            <div class="range-labels">
+                <span>80kg</span>
+                <span>400kg</span>
+            </div>
+            <p class="range-description">Menos peso = mejor maniobrabilidad, más peso = mayor estabilidad</p>
+        </div>
       </section>
       
       <!-- Pregunta 6: Relación potencia/peso -->
@@ -871,41 +784,70 @@
           <option value="no">No, prefiero información general de uso</option>
         </select>
         <p class="help-text">Esta respuesta determinará el tipo de preguntas que se te mostrarán a continuación</p>
-      </section>      <!-- RAMA TÉCNICA (SI en pregunta 8) -->
-      <!-- Pregunta 9a: Rango de potencia (Técnica) -->
-      <section class="pregunta rama-tecnica" id="pregunta-9a" data-type="select" data-key="rango_potencia" data-branch-target="si">
+      </section>      <!-- RAMA TÉCNICA (SI en pregunta 8) -->      <!-- Pregunta 9a: Rango de potencia (Técnica) -->
+      <section class="pregunta rama-tecnica" id="pregunta-9a" data-type="range" data-key="potencia" data-branch-target="si">
         <h2>9. ¿Cuánta potencia prefieres?</h2>
-        <select name="rango_potencia" id="rango_potencia">
-          <option value="baja">Baja potencia (menos de 50hp)</option>
-          <option value="media">Media potencia (50-100hp)</option>
-          <option value="alta">Alta potencia (100-150hp)</option>
-          <option value="muy_alta">Muy alta potencia (más de 150hp)</option>
-        </select>
-        <p class="help-text">HP = Caballos de potencia</p>
+        <div class="range-slider-container">
+            <div class="range-values">
+                <span id="min-potencia-display">15CV</span>
+                <span>-</span>
+                <span id="max-potencia-display">100CV</span>
+            </div>
+            <div class="range-container">
+                <input type="range" id="potencia_min" min="5" max="300" step="5" value="15" class="slider min-slider" data-capture="true">
+                <input type="range" id="potencia_max" min="5" max="300" step="5" value="100" class="slider max-slider" data-capture="true">
+                <div id="potencia-progress" class="range-progress"></div>
+                <div class="range-track"></div>
+            </div>
+            <div class="range-labels">
+                <span>5CV</span>
+                <span>300CV</span>
+            </div>
+            <p class="range-description">Más potencia = mayor velocidad pero requiere más experiencia</p>
+        </div>
       </section>
-      
-      <!-- Pregunta 10a: Desplazamiento (Técnica) -->
-      <section class="pregunta rama-tecnica" id="pregunta-10a" data-type="select" data-key="desplazamiento" data-branch-target="si">
-        <h2>10. ¿Qué desplazamiento del motor prefieres?</h2>
-        <select name="desplazamiento" id="desplazamiento">
-          <option value="pequeno">Pequeño (menos de 400cc)</option>
-          <option value="medio">Medio (400-800cc)</option>
-          <option value="grande">Grande (800-1200cc)</option>
-          <option value="muy_grande">Muy grande (más de 1200cc)</option>
-        </select>
-        <p class="help-text">cc = centímetros cúbicos de desplazamiento del motor</p>
+        <!-- Pregunta 10a: Desplazamiento (Técnica) -->
+      <section class="pregunta rama-tecnica" id="pregunta-10a" data-type="range" data-key="cilindrada" data-branch-target="si">        <h2>10. ¿Qué cilindrada del motor prefieres?</h2>
+        <div class="range-slider-container">
+            <div class="range-values">
+                <span id="min-cilindrada-display">125cc</span>
+                <span>-</span>
+                <span id="max-cilindrada-display">600cc</span>
+            </div>
+            <div class="range-container">
+                <input type="range" id="cilindrada_min" min="50" max="1500" step="25" value="125" class="slider min-slider" data-capture="true">
+                <input type="range" id="cilindrada_max" min="50" max="1500" step="25" value="600" class="slider max-slider" data-capture="true">
+                <div id="cilindrada-progress" class="range-progress"></div>
+                <div class="range-track"></div>
+            </div>
+            <div class="range-labels">
+                <span>50cc</span>
+                <span>1500cc</span>
+            </div>
+            <p class="range-description">Mayor cilindrada = más potencia pero más consumo</p>
+        </div>
       </section>
-      
-      <!-- Pregunta 11a: Torque (Técnica) -->
-      <section class="pregunta rama-tecnica" id="pregunta-11a" data-type="select" data-key="torque" data-branch-target="si">
+        <!-- Pregunta 11a: Torque (Técnica) -->
+      <section class="pregunta rama-tecnica" id="pregunta-11a" data-type="range" data-key="torque" data-branch-target="si">
         <h2>11. ¿Qué torque prefieres?</h2>
-        <select name="torque" id="torque">
-          <option value="bajo">Bajo torque (menos de 50 Nm)</option>
-          <option value="medio">Medio torque (50-100 Nm)</option>
-          <option value="alto">Alto torque (100-150 Nm)</option>
-          <option value="muy_alto">Muy alto torque (más de 150 Nm)</option>
-        </select>
-        <p class="help-text">Nm = Newton metros, el torque determina la fuerza de aceleración</p>
+        <div class="range-slider-container">
+            <div class="range-values">
+                <span id="min-torque-display">10Nm</span>
+                <span>-</span>
+                <span id="max-torque-display">80Nm</span>
+            </div>
+            <div class="range-container">
+                <input type="range" id="torque_min" min="5" max="200" step="5" value="10" class="slider min-slider" data-capture="true">
+                <input type="range" id="torque_max" min="5" max="200" step="5" value="80" class="slider max-slider" data-capture="true">
+                <div id="torque-progress" class="range-progress"></div>
+                <div class="range-track"></div>
+            </div>
+            <div class="range-labels">
+                <span>5Nm</span>
+                <span>200Nm</span>
+            </div>
+            <p class="range-description">Mayor torque = mejor aceleración y fuerza de arranque</p>
+        </div>
       </section>
       
       <!-- RAMA PRÁCTICA (NO en pregunta 8) -->
@@ -1069,10 +1011,9 @@
           preferencia_potencia_peso: window.testResults.preferencia_potencia_peso || 'media',
           preferencia_rendimiento: window.testResults.preferencia_rendimiento || 'balance',
           interesa_especificaciones: window.testResults.interesa_especificaciones || 'no',
-          
-          // Rama técnica
+            // Rama técnica
           rango_potencia: window.testResults.rango_potencia || '',
-          desplazamiento: window.testResults.desplazamiento || '',
+          cilindrada: window.testResults.cilindrada || '',
           torque: window.testResults.torque || '',
           
           // Rama práctica
@@ -1105,7 +1046,6 @@ document.addEventListener('DOMContentLoaded', function() {
   sliders.forEach(slider => {
     slider.setAttribute('data-capture', 'true');
   });
-
   // Inicializar el slider de presupuesto con nuestro helper
   window.presupuestoSlider = SliderManager.initRangeSlider({
     minSliderId: 'presupuesto_min',
@@ -1122,7 +1062,70 @@ document.addEventListener('DOMContentLoaded', function() {
     storageKey: 'presupuesto'
   });
   
-  console.log("Sliders inicializados correctamente");
+  // Inicializar el slider de potencia
+  window.potenciaSlider = SliderManager.initRangeSlider({
+    minSliderId: 'potencia_min',
+    maxSliderId: 'potencia_max',
+    minDisplayId: 'min-potencia-display',
+    maxDisplayId: 'max-potencia-display',
+    progressId: 'potencia-progress',
+    formatFn: (val) => `${val}CV`,
+    defaults: { min: 15, max: 100 },
+    storage: {
+      testResults: window.testResults || (window.testResults = {}),
+      respuestas: window.respuestas || (window.respuestas = {})
+    },
+    storageKey: 'potencia'
+  });
+    // Inicializar el slider de cilindrada
+  window.cilindradaSlider = SliderManager.initRangeSlider({
+    minSliderId: 'cilindrada_min',
+    maxSliderId: 'cilindrada_max',
+    minDisplayId: 'min-cilindrada-display',
+    maxDisplayId: 'max-cilindrada-display',
+    progressId: 'cilindrada-progress',
+    formatFn: (val) => `${val}cc`,
+    defaults: { min: 125, max: 600 },
+    storage: {
+      testResults: window.testResults || (window.testResults = {}),
+      respuestas: window.respuestas || (window.respuestas = {})
+    },
+    storageKey: 'cilindrada'
+  });
+  
+  // Inicializar el slider de torque
+  window.torqueSlider = SliderManager.initRangeSlider({
+    minSliderId: 'torque_min',
+    maxSliderId: 'torque_max',
+    minDisplayId: 'min-torque-display',
+    maxDisplayId: 'max-torque-display',
+    progressId: 'torque-progress',
+    formatFn: (val) => `${val}Nm`,
+    defaults: { min: 10, max: 80 },
+    storage: {
+      testResults: window.testResults || (window.testResults = {}),
+      respuestas: window.respuestas || (window.respuestas = {})
+    },
+    storageKey: 'torque'
+  });
+  
+  // Inicializar el slider de peso
+  window.pesoSlider = SliderManager.initRangeSlider({
+    minSliderId: 'peso_min',
+    maxSliderId: 'peso_max',
+    minDisplayId: 'min-peso-display',
+    maxDisplayId: 'max-peso-display',
+    progressId: 'peso-progress',
+    formatFn: (val) => `${val}kg`,
+    defaults: { min: 120, max: 200 },
+    storage: {
+      testResults: window.testResults || (window.testResults = {}),
+      respuestas: window.respuestas || (window.respuestas = {})
+    },
+    storageKey: 'peso'
+  });
+  
+  console.log("Todos los sliders inicializados correctamente");
 });
 </script>
 
