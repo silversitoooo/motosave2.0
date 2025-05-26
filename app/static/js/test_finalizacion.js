@@ -10,8 +10,7 @@ function finalizarTest() {
   // Asegurar que objetos globales existan
   window.testResults = window.testResults || {};
   window.respuestas = window.respuestas || { estilos: {}, marcas: {} };
-  
-  // CAPTURA DIRECTA DE RANGOS SIN CONVERSIÓN
+    // CAPTURA DIRECTA DE RANGOS SIN CONVERSIÓN
   // 1. Presupuesto - usar valores exactos del slider dual
   const presupuestoMinSlider = document.getElementById('presupuesto_min');
   const presupuestoMaxSlider = document.getElementById('presupuesto_max');
@@ -26,7 +25,21 @@ function finalizarTest() {
     window.testResults.presupuesto_max = 50000;
   }
   
-  // 2. Cilindrada - usar valores exactos del slider dual
+  // 2. Año - usar valores exactos del slider dual
+  const anoMinSlider = document.getElementById('ano_min');
+  const anoMaxSlider = document.getElementById('ano_max');
+  
+  if (anoMinSlider && anoMaxSlider) {
+    window.testResults.ano_min = parseInt(anoMinSlider.value);
+    window.testResults.ano_max = parseInt(anoMaxSlider.value);
+    console.log(`AÑO CAPTURADO: ${window.testResults.ano_min} - ${window.testResults.ano_max}`);
+  } else {
+    // Valores por defecto para año
+    window.testResults.ano_min = 2010;
+    window.testResults.ano_max = 2025;
+  }
+  
+  // 3. Cilindrada - usar valores exactos del slider dual
   const cilindradaMinSlider = document.getElementById('cilindrada_min');
   const cilindradaMaxSlider = document.getElementById('cilindrada_max');
   
@@ -39,8 +52,7 @@ function finalizarTest() {
     window.testResults.cilindrada_min = 125;
     window.testResults.cilindrada_max = 1000;
   }
-  
-  // 3. Potencia - usar valores exactos del slider dual
+    // 4. Potencia - usar valores exactos del slider dual
   const potenciaMinSlider = document.getElementById('potencia_min');
   const potenciaMaxSlider = document.getElementById('potencia_max');
   
@@ -54,7 +66,7 @@ function finalizarTest() {
     window.testResults.potencia_max = 200;
   }
   
-  // 4. Torque - usar valores exactos del slider dual (si existe)
+  // 5. Torque - usar valores exactos del slider dual (si existe)
   const torqueMinSlider = document.getElementById('torque_min');
   const torqueMaxSlider = document.getElementById('torque_max');
   
@@ -68,7 +80,7 @@ function finalizarTest() {
     window.testResults.torque_max = 150;
   }
   
-  // 5. Peso - usar valores exactos del slider dual (si existe)
+  // 6. Peso - usar valores exactos del slider dual (si existe)
   const pesoMinSlider = document.getElementById('peso_min');
   const pesoMaxSlider = document.getElementById('peso_max');
   
@@ -95,10 +107,10 @@ function finalizarTest() {
   window.testResults.experiencia = window.testResults.experiencia || 'intermedio';
   window.testResults.uso = window.testResults.uso || 'mixto';
   window.testResults.uso_previsto = window.testResults.uso_previsto || window.testResults.uso || 'mixto';
-  
-  // VALIDACIÓN FINAL DE RANGOS
+    // VALIDACIÓN FINAL DE RANGOS
   console.log("=== RANGOS CAPTURADOS DIRECTAMENTE DEL TEST ===");
   console.log(`Presupuesto: Q${window.testResults.presupuesto_min.toLocaleString()} - Q${window.testResults.presupuesto_max.toLocaleString()}`);
+  console.log(`Año: ${window.testResults.ano_min} - ${window.testResults.ano_max}`);
   console.log(`Cilindrada: ${window.testResults.cilindrada_min}cc - ${window.testResults.cilindrada_max}cc`);
   console.log(`Potencia: ${window.testResults.potencia_min}CV - ${window.testResults.potencia_max}CV`);
   console.log(`Torque: ${window.testResults.torque_min}Nm - ${window.testResults.torque_max}Nm`);
@@ -111,10 +123,11 @@ function finalizarTest() {
     experiencia: window.testResults.experiencia,
     uso: window.testResults.uso,
     uso_previsto: window.testResults.uso_previsto,
-    
-    // RANGOS CUANTITATIVOS DIRECTOS (sin conversión)
+      // RANGOS CUANTITATIVOS DIRECTOS (sin conversión)
     presupuesto_min: window.testResults.presupuesto_min,
     presupuesto_max: window.testResults.presupuesto_max,
+    ano_min: window.testResults.ano_min,
+    ano_max: window.testResults.ano_max,
     cilindrada_min: window.testResults.cilindrada_min,
     cilindrada_max: window.testResults.cilindrada_max,
     potencia_min: window.testResults.potencia_min,

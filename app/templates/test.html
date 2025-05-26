@@ -405,9 +405,7 @@
       font-size: 16px;
       color: #f97316;
       font-weight: 500;
-    }
-    
-    .range-slider-container {
+    }    .range-slider-container {
       position: relative;
       height: 40px;
       margin: 30px 15px;
@@ -415,7 +413,43 @@
       box-sizing: border-box;
     }
     
-    .range-slider {
+    /* CSS para sliders duales mejorados */
+    .dual-range-container {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 25px;
+      border-radius: 12px;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      margin: 20px 0;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .range-display {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+    
+    .range-display span {
+      color: #ddd;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .range-display strong {
+      color: #f97316;
+      font-weight: 600;
+    }
+    
+    .dual-slider-wrapper {
+      position: relative;
+      height: 50px;
+      margin: 20px 0;
+    }
+    
+    .dual-slider {
       position: absolute;
       width: 100%;
       height: 6px;
@@ -425,188 +459,145 @@
       appearance: none;
       pointer-events: none;
       top: 50%;
-      left: 0;
       transform: translateY(-50%);
-      box-sizing: border-box;
     }
     
-    .range-slider::-webkit-slider-thumb {
+    .dual-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       background: #f97316;
-      border: 3px solid white;
+      border: 2px solid white;
       border-radius: 50%;
       cursor: pointer;
       pointer-events: all;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 3px 8px rgba(249, 115, 22, 0.4);
       transition: all 0.3s ease;
       position: relative;
-      z-index: 5;
+      z-index: 10;
     }
     
-    .range-slider::-webkit-slider-thumb:hover {
+    .dual-slider::-webkit-slider-thumb:hover {
       background: #ea580c;
       transform: scale(1.15);
       box-shadow: 0 5px 15px rgba(249, 115, 22, 0.6);
     }
     
-    .range-slider::-webkit-slider-thumb:active {
-      transform: scale(1.2);
+    .dual-slider::-webkit-slider-thumb:active {
+      transform: scale(1.25);
+      box-shadow: 0 6px 20px rgba(249, 115, 22, 0.8);
     }
     
-    .range-slider::-moz-range-thumb {
-      width: 22px;
-      height: 22px;
+    .dual-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
       background: #f97316;
-      border: 3px solid white;
+      border: 2px solid white;
       border-radius: 50%;
       cursor: pointer;
       pointer-events: all;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 3px 8px rgba(249, 115, 22, 0.4);
       transition: all 0.3s ease;
       -moz-appearance: none;
     }
     
-    .range-slider::-moz-range-thumb:hover {
+    .dual-slider::-moz-range-thumb:hover {
       background: #ea580c;
       transform: scale(1.15);
       box-shadow: 0 5px 15px rgba(249, 115, 22, 0.6);
     }
     
-    .range-slider::-webkit-slider-track {
+    /* Diferenciación visual entre slider mínimo y máximo */
+    .slider-min::-webkit-slider-thumb {
+      border: 3px solid #f97316;
+      background: white;
+    }
+    
+    .slider-max::-webkit-slider-thumb {
+      background: #f97316;
+      border: 2px solid white;
+    }
+    
+    .slider-min::-webkit-slider-thumb:hover {
+      background: #f97316;
+      border-color: white;
+    }
+    
+    .slider-max::-webkit-slider-thumb:hover {
+      background: #ea580c;
+    }
+    
+    .slider-min::-moz-range-thumb {
+      border: 3px solid #f97316;
+      background: white;
+    }
+    
+    .slider-max::-moz-range-thumb {
+      background: #f97316;
+      border: 2px solid white;
+    }
+    
+    .dual-slider::-webkit-slider-track {
       background: transparent;
       height: 6px;
     }
     
-    .range-slider::-moz-range-track {
+    .dual-slider::-moz-range-track {
       background: transparent;
       height: 6px;
       border: none;
     }
     
-    .range-track {
+    .slider-track {
       position: absolute;
       top: 50%;
       left: 0;
       right: 0;
       height: 6px;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.2);
       border-radius: 3px;
       transform: translateY(-50%);
       z-index: 1;
-      box-sizing: border-box;
     }
     
-    .range-progress {
+    .slider-progress {
       position: absolute;
       height: 100%;
       background: linear-gradient(90deg, #f97316, #ea580c);
       border-radius: 3px;
       transition: all 0.3s ease;
-      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
       z-index: 2;
-      top: 0;
-    }
-    
-    .range-scale {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-      padding: 0 10px;
-      font-size: 12px;
-      color: #aaa;
-      box-sizing: border-box;
-    }
-    
-    .range-min {
-      z-index: 4;
-    }
-    
-    .range-max {
-      z-index: 3;
-    }
-    
-    /* Contenedor para evitar overflow */
-    .budget-range-container * {
-      box-sizing: border-box;
-    }
-
-    /* SECCIÓN DE PRESUPUESTO CON RANGO DUAL */
-    #presupuesto {
-      margin: 40px 0;
-    }
-    
-    .presupuesto-slider-container {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 20px;
-      border-radius: 10px;
-      border: 1px solid rgba(249, 115, 22, 0.3);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    }
-    
-    .range-values {
-      display: flex;
-      justify-content: space-between;
-      font-size: 16px;
-      color: #f97316;
-      margin-bottom: 10px;
-    }
-    
-    .range-container {
-      position: relative;
-      height: 8px;
-      margin: 0 10px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    
-    .slider {
-      -webkit-appearance: none;
-      appearance: none;
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 100%;
-      height: 8px;
-      background: transparent;
-      cursor: pointer;
-      z-index: 2;
-    }
-    
-    .slider.min-slider {
-      z-index: 3;
-    }
-    
-    .slider.max-slider {
-      z-index: 4;
-    }
-    
-    .range-progress {
-      position: absolute;
-      height: 100%;
-      background: linear-gradient(90deg, #f97316, #ea580c);
-      border-radius: 4px;
-      transition: width 0.3s ease;
-      z-index: 1;
-      top: 0;
     }
     
     .range-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 14px;
+      margin-top: 15px;
+      font-size: 12px;
       color: #aaa;
-      margin-top: 5px;
+    }
+    
+    .range-labels span {
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .range-labels span:hover {
+      background: rgba(249, 115, 22, 0.1);
+      border-color: rgba(249, 115, 22, 0.3);
+      color: #f97316;
     }
     
     .range-description {
       font-size: 14px;
       color: #ddd;
-      margin-top: 5px;
+      margin-top: 15px;
       text-align: center;
+      font-style: italic;
     }
     
     /* SECCIÓN DE CILINDRADA CON RANGO DUAL */
@@ -702,52 +693,70 @@
       </section>      <!-- Pregunta 3: Rango de Presupuesto -->
       <section class="pregunta" id="pregunta-3" data-type="range" data-key="presupuesto">
         <h2>3. ¿Cuál es tu rango de presupuesto?</h2>
-        <div class="range-slider-container">
-            <div class="range-values">
-                <span id="min-budget-display">Q15,000</span>
-                <span>-</span>
-                <span id="max-budget-display">Q50,000</span>
+        <div class="dual-range-container">
+            <div class="range-display">
+                <span>Desde: <strong id="presupuesto-min-display">Q15,000</strong></span>
+                <span>Hasta: <strong id="presupuesto-max-display">Q50,000</strong></span>
             </div>
-            <div class="range-container">
-                <input type="range" id="presupuesto_min" min="5000" max="100000" step="1000" value="15000" class="slider min-slider" data-capture="true">
-                <input type="range" id="presupuesto_max" min="5000" max="100000" step="1000" value="50000" class="slider max-slider" data-capture="true">
-                <div id="range-progress" class="range-progress"></div>
-                <div class="range-track"></div>
+            <div class="dual-slider-wrapper">
+                <input type="range" id="presupuesto_min" min="5000" max="100000" step="1000" value="15000" class="dual-slider slider-min" data-capture="true">
+                <input type="range" id="presupuesto_max" min="5000" max="100000" step="1000" value="50000" class="dual-slider slider-max" data-capture="true">
+                <div class="slider-track">
+                    <div id="presupuesto-progress" class="slider-progress"></div>
+                </div>
             </div>
             <div class="range-labels">
                 <span>Q5,000</span>
+                <span>Q25,000</span>
+                <span>Q50,000</span>
+                <span>Q75,000</span>
                 <span>Q100,000</span>
             </div>
-            <p class="range-description">Selecciona el rango de precios que se ajuste a tu presupuesto</p>
-        </div>      </section>
-
-      <!-- Pregunta 4: Preferencia de año -->
-      <section class="pregunta" id="pregunta-4" data-type="select" data-key="preferencia_ano">
-        <h2>4. ¿Prefieres motos recientes?</h2>
-        <select name="preferencia_ano" id="preferencia_ano">
-          <option value="recientes">Recientes (2022-2025)</option>
-          <option value="medias">De años medios (2018-2022)</option>
-          <option value="antiguas">Más antiguas (antes de 2018)</option>
-        </select>
-        <p class="help-text">Tu preferencia por el año del modelo</p>
-      </section>
-        <!-- Pregunta 5: Peso preferido -->
+            <p class="range-description">Ajusta tu rango de presupuesto ideal</p>
+        </div></section>      <!-- Pregunta 4: Rango de años -->
+      <section class="pregunta" id="pregunta-4" data-type="range" data-key="ano">
+        <h2>4. ¿Qué rango de años prefieres?</h2>
+        <div class="dual-range-container">
+            <div class="range-display">
+                <span>Desde: <strong id="ano-min-display">2015</strong></span>
+                <span>Hasta: <strong id="ano-max-display">2025</strong></span>
+            </div>
+            <div class="dual-slider-wrapper">
+                <input type="range" id="ano_min" min="2000" max="2025" step="1" value="2015" class="dual-slider slider-min" data-capture="true">
+                <input type="range" id="ano_max" min="2000" max="2025" step="1" value="2025" class="dual-slider slider-max" data-capture="true">
+                <div class="slider-track">
+                    <div id="ano-progress" class="slider-progress"></div>
+                </div>
+            </div>
+            <div class="range-labels">
+                <span>2000</span>
+                <span>2007</span>
+                <span>2014</span>
+                <span>2020</span>
+                <span>2025</span>
+            </div>
+            <p class="range-description">Años más recientes = mejor tecnología, años más antiguos = mejor precio</p>
+        </div>
+      </section><!-- Pregunta 5: Peso preferido -->
       <section class="pregunta" id="pregunta-5" data-type="range" data-key="peso">
         <h2>5. ¿Qué rango de peso prefieres?</h2>
-        <div class="range-slider-container">
-            <div class="range-values">
-                <span id="min-peso-display">120kg</span>
-                <span>-</span>
-                <span id="max-peso-display">200kg</span>
+        <div class="dual-range-container">
+            <div class="range-display">
+                <span>Desde: <strong id="peso-min-display">120kg</strong></span>
+                <span>Hasta: <strong id="peso-max-display">200kg</strong></span>
             </div>
-            <div class="range-container">
-                <input type="range" id="peso_min" min="80" max="400" step="10" value="120" class="slider min-slider" data-capture="true">
-                <input type="range" id="peso_max" min="80" max="400" step="10" value="200" class="slider max-slider" data-capture="true">
-                <div id="peso-progress" class="range-progress"></div>
-                <div class="range-track"></div>
+            <div class="dual-slider-wrapper">
+                <input type="range" id="peso_min" min="80" max="400" step="10" value="120" class="dual-slider slider-min" data-capture="true">
+                <input type="range" id="peso_max" min="80" max="400" step="10" value="200" class="dual-slider slider-max" data-capture="true">
+                <div class="slider-track">
+                    <div id="peso-progress" class="slider-progress"></div>
+                </div>
             </div>
             <div class="range-labels">
                 <span>80kg</span>
+                <span>160kg</span>
+                <span>240kg</span>
+                <span>320kg</span>
                 <span>400kg</span>
             </div>
             <p class="range-description">Menos peso = mejor maniobrabilidad, más peso = mayor estabilidad</p>
@@ -787,63 +796,70 @@
       </section>      <!-- RAMA TÉCNICA (SI en pregunta 8) -->      <!-- Pregunta 9a: Rango de potencia (Técnica) -->
       <section class="pregunta rama-tecnica" id="pregunta-9a" data-type="range" data-key="potencia" data-branch-target="si">
         <h2>9. ¿Cuánta potencia prefieres?</h2>
-        <div class="range-slider-container">
-            <div class="range-values">
-                <span id="min-potencia-display">15CV</span>
-                <span>-</span>
-                <span id="max-potencia-display">100CV</span>
+        <div class="dual-range-container">
+            <div class="range-display">
+                <span>Desde: <strong id="potencia-min-display">15CV</strong></span>
+                <span>Hasta: <strong id="potencia-max-display">100CV</strong></span>
             </div>
-            <div class="range-container">
-                <input type="range" id="potencia_min" min="5" max="300" step="5" value="15" class="slider min-slider" data-capture="true">
-                <input type="range" id="potencia_max" min="5" max="300" step="5" value="100" class="slider max-slider" data-capture="true">
-                <div id="potencia-progress" class="range-progress"></div>
-                <div class="range-track"></div>
+            <div class="dual-slider-wrapper">
+                <input type="range" id="potencia_min" min="5" max="300" step="5" value="15" class="dual-slider slider-min" data-capture="true">
+                <input type="range" id="potencia_max" min="5" max="300" step="5" value="100" class="dual-slider slider-max" data-capture="true">
+                <div class="slider-track">
+                    <div id="potencia-progress" class="slider-progress"></div>
+                </div>
             </div>
             <div class="range-labels">
                 <span>5CV</span>
+                <span>75CV</span>
+                <span>150CV</span>
+                <span>225CV</span>
                 <span>300CV</span>
             </div>
             <p class="range-description">Más potencia = mayor velocidad pero requiere más experiencia</p>
         </div>
-      </section>
-        <!-- Pregunta 10a: Desplazamiento (Técnica) -->
+      </section>        <!-- Pregunta 10a: Desplazamiento (Técnica) -->
       <section class="pregunta rama-tecnica" id="pregunta-10a" data-type="range" data-key="cilindrada" data-branch-target="si">        <h2>10. ¿Qué cilindrada del motor prefieres?</h2>
-        <div class="range-slider-container">
-            <div class="range-values">
-                <span id="min-cilindrada-display">125cc</span>
-                <span>-</span>
-                <span id="max-cilindrada-display">600cc</span>
+        <div class="dual-range-container">
+            <div class="range-display">
+                <span>Desde: <strong id="cilindrada-min-display">125cc</strong></span>
+                <span>Hasta: <strong id="cilindrada-max-display">600cc</strong></span>
             </div>
-            <div class="range-container">
-                <input type="range" id="cilindrada_min" min="50" max="1500" step="25" value="125" class="slider min-slider" data-capture="true">
-                <input type="range" id="cilindrada_max" min="50" max="1500" step="25" value="600" class="slider max-slider" data-capture="true">
-                <div id="cilindrada-progress" class="range-progress"></div>
-                <div class="range-track"></div>
+            <div class="dual-slider-wrapper">
+                <input type="range" id="cilindrada_min" min="50" max="1500" step="25" value="125" class="dual-slider slider-min" data-capture="true">
+                <input type="range" id="cilindrada_max" min="50" max="1500" step="25" value="600" class="dual-slider slider-max" data-capture="true">
+                <div class="slider-track">
+                    <div id="cilindrada-progress" class="slider-progress"></div>
+                </div>
             </div>
             <div class="range-labels">
                 <span>50cc</span>
+                <span>400cc</span>
+                <span>750cc</span>
+                <span>1100cc</span>
                 <span>1500cc</span>
             </div>
             <p class="range-description">Mayor cilindrada = más potencia pero más consumo</p>
         </div>
-      </section>
-        <!-- Pregunta 11a: Torque (Técnica) -->
+      </section>        <!-- Pregunta 11a: Torque (Técnica) -->
       <section class="pregunta rama-tecnica" id="pregunta-11a" data-type="range" data-key="torque" data-branch-target="si">
         <h2>11. ¿Qué torque prefieres?</h2>
-        <div class="range-slider-container">
-            <div class="range-values">
-                <span id="min-torque-display">10Nm</span>
-                <span>-</span>
-                <span id="max-torque-display">80Nm</span>
+        <div class="dual-range-container">
+            <div class="range-display">
+                <span>Desde: <strong id="torque-min-display">10Nm</strong></span>
+                <span>Hasta: <strong id="torque-max-display">80Nm</strong></span>
             </div>
-            <div class="range-container">
-                <input type="range" id="torque_min" min="5" max="200" step="5" value="10" class="slider min-slider" data-capture="true">
-                <input type="range" id="torque_max" min="5" max="200" step="5" value="80" class="slider max-slider" data-capture="true">
-                <div id="torque-progress" class="range-progress"></div>
-                <div class="range-track"></div>
+            <div class="dual-slider-wrapper">
+                <input type="range" id="torque_min" min="5" max="200" step="5" value="10" class="dual-slider slider-min" data-capture="true">
+                <input type="range" id="torque_max" min="5" max="200" step="5" value="80" class="dual-slider slider-max" data-capture="true">
+                <div class="slider-track">
+                    <div id="torque-progress" class="slider-progress"></div>
+                </div>
             </div>
             <div class="range-labels">
                 <span>5Nm</span>
+                <span>50Nm</span>
+                <span>100Nm</span>
+                <span>150Nm</span>
                 <span>200Nm</span>
             </div>
             <p class="range-description">Mayor torque = mejor aceleración y fuerza de arranque</p>
@@ -1039,93 +1055,259 @@
 <script src="{{ url_for('static', filename='js/test_slider_helpers.js') }}"></script>
 
 <script>
-// JavaScript para el range slider de presupuesto
+// JavaScript para sliders duales con dos controles (min/max)
 document.addEventListener('DOMContentLoaded', function() {
-  // Marcar los sliders para captura automática
-  const sliders = document.querySelectorAll('input[type="range"]');
-  sliders.forEach(slider => {
-    slider.setAttribute('data-capture', 'true');
-  });
-  // Inicializar el slider de presupuesto con nuestro helper
-  window.presupuestoSlider = SliderManager.initRangeSlider({
-    minSliderId: 'presupuesto_min',
-    maxSliderId: 'presupuesto_max',
-    minDisplayId: 'min-budget-display',
-    maxDisplayId: 'max-budget-display',
-    progressId: 'range-progress',
-    formatFn: (val) => `Q${val.toLocaleString()}`,
-    defaults: { min: 15000, max: 50000 },
-    storage: {
-      testResults: window.testResults || (window.testResults = {}),
-      respuestas: window.respuestas || (window.respuestas = {})
-    },
-    storageKey: 'presupuesto'
-  });
+  console.log("Inicializando sliders duales...");
   
-  // Inicializar el slider de potencia
-  window.potenciaSlider = SliderManager.initRangeSlider({
-    minSliderId: 'potencia_min',
-    maxSliderId: 'potencia_max',
-    minDisplayId: 'min-potencia-display',
-    maxDisplayId: 'max-potencia-display',
-    progressId: 'potencia-progress',
-    formatFn: (val) => `${val}CV`,
-    defaults: { min: 15, max: 100 },
-    storage: {
-      testResults: window.testResults || (window.testResults = {}),
-      respuestas: window.respuestas || (window.respuestas = {})
-    },
-    storageKey: 'potencia'
-  });
-    // Inicializar el slider de cilindrada
-  window.cilindradaSlider = SliderManager.initRangeSlider({
-    minSliderId: 'cilindrada_min',
-    maxSliderId: 'cilindrada_max',
-    minDisplayId: 'min-cilindrada-display',
-    maxDisplayId: 'max-cilindrada-display',
-    progressId: 'cilindrada-progress',
-    formatFn: (val) => `${val}cc`,
-    defaults: { min: 125, max: 600 },
-    storage: {
-      testResults: window.testResults || (window.testResults = {}),
-      respuestas: window.respuestas || (window.respuestas = {})
-    },
-    storageKey: 'cilindrada'
-  });
+  // Asegurar que los objetos globales existan
+  if (!window.testResults) window.testResults = {};
+  if (!window.respuestas) window.respuestas = {};
+
+  // Verificar si SliderManager está disponible
+  if (typeof window.SliderManager === 'undefined') {
+    console.error("SliderManager no está disponible. Cargando funcionalidad básica...");
+    
+    // Implementación básica de respaldo
+    function initBasicDualSlider(config) {
+      const minSlider = document.getElementById(config.minId);
+      const maxSlider = document.getElementById(config.maxId);
+      const minDisplay = document.getElementById(config.minDisplayId);
+      const maxDisplay = document.getElementById(config.maxDisplayId);
+      const progress = document.getElementById(config.progressId);
+      
+      if (!minSlider || !maxSlider) {
+        console.warn(`Sliders no encontrados: ${config.minId}, ${config.maxId}`);
+        return;
+      }
+      
+      function updateDisplay() {
+        let minVal = parseInt(minSlider.value);
+        let maxVal = parseInt(maxSlider.value);
+        
+        // Asegurar que min <= max
+        if (minVal > maxVal) {
+          if (minSlider === document.activeElement) {
+            maxVal = minVal;
+            maxSlider.value = maxVal;
+          } else {
+            minVal = maxVal;
+            minSlider.value = minVal;
+          }
+        }
+        
+        // Actualizar displays
+        if (minDisplay) minDisplay.textContent = config.format(minVal);
+        if (maxDisplay) maxDisplay.textContent = config.format(maxVal);
+        
+        // Actualizar progreso visual
+        if (progress) {
+          const minPercent = ((minVal - parseInt(minSlider.min)) / (parseInt(minSlider.max) - parseInt(minSlider.min))) * 100;
+          const maxPercent = ((maxVal - parseInt(minSlider.min)) / (parseInt(maxSlider.max) - parseInt(minSlider.min))) * 100;
+          progress.style.left = `${minPercent}%`;
+          progress.style.width = `${maxPercent - minPercent}%`;
+        }
+        
+        // Guardar valores en objetos globales
+        window.testResults[`${config.key}_min`] = minVal;
+        window.testResults[`${config.key}_max`] = maxVal;
+        window.respuestas[`${config.key}_min`] = minVal;
+        window.respuestas[`${config.key}_max`] = maxVal;
+        
+        console.log(`${config.key} actualizado: ${minVal} - ${maxVal}`);
+      }
+      
+      // Eventos
+      minSlider.addEventListener('input', updateDisplay);
+      maxSlider.addEventListener('input', updateDisplay);
+      minSlider.addEventListener('change', updateDisplay);
+      maxSlider.addEventListener('change', updateDisplay);
+      
+      // Inicializar
+      updateDisplay();
+      
+      return { updateDisplay };
+    }
+      // Configuraciones para cada slider dual
+    const sliderConfigs = [
+      {
+        key: 'presupuesto',
+        minId: 'presupuesto_min',
+        maxId: 'presupuesto_max',
+        minDisplayId: 'presupuesto-min-display',
+        maxDisplayId: 'presupuesto-max-display',
+        progressId: 'presupuesto-progress',
+        format: (val) => `Q${val.toLocaleString()}`
+      },
+      {
+        key: 'ano',
+        minId: 'ano_min',
+        maxId: 'ano_max',
+        minDisplayId: 'ano-min-display',
+        maxDisplayId: 'ano-max-display',
+        progressId: 'ano-progress',
+        format: (val) => `${val}`
+      },
+      {
+        key: 'peso',
+        minId: 'peso_min',
+        maxId: 'peso_max',
+        minDisplayId: 'peso-min-display',
+        maxDisplayId: 'peso-max-display',
+        progressId: 'peso-progress',
+        format: (val) => `${val}kg`
+      },
+      {
+        key: 'potencia',
+        minId: 'potencia_min',
+        maxId: 'potencia_max',
+        minDisplayId: 'potencia-min-display',
+        maxDisplayId: 'potencia-max-display',
+        progressId: 'potencia-progress',
+        format: (val) => `${val}CV`
+      },
+      {
+        key: 'cilindrada',
+        minId: 'cilindrada_min',
+        maxId: 'cilindrada_max',
+        minDisplayId: 'cilindrada-min-display',
+        maxDisplayId: 'cilindrada-max-display',
+        progressId: 'cilindrada-progress',
+        format: (val) => `${val}cc`
+      },
+      {
+        key: 'torque',
+        minId: 'torque_min',
+        maxId: 'torque_max',
+        minDisplayId: 'torque-min-display',
+        maxDisplayId: 'torque-max-display',
+        progressId: 'torque-progress',
+        format: (val) => `${val}Nm`
+      }
+    ];
+    
+    // Inicializar todos los sliders
+    sliderConfigs.forEach(config => {
+      try {
+        initBasicDualSlider(config);
+        console.log(`Slider dual ${config.key} inicializado correctamente`);
+      } catch (error) {
+        console.error(`Error inicializando slider ${config.key}:`, error);
+      }
+    });
+    
+  } else {
+    // Usar SliderManager si está disponible
+    console.log("Usando SliderManager avanzado...");
+      // Configurar sliders usando SliderManager
+    const sliderConfigs = [
+      {
+        storageKey: 'presupuesto',
+        minSliderId: 'presupuesto_min',
+        maxSliderId: 'presupuesto_max',
+        minDisplayId: 'presupuesto-min-display',
+        maxDisplayId: 'presupuesto-max-display',
+        progressId: 'presupuesto-progress',
+        formatFn: (val) => `Q${val.toLocaleString()}`,
+        defaults: { min: 15000, max: 50000 },
+        storage: { testResults: window.testResults, respuestas: window.respuestas }
+      },
+      {
+        storageKey: 'ano',
+        minSliderId: 'ano_min',
+        maxSliderId: 'ano_max',
+        minDisplayId: 'ano-min-display',
+        maxDisplayId: 'ano-max-display',
+        progressId: 'ano-progress',
+        formatFn: (val) => `${val}`,
+        defaults: { min: 2015, max: 2025 },
+        storage: { testResults: window.testResults, respuestas: window.respuestas }
+      },
+      {
+        storageKey: 'peso',
+        minSliderId: 'peso_min',
+        maxSliderId: 'peso_max',
+        minDisplayId: 'peso-min-display',
+        maxDisplayId: 'peso-max-display',
+        progressId: 'peso-progress',
+        formatFn: (val) => `${val}kg`,
+        defaults: { min: 120, max: 200 },
+        storage: { testResults: window.testResults, respuestas: window.respuestas }
+      },
+      {
+        storageKey: 'potencia',
+        minSliderId: 'potencia_min',
+        maxSliderId: 'potencia_max',
+        minDisplayId: 'potencia-min-display',
+        maxDisplayId: 'potencia-max-display',
+        progressId: 'potencia-progress',
+        formatFn: (val) => `${val}CV`,
+        defaults: { min: 15, max: 100 },
+        storage: { testResults: window.testResults, respuestas: window.respuestas }
+      },
+      {
+        storageKey: 'cilindrada',
+        minSliderId: 'cilindrada_min',
+        maxSliderId: 'cilindrada_max',
+        minDisplayId: 'cilindrada-min-display',
+        maxDisplayId: 'cilindrada-max-display',
+        progressId: 'cilindrada-progress',
+        formatFn: (val) => `${val}cc`,
+        defaults: { min: 125, max: 600 },
+        storage: { testResults: window.testResults, respuestas: window.respuestas }
+      },
+      {
+        storageKey: 'torque',
+        minSliderId: 'torque_min',
+        maxSliderId: 'torque_max',
+        minDisplayId: 'torque-min-display',
+        maxDisplayId: 'torque-max-display',
+        progressId: 'torque-progress',
+        formatFn: (val) => `${val}Nm`,
+        defaults: { min: 10, max: 80 },
+        storage: { testResults: window.testResults, respuestas: window.respuestas }
+      }
+    ];
+    
+    // Inicializar cada slider usando SliderManager
+    sliderConfigs.forEach(config => {
+      try {
+        window.SliderManager.initRangeSlider(config);
+        console.log(`Slider dual ${config.storageKey} inicializado con SliderManager`);
+      } catch (error) {
+        console.error(`Error inicializando slider ${config.storageKey}:`, error);
+      }
+    });
+  }
   
-  // Inicializar el slider de torque
-  window.torqueSlider = SliderManager.initRangeSlider({
-    minSliderId: 'torque_min',
-    maxSliderId: 'torque_max',
-    minDisplayId: 'min-torque-display',
-    maxDisplayId: 'max-torque-display',
-    progressId: 'torque-progress',
-    formatFn: (val) => `${val}Nm`,
-    defaults: { min: 10, max: 80 },
-    storage: {
-      testResults: window.testResults || (window.testResults = {}),
-      respuestas: window.respuestas || (window.respuestas = {})
-    },
-    storageKey: 'torque'
-  });
+  console.log("Todos los sliders duales inicializados");
   
-  // Inicializar el slider de peso
-  window.pesoSlider = SliderManager.initRangeSlider({
-    minSliderId: 'peso_min',
-    maxSliderId: 'peso_max',
-    minDisplayId: 'min-peso-display',
-    maxDisplayId: 'max-peso-display',
-    progressId: 'peso-progress',
-    formatFn: (val) => `${val}kg`,
-    defaults: { min: 120, max: 200 },
-    storage: {
-      testResults: window.testResults || (window.testResults = {}),
-      respuestas: window.respuestas || (window.respuestas = {})
-    },
-    storageKey: 'peso'
-  });
+  // Función para verificar captura de datos
+  window.verificarCapturaSliders = function() {
+    console.log("=== ESTADO ACTUAL DE SLIDERS ===");
+    console.log("testResults:", window.testResults);
+    console.log("respuestas:", window.respuestas);
+      // Verificar elementos DOM específicos
+    const sliderIds = [
+      'presupuesto_min', 'presupuesto_max',
+      'ano_min', 'ano_max',
+      'peso_min', 'peso_max', 
+      'potencia_min', 'potencia_max',
+      'cilindrada_min', 'cilindrada_max',
+      'torque_min', 'torque_max'
+    ];
+    
+    sliderIds.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        console.log(`${id}: ${element.value}`);
+      } else {
+        console.warn(`Elemento ${id} no encontrado`);
+      }
+    });
+  };
   
-  console.log("Todos los sliders inicializados correctamente");
+  // Hacer función disponible globalmente para debug
+  window.verificarCapturaSliders();
 });
 </script>
 
