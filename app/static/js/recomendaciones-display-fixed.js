@@ -1,6 +1,6 @@
 /**
  * Script para gestionar las recomendaciones de motos
- * Este script asegura que se muestren las 4 mejores motos según los resultados del test
+ * Este script asegura que se muestren las 6 mejores motos según los resultados del test
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -40,14 +40,13 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Limpiamos cualquier contenido previo
     gridContainer.innerHTML = '';
-    
-    // Si no hay recomendaciones, mostrar mensaje
+      // Si no hay recomendaciones, mostrar mensaje
     if (motosRecomendadas.length === 0) {
         gridContainer.innerHTML = `
             <div class="no-recommendations">
                 <i class="fas fa-exclamation-circle"></i>
                 <h3>No hay recomendaciones disponibles</h3>
-                <p>Por favor completa el test de preferencias para obtener recomendaciones personalizadas.</p>
+                <p>Por favor completa el test de preferencias para obtener tus 6 recomendaciones personalizadas.</p>
                 <a href="/test" class="nav-button">Hacer el test</a>
             </div>
         `;

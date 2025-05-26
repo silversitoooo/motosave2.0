@@ -80,12 +80,11 @@ def recomendaciones():
         # Log detailed info about what we're sending to the adapter
         logger.info(f"Generando recomendaciones para {username} usando adaptador {type(adapter).__name__}")
         logger.info(f"Datos del test: {test_data}")
-        
-        # Obtener recomendaciones basadas en los datos del test - LIMITADO A TOP 4
+          # Obtener recomendaciones basadas en los datos del test - LIMITADO A TOP 6
         recommendations = adapter.get_recommendations(
             user_id=user_id,
             algorithm='hybrid', 
-            top_n=4,
+            top_n=6,
             user_preferences=test_data
         )
         

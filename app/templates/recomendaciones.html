@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+<!-- Plantilla de recomendaciones - Muestra las top 6 motos recomendadas -->
 <head>    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recomendaciones - MotoMatch</title>
+    <title>Top 6 Recomendaciones - MotoMatch</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">        <script id="recommendations-data" type="application/json">{{ motos_recomendadas|default([])|tojson|safe }}</script>
     
@@ -77,14 +78,36 @@
             background-color: rgba(249, 115, 22, 1);
             font-weight: bold;
             transform: scale(1.05);
-        }
-
-        /* Estilos para la cuadrícula y tarjetas de motos */
+        }        /* Estilos para la cuadrícula y tarjetas de motos - Optimizado para 6 motos */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-top: 20px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* En pantallas grandes, mostrar 3 columnas para las 6 motos */
+        @media (min-width: 1000px) {
+            .grid-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* En pantallas medianas, mostrar 2 columnas */
+        @media (max-width: 999px) and (min-width: 650px) {
+            .grid-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* En pantallas pequeñas, mostrar 1 columna */
+        @media (max-width: 649px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
         }
         
         .moto-card {
@@ -248,7 +271,7 @@
     <div class="main-container neon-glass">        <a href="{{ url_for('main.dashboard') }}" id="regresoRecomedaciones" class="back-dashboard-btn">
             <i class="fas fa-arrow-left"></i> Regresar al Dashboard
         </a>
-        <h1 class="tituloFriends">Tus Recomendaciones</h1>
+        <h1 class="tituloFriends">Tus Top 6 Recomendaciones</h1>
         
         {% if test_data %}
         <div class="test-results-summary">

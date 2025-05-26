@@ -31,11 +31,19 @@ class MotoRecommenderAdapter:
         self.moto_data = None
         self.ratings_data = None
         self.friendships_df = None
-        
-        # Inicializar algoritmos de recomendación correctamente
+          # Inicializar algoritmos de recomendación correctamente
         self.pagerank = MotoPageRank()
         self.label_propagation = MotoLabelPropagation() 
-        self.moto_ideal = MotoIdealRecommender()
+        
+        # Usar la versión simplificada de MotoIdealRecommender
+        try:
+            from app.algoritmo.moto_ideal_simple import MotoIdealRecommender
+            self.moto_ideal = MotoIdealRecommender(neo4j_connector=self)
+            logger.info("Usando MotoIdealRecommender simplificado")
+        except ImportError:
+            from app.algoritmo.moto_ideal import MotoIdealRecommender
+            self.moto_ideal = MotoIdealRecommender()
+            logger.info("Usando MotoIdealRecommender estándar")
         
         # Conectar a Neo4j inmediatamente al inicializar
         self.connect_to_neo4j()
@@ -245,10 +253,10 @@ class MotoRecommenderAdapter:
                 if user_preferences:
                     return self._get_recommendations_with_preferences(user_id, user_preferences, top_n)
                 # De lo contrario, usar el método normal
-                return self.moto_ideal.get_moto_ideal(user_id, top_n)
+                return self.moto_ideal.get_recommendations(user_id, top_n)
             else:
                 logger.warning(f"Algoritmo desconocido: {algorithm}, usando moto_ideal")
-                return self.moto_ideal.get_moto_ideal(user_id, top_n)
+                return self.moto_ideal.get_recommendations(user_id, top_n)
         except Exception as e:
             logger.error(f"Error al generar recomendaciones: {str(e)}")
             return []

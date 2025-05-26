@@ -472,12 +472,14 @@ def guardar_test():
             if min_field in processed_data and max_field in processed_data:
                 current_app.logger.info(f"{min_field[:-4].upper()}: {processed_data[min_field]} - {processed_data[max_field]}")
         current_app.logger.info("====================================")
-        
-        # Guardar resultados procesados en la sesión
+          # Guardar resultados procesados en la sesión
         for key, value in processed_data.items():
             session[key] = value
         
-        # Guardar en Neo4j si hay conexión disponible
+        # IMPORTANTE: Guardar también como test_data para las recomendaciones
+        session['test_data'] = processed_data
+        current_app.logger.info(f"Datos del test guardados en sesión: {processed_data}")
+          # Guardar en Neo4j si hay conexión disponible
         try:
             adapter = current_app.config.get('MOTO_RECOMMENDER')
             if adapter:
@@ -498,7 +500,7 @@ def guardar_test():
         except Exception as e:
             current_app.logger.error(f"Error al guardar preferencias: {str(e)}")
         
-        return redirect(url_for("main.motos_recomendadas"))
+        return redirect(url_for("main.recomendaciones"))
 
 @fixed_routes.route('/recomendaciones')
 def recomendaciones():
@@ -517,12 +519,11 @@ def recomendaciones():
         if not adapter:
             flash("Error: Sistema de recomendación no disponible")
             return redirect(url_for('main.dashboard'))
-        
-        # Pasar explícitamente los datos del test al adaptador
+          # Pasar explícitamente los datos del test al adaptador
         recomendaciones = adapter.get_recommendations(
             user_id, 
             algorithm='hybrid', 
-            top_n=5, 
+            top_n=6, 
             user_preferences=test_data  # Aquí pasamos los datos del test
         )
         
