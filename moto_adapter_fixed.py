@@ -267,67 +267,163 @@ class MotoRecommenderAdapter:
         
         # Extraer parámetros de preferencias
         experiencia = preferences.get('experiencia', 'inexperto')
-        presupuesto = float(preferences.get('presupuesto', 8000))
         uso = preferences.get('uso', 'mixto')
         marcas_preferidas = preferences.get('marcas', {})
         estilos_preferidos = preferences.get('estilos', {})
         
-        # MODIFICAR: Filtrar motos según presupuesto con mayor margen (30% en lugar de 20%)
-        presupuesto_max = presupuesto * 1.3
-        filtered_motos = self.motos_df[self.motos_df['precio'] <= presupuesto_max].copy()
+        # Extraer rangos específicos con tolerancia del 10%
+        presupuesto_min = float(preferences.get('presupuesto_min', 0))
+        presupuesto_max = float(preferences.get('presupuesto_max', 100000))
+        cilindrada_min = float(preferences.get('cilindrada_min', 0))
+        cilindrada_max = float(preferences.get('cilindrada_max', 2000))
+        potencia_min = float(preferences.get('potencia_min', 0))
+        potencia_max = float(preferences.get('potencia_max', 300))
+        torque_min = float(preferences.get('torque_min', 0))
+        torque_max = float(preferences.get('torque_max', 200))
+        peso_min = float(preferences.get('peso_min', 0))
+        peso_max = float(preferences.get('peso_max', 500))
+        
+        # Aplicar tolerancia del 10% a los rangos
+        tolerancia = 0.10
+        presupuesto_min_tolerancia = presupuesto_min * (1 - tolerancia)
+        presupuesto_max_tolerancia = presupuesto_max * (1 + tolerancia)
+        cilindrada_min_tolerancia = cilindrada_min * (1 - tolerancia)
+        cilindrada_max_tolerancia = cilindrada_max * (1 + tolerancia)
+        potencia_min_tolerancia = potencia_min * (1 - tolerancia)
+        potencia_max_tolerancia = potencia_max * (1 + tolerancia)
+        torque_min_tolerancia = torque_min * (1 - tolerancia)
+        torque_max_tolerancia = torque_max * (1 + tolerancia)
+        peso_min_tolerancia = peso_min * (1 - tolerancia)
+        peso_max_tolerancia = peso_max * (1 + tolerancia)
+        
+        logger.info(f"Filtros aplicados con 10% tolerancia:")
+        logger.info(f"Presupuesto: {presupuesto_min_tolerancia:.0f} - {presupuesto_max_tolerancia:.0f}")
+        logger.info(f"Cilindrada: {cilindrada_min_tolerancia:.0f} - {cilindrada_max_tolerancia:.0f}")
+        logger.info(f"Potencia: {potencia_min_tolerancia:.0f} - {potencia_max_tolerancia:.0f}")
+        logger.info(f"Torque: {torque_min_tolerancia:.0f} - {torque_max_tolerancia:.0f}")
+        logger.info(f"Peso: {peso_min_tolerancia:.0f} - {peso_max_tolerancia:.0f}")
+        
+        # FILTROS ESTRICTOS: Solo motos que cumplan TODOS los requisitos
+        filtered_motos = self.motos_df.copy()
+        
+        # Filtro por presupuesto (estricto con 10% tolerancia)
+        filtered_motos = filtered_motos[
+            (filtered_motos['precio'] >= presupuesto_min_tolerancia) & 
+            (filtered_motos['precio'] <= presupuesto_max_tolerancia)
+        ]
+        
+        # Filtro por cilindrada (estricto con 10% tolerancia)
+        if 'cilindrada' in filtered_motos.columns:
+            filtered_motos = filtered_motos[
+                (filtered_motos['cilindrada'] >= cilindrada_min_tolerancia) & 
+                (filtered_motos['cilindrada'] <= cilindrada_max_tolerancia)
+            ]
+        
+        # Filtro por potencia (estricto con 10% tolerancia)
+        if 'potencia' in filtered_motos.columns:
+            filtered_motos = filtered_motos[
+                (filtered_motos['potencia'] >= potencia_min_tolerancia) & 
+                (filtered_motos['potencia'] <= potencia_max_tolerancia)
+            ]
+        
+        # Filtro por torque (estricto con 10% tolerancia)
+        if 'torque' in filtered_motos.columns:
+            filtered_motos = filtered_motos[
+                (filtered_motos['torque'] >= torque_min_tolerancia) & 
+                (filtered_motos['torque'] <= torque_max_tolerancia)
+            ]
+        
+        # Filtro por peso (estricto con 10% tolerancia)
+        if 'peso' in filtered_motos.columns:
+            filtered_motos = filtered_motos[
+                (filtered_motos['peso'] >= peso_min_tolerancia) & 
+                (filtered_motos['peso'] <= peso_max_tolerancia)
+            ]
+        
+        logger.info(f"Motos que cumplen filtros estrictos: {len(filtered_motos)} de {len(self.motos_df)}")
         
         if filtered_motos.empty:
-            logger.warning(f"No hay motos dentro del presupuesto {presupuesto}. Usando todas las motos.")
-            filtered_motos = self.motos_df.copy()
+            logger.warning(f"No hay motos que cumplan los filtros estrictos. No se generarán recomendaciones.")
+            return []
         
-        # Calcular score para cada moto
+        # Calcular score para cada moto que cumple los filtros
         results = []
         for _, moto in filtered_motos.iterrows():
-            score = 0.5  # CAMBIO: Empezar con score base positivo
-            reasons = []
+            score = 1.0  # Empezar con score alto ya que cumple todos los filtros
+            reasons = ["Cumple todos tus requisitos técnicos"]
             
-            # SIMPLIFICAR evaluación por tipo/estilo
+            # Bonus por preferencias de estilo
+            if 'tipo' in moto and estilos_preferidos:
+                tipo = str(moto['tipo']).lower()
+                if tipo in estilos_preferidos:
+                    nivel = estilos_preferidos[tipo]
+                    score += nivel * 0.5
+                    reasons.append(f"Estilo {tipo} entre tus preferidos (nivel {nivel})")
+            
+            # Bonus por marca preferida
+            if 'marca' in moto and marcas_preferidas:
+                marca = str(moto['marca']).lower()
+                if marca in marcas_preferidas:
+                    nivel = marcas_preferidas[marca]
+                    score += nivel * 0.3
+                    reasons.append(f"Marca {marca} entre tus preferidas (nivel {nivel})")
+            
+            # Bonus por experiencia del usuario
+            if experiencia == 'avanzado':
+                if moto.get('potencia', 0) > 100:
+                    score += 0.2
+                    reasons.append("Alta potencia adecuada para tu experiencia avanzada")
+            elif experiencia == 'inexperto':
+                if moto.get('potencia', 0) <= 50:
+                    score += 0.2
+                    reasons.append("Potencia moderada adecuada para principiantes")
+            
+            # Bonus por uso previsto
             if 'tipo' in moto:
                 tipo = str(moto['tipo']).lower()
-                if estilos_preferidos and tipo in estilos_preferidos:
-                    nivel = estilos_preferidos[tipo]
-                    score += nivel * 0.25
-                    reasons.append(f"Estilo {tipo} entre tus preferidos")
-                elif uso == 'paseo' and tipo in ['naked', 'touring', 'sport']:
-                    score += 0.25
-                    reasons.append(f"Estilo {tipo} adecuado para paseo")
-                elif uso == 'ciudad' and tipo in ['naked', 'scooter']:
-                    score += 0.25
-                    reasons.append(f"Estilo {tipo} adecuado para ciudad")
+                if uso == 'ciudad' and tipo in ['naked', 'scooter']:
+                    score += 0.15
+                    reasons.append(f"Tipo {tipo} ideal para uso en ciudad")
+                elif uso == 'carretera' and tipo in ['sport', 'touring']:
+                    score += 0.15
+                    reasons.append(f"Tipo {tipo} ideal para carretera")
+                elif uso == 'mixto' and tipo in ['naked', 'adventure']:
+                    score += 0.15
+                    reasons.append(f"Tipo {tipo} versátil para uso mixto")
             
-            # SIMPLIFICAR evaluación por marca
-            if 'marca' in moto:
-                marca = str(moto['marca']).lower()
-                if marcas_preferidas and marca in marcas_preferidas:
-                    nivel = marcas_preferidas[marca]
-                    score += nivel * 0.25
-                    reasons.append(f"Marca {marca} entre tus preferidas")
-            
-            # Evaluar presupuesto
-            precio = moto.get('precio', 0)
-            if precio <= presupuesto:
-                score += 0.5
-                reasons.append(f"Precio ({precio}€) dentro de tu presupuesto ({presupuesto}€)")
-            
-            # Si no hay razones, agregar razón genérica
-            if not reasons:
-                reasons.append("Recomendación basada en tus criterios generales")
-            
-            # Obtener ID de la moto
+            # Obtener datos de la moto para el resultado
             moto_id = str(moto.get('moto_id', moto.get('id', '')))
-            results.append((moto_id, score, reasons))
+            
+            # Crear resultado completo con todos los datos de la moto
+            moto_result = {
+                'moto_id': moto_id,
+                'score': score,
+                'reasons': reasons,
+                'marca': moto.get('marca', ''),
+                'modelo': moto.get('modelo', ''),
+                'tipo': moto.get('tipo', ''),
+                'precio': moto.get('precio', 0),
+                'cilindrada': moto.get('cilindrada', 0),
+                'potencia': moto.get('potencia', 0),
+                'torque': moto.get('torque', 0),
+                'peso': moto.get('peso', 0),
+                'imagen': moto.get('imagen', ''),
+                'note': '; '.join(reasons)
+            }
+            
+            results.append(moto_result)
         
-        # Ordenar por score y obtener top_n
-        results.sort(key=lambda x: x[1], reverse=True)
+        # Ordenar por score (mayor a menor)
+        results.sort(key=lambda x: x['score'], reverse=True)
         
-        # AÑADIR log para confirmar resultados
-        logger.info(f"Generadas {len(results[:top_n])} recomendaciones para {user_id}")
-        return results[:top_n]
+        # Limitar a top_n resultados
+        final_results = results[:top_n]
+        
+        logger.info(f"Generadas {len(final_results)} recomendaciones estrictas para {user_id}")
+        for i, result in enumerate(final_results):
+            logger.info(f"#{i+1}: {result['marca']} {result['modelo']} - Score: {result['score']:.2f}")
+        
+        return final_results
         
     def _user_exists(self, user_id):
         """Comprueba si un usuario existe por su ID."""

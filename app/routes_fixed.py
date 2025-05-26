@@ -526,10 +526,22 @@ def recomendaciones():
             top_n=6, 
             user_preferences=test_data  # Aquí pasamos los datos del test
         )
-        
-        # Formatear para la plantilla
+          # Formatear para la plantilla
         motos_recomendadas = []
-        for moto_id, score, reasons in recomendaciones:            # Obtener datos completos de la moto
+        for recomendacion in recomendaciones:
+            # Manejar diferentes formatos de recomendaciones
+            if isinstance(recomendacion, tuple):
+                if len(recomendacion) >= 3:
+                    moto_id, score, reasons = recomendacion[0], recomendacion[1], recomendacion[2]
+                elif len(recomendacion) == 2:
+                    moto_id, score = recomendacion[0], recomendacion[1]
+                    reasons = ["Recomendación personalizada"]
+                else:
+                    continue  # Saltar recomendaciones malformadas
+            else:
+                continue  # Saltar si no es una tupla
+            
+            # Obtener datos completos de la moto
             moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
             if not moto_info.empty:
                 moto_row = moto_info.iloc[0]

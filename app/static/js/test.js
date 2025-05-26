@@ -68,6 +68,8 @@ const testOptions = {
 
 // Función para inicializar el test
 function initializeTest() {
+  console.log('Inicializando test...');
+  
   const existingStages = document.querySelectorAll('.pregunta');
   
   // Recolectar contenedores y configurar indicadores
@@ -104,14 +106,25 @@ function initializeTest() {
     if (marcasContainer) {
       setupBubblesSelector('marcas', marcasContainer);
     }
+    
+    // Inicializar estado
+    window.testResults = {};
+    
+    // Ocultar todas las preguntas de rama por defecto
+    document.querySelectorAll('.rama-tecnica, .rama-practica').forEach(pregunta => {
+      pregunta.classList.remove('active');
+    });
+    
+    // Configurar la primera pregunta como activa
+    if (testState.stageContainers.length > 0) {
+      testState.stageContainers[0].classList.add('active');
+      updateProgressBar(0, getVisibleStagesCount());
+    }
+    
+    console.log('Test inicializado con éxito');
   } else {
-    console.error('No se encontraron contenedores de etapas en el HTML');
+    console.warn('No se encontraron elementos de pregunta para inicializar el test');
   }
-  
-  // Actualizar la barra de progreso
-  updateProgressBar(0, testState.stageContainers.length);
-  
-  console.log('Test inicializado correctamente');
 }
 
 // Función para actualizar la barra de progreso
@@ -141,10 +154,10 @@ function setupSelectListeners() {
       
       console.log(`Seleccionado ${stageKey}: ${value}`);
       
-      // Si es la pregunta de bifurcación (interesa_especificaciones), configurar las ramas
-      if (stageKey === 'interesa_especificaciones') {
-        setupBranchQuestions(value);
-      }
+      // --- DESHABILITADO: Control de ramas ahora solo en test_branch_fixed.js ---
+      // if (stageKey === 'interesa_especificaciones') {
+      //   setupBranchQuestions(value);
+      // }
       
       // Si el select corresponde a experiencia, configurar la rama correspondiente
       if (stageKey === 'experiencia') {
@@ -152,36 +165,6 @@ function setupSelectListeners() {
       }
     });
   });
-}
-
-// Función para configurar las ramas según la respuesta a la pregunta 8
-function setupBranchQuestions(interesaEspecificaciones) {
-  const ramaTecnica = document.querySelectorAll('.rama-tecnica');
-  const ramaPractica = document.querySelectorAll('.rama-practica');
-  
-  if (interesaEspecificaciones === 'si') {
-    // Mostrar rama técnica, ocultar rama práctica
-    ramaTecnica.forEach(pregunta => {
-      pregunta.classList.remove('hidden-branch');
-      pregunta.style.display = 'none'; // Inicialmente oculta, se mostrará en navegación
-    });
-    ramaPractica.forEach(pregunta => {
-      pregunta.classList.add('hidden-branch');
-      pregunta.style.display = 'none';
-    });
-    console.log('Configurada rama técnica');
-  } else if (interesaEspecificaciones === 'no') {
-    // Mostrar rama práctica, ocultar rama técnica
-    ramaTecnica.forEach(pregunta => {
-      pregunta.classList.add('hidden-branch');
-      pregunta.style.display = 'none';
-    });
-    ramaPractica.forEach(pregunta => {
-      pregunta.classList.remove('hidden-branch');
-      pregunta.style.display = 'none'; // Inicialmente oculta, se mostrará en navegación
-    });
-    console.log('Configurada rama práctica');
-  }
 }
 
 // Configurar la rama según la experiencia seleccionada
@@ -431,10 +414,28 @@ function navigateToPreviousStage() {
   
   // Buscar la etapa anterior visible
   let prevIndex = findPreviousVisibleStage(currentIndex);
-  
   if (prevIndex !== -1 && prevIndex >= 0) {
+    // Obtener la rama activa según la selección del usuario
+    const ramaTecnicaActiva = document.getElementById('interesa_especificaciones')?.value === 'si';
+    const ramaPracticaActiva = document.getElementById('interesa_especificaciones')?.value === 'no';
+    
+    // Ocultar TODAS las preguntas de ambas ramas primero
+    document.querySelectorAll('.rama-tecnica, .rama-practica').forEach(p => {
+      p.classList.remove('active');
+    });
+    
+    // Si es una pregunta de rama, verificar que sea de la rama correcta
+    const prevStage = testState.stageContainers[prevIndex];
+    if (prevStage.classList.contains('rama-tecnica') && !ramaTecnicaActiva) {
+      console.error('Error de navegación: Intentando mostrar pregunta técnica pero la rama técnica no está activa');
+      return; // No continuar si hay incoherencia
+    } else if (prevStage.classList.contains('rama-practica') && !ramaPracticaActiva) {
+      console.error('Error de navegación: Intentando mostrar pregunta práctica pero la rama práctica no está activa');
+      return; // No continuar si hay incoherencia
+    }
+    
     // Mostrar etapa anterior
-    testState.stageContainers[prevIndex].classList.add('active');
+    prevStage.classList.add('active');
     testState.currentStageIndex = prevIndex;
     
     // Actualizar barra de progreso
@@ -457,18 +458,41 @@ function navigateToPreviousStage() {
 // Función para encontrar la etapa anterior visible
 function findPreviousVisibleStage(currentIndex) {
   let prevIndex = currentIndex - 1;
+  const ramaTecnicaActiva = document.getElementById('interesa_especificaciones')?.value === 'si';
+  const ramaPracticaActiva = document.getElementById('interesa_especificaciones')?.value === 'no';
+  
+  console.log(`Buscando etapa previa visible antes de ${currentIndex}, rama técnica: ${ramaTecnicaActiva}, rama práctica: ${ramaPracticaActiva}`);
   
   while (prevIndex >= 0) {
     const stage = testState.stageContainers[prevIndex];
     
-    // Si es una pregunta de rama, verificar si debe mostrarse
-    if (stage.classList.contains('rama-tecnica') || stage.classList.contains('rama-practica')) {
-      if (!stage.classList.contains('hidden-branch')) {
+    // Si es una pregunta normal (no de rama)
+    if (!stage.classList.contains('rama-tecnica') && !stage.classList.contains('rama-practica')) {
+      if (!stage.hasAttribute('data-hidden')) {
+        // Pregunta normal visible
+        console.log(`Encontrada etapa previa general: ${prevIndex}, ID: ${stage.id}`);
         return prevIndex;
       }
-    } else if (!stage.hasAttribute('data-hidden')) {
-      // Pregunta normal visible
-      return prevIndex;
+    }
+    // Si es una pregunta de rama técnica y estamos en rama técnica
+    else if (stage.classList.contains('rama-tecnica')) {
+      if (ramaTecnicaActiva) {
+        console.log(`Encontrada etapa previa técnica: ${prevIndex}, ID: ${stage.id}`);
+        return prevIndex;
+      } else {
+        // No es la rama activa, saltamos esta pregunta
+        console.log(`Ignorando pregunta técnica previa ${stage.id} porque no es la rama seleccionada`);
+      }
+    }
+    // Si es una pregunta de rama práctica y estamos en rama práctica
+    else if (stage.classList.contains('rama-practica')) {
+      if (ramaPracticaActiva) {
+        console.log(`Encontrada etapa previa práctica: ${prevIndex}, ID: ${stage.id}`);
+        return prevIndex;
+      } else {
+        // No es la rama activa, saltamos esta pregunta
+        console.log(`Ignorando pregunta práctica previa ${stage.id} porque no es la rama seleccionada`);
+      }
     }
     
     prevIndex--;
@@ -517,10 +541,28 @@ function navigateToNextStage() {
   
   // Buscar la siguiente etapa visible
   let nextIndex = findNextVisibleStage(currentIndex);
-  
   if (nextIndex !== -1 && nextIndex < testState.stageContainers.length) {
+    // Obtener la rama activa según la selección del usuario
+    const ramaTecnicaActiva = document.getElementById('interesa_especificaciones')?.value === 'si';
+    const ramaPracticaActiva = document.getElementById('interesa_especificaciones')?.value === 'no';
+    
+    // Ocultar TODAS las preguntas de ambas ramas primero
+    document.querySelectorAll('.rama-tecnica, .rama-practica').forEach(p => {
+      p.classList.remove('active');
+    });
+    
+    // Si es una pregunta de rama, verificar que sea de la rama correcta
+    const nextStage = testState.stageContainers[nextIndex];
+    if (nextStage.classList.contains('rama-tecnica') && !ramaTecnicaActiva) {
+      console.error('Error de navegación: Intentando mostrar pregunta técnica pero la rama técnica no está activa');
+      return; // No continuar si hay incoherencia
+    } else if (nextStage.classList.contains('rama-practica') && !ramaPracticaActiva) {
+      console.error('Error de navegación: Intentando mostrar pregunta práctica pero la rama práctica no está activa');
+      return; // No continuar si hay incoherencia
+    }
+    
     // Mostrar siguiente etapa
-    testState.stageContainers[nextIndex].classList.add('active');
+    nextStage.classList.add('active');
     testState.currentStageIndex = nextIndex;
     
     // Actualizar barra de progreso
@@ -540,26 +582,58 @@ function navigateToNextStage() {
     // No hay más etapas, mostrar modal de finalización
     showCompletionModal();
   }
-  
-  // Verificar integridad después de la navegación
+    // Verificar integridad después de la navegación
   setTimeout(verificarYRestaurarCanvas, 100, 'navegación siguiente');
+  
+  // Verificar si es la última pregunta de la rama activa para mostrar el botón de finalización
+  if (isLastVisibleStage(testState.currentStageIndex)) {
+    document.getElementById('next-btn').innerHTML = 'Finalizar <i class="fas fa-check"></i>';
+    console.log('Llegando al final del test, mostrando botón de finalización');
+  }
 }
 
 // Función para encontrar la siguiente etapa visible
 function findNextVisibleStage(currentIndex) {
   let nextIndex = currentIndex + 1;
   
+  // Determinar la rama seleccionada por el usuario
+  const interesaTecnica = document.getElementById('interesa_especificaciones')?.value === 'si';
+  const interesaPractica = document.getElementById('interesa_especificaciones')?.value === 'no';
+  
+  console.log(`Buscando siguiente etapa visible después de ${currentIndex}, rama técnica: ${interesaTecnica}, rama práctica: ${interesaPractica}`);
+  
   while (nextIndex < testState.stageContainers.length) {
     const stage = testState.stageContainers[nextIndex];
     
-    // Si es una pregunta de rama, verificar si debe mostrarse
-    if (stage.classList.contains('rama-tecnica') || stage.classList.contains('rama-practica')) {
-      if (!stage.classList.contains('hidden-branch')) {
+    // Si es una pregunta normal (no de rama)
+    if (!stage.classList.contains('rama-tecnica') && !stage.classList.contains('rama-practica')) {
+      if (!stage.hasAttribute('data-hidden')) {
+        // Pregunta normal visible
+        console.log(`Encontrada siguiente pregunta general: ${nextIndex}, ID: ${stage.id}`);
         return nextIndex;
       }
-    } else if (!stage.hasAttribute('data-hidden')) {
-      // Pregunta normal visible
-      return nextIndex;
+    }
+    // Si es una pregunta de rama técnica
+    else if (stage.classList.contains('rama-tecnica')) {
+      if (interesaTecnica) {
+        // Solo considerar si estamos en la rama técnica
+        console.log(`Encontrada siguiente pregunta técnica: ${nextIndex}, ID: ${stage.id}`);
+        return nextIndex;
+      } else {
+        // No es la rama activa, saltamos esta pregunta
+        console.log(`Ignorando pregunta técnica ${stage.id} porque no es la rama seleccionada`);
+      }
+    } 
+    // Si es una pregunta de rama práctica
+    else if (stage.classList.contains('rama-practica')) {
+      if (interesaPractica) {
+        // Solo considerar si estamos en la rama práctica
+        console.log(`Encontrada siguiente pregunta práctica: ${nextIndex}, ID: ${stage.id}`);
+        return nextIndex;
+      } else {
+        // No es la rama activa, saltamos esta pregunta
+        console.log(`Ignorando pregunta práctica ${stage.id} porque no es la rama seleccionada`);
+      }
     }
     
     nextIndex++;
@@ -576,13 +650,33 @@ function isLastVisibleStage(index) {
 // Función para contar etapas visibles
 function getVisibleStagesCount() {
   let count = 0;
-  testState.stageContainers.forEach(stage => {
-    if (!stage.hasAttribute('data-hidden') && 
-        (!stage.classList.contains('rama-tecnica') && !stage.classList.contains('rama-practica') || 
-         !stage.classList.contains('hidden-branch'))) {
-      count++;
-    }
+  const ramaTecnicaActiva = document.getElementById('interesa_especificaciones')?.value === 'si';
+  const ramaPracticaActiva = document.getElementById('interesa_especificaciones')?.value === 'no';
+  
+  console.log(`Calculando etapas visibles. Rama técnica activa: ${ramaTecnicaActiva}, Rama práctica activa: ${ramaPracticaActiva}`);
+  
+  // Contar preguntas generales primero (siempre visibles)
+  const preguntasGenerales = Array.from(testState.stageContainers).filter(stage => {
+    return !stage.classList.contains('rama-tecnica') && 
+           !stage.classList.contains('rama-practica') && 
+           !stage.hasAttribute('data-hidden');
   });
+  count += preguntasGenerales.length;
+  console.log(`Preguntas generales: ${preguntasGenerales.length}`);
+  
+  // Para las ramas técnica/práctica, solo contar las preguntas de la rama seleccionada
+  if (ramaTecnicaActiva) {
+    // Identificar cuántas preguntas específicas hay en la rama técnica
+    const preguntasTecnicas = document.querySelectorAll('.rama-tecnica');
+    count += preguntasTecnicas.length;
+    console.log(`Preguntas técnicas: ${preguntasTecnicas.length}`);
+  } else if (ramaPracticaActiva) {
+    // Identificar cuántas preguntas específicas hay en la rama práctica
+    const preguntasPracticas = document.querySelectorAll('.rama-practica');
+    count += preguntasPracticas.length;
+    console.log(`Preguntas prácticas: ${preguntasPracticas.length}`);
+  }
+  
   return count;
 }
 
@@ -653,6 +747,23 @@ function verificarYRestaurarCanvas(origen) {
   
   console.log(`Canvas restaurados desde: ${origen}`);
 }
+
+// Función para ocultar todas las preguntas de rama
+function hideAllBranchQuestions() {
+  console.log('Ocultando todas las preguntas de rama...');
+  
+  // Ocultar todas las preguntas de rama técnica y práctica
+  document.querySelectorAll('.rama-tecnica, .rama-practica').forEach(pregunta => {
+    pregunta.classList.remove('active');
+  });
+  
+  console.log('Todas las preguntas de ramas han sido ocultadas');
+}
+
+// Llamar a esta función al inicio
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(hideAllBranchQuestions, 100);
+});
 
 // Exponer funciones globalmente para que sean accesibles desde otros scripts
 window.inicializarSoloEstilos = inicializarSoloEstilos;

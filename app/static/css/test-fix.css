@@ -1,0 +1,75 @@
+/* 
+   Este CSS se agrega para resolver el problema de visualización de preguntas 
+   y asegurar que cada pregunta solo se muestra cuando está activa
+*/
+
+/* Regla muy específica para asegurar que no se muestren preguntas inactivas */
+.test-container .pregunta:not(.active) {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    z-index: -10 !important;
+}
+
+/* Asegurar que solo la pregunta activa se muestre */
+.test-container .pregunta.active {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    left: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    pointer-events: all !important;
+    z-index: 10 !important;
+}    /* Reglas específicas para las preguntas de rama */
+.test-container .pregunta.rama-tecnica:not(.active),
+.test-container .pregunta.rama-practica:not(.active) {
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* Ocultar específicamente preguntas anteriores cuando otra está activa */
+.test-container .pregunta.active ~ .pregunta {
+    display: none !important;
+}
+
+/* Asegurar que las preguntas de rama aparezcan DESPUÉS de la bifurcación, no antes */
+#pregunta-3 ~ .pregunta.rama-tecnica,
+#pregunta-3 ~ .pregunta.rama-practica {
+    order: 10;
+}
+
+/* Mejorar el flujo visual organizando las preguntas */
+.test-container {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Asegurar que la pregunta 3 no aparezca antes que la 1 y 2 */
+#pregunta-1 { order: 1; }
+#pregunta-2 { order: 2; }
+#pregunta-3 { order: 3; }
+
+/* Evitar que cualquier pregunta aparezca debajo de otra */
+.test-questions {
+    position: relative;
+}
+
+.test-questions .pregunta {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.test-questions .pregunta.active {
+    position: relative;
+}

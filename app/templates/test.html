@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Test de Preferencias - MotoMatch</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <title>Test de Preferencias - MotoMatch</title>  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/counter-selector.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/test-fix.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Modificar el orden de carga de scripts -->
-  <script>
+    <!-- Modificar el orden de carga de scripts -->  <script>
     // Función para cargar scripts secuencialmente con reintento
     function loadScriptsSequentially(scripts, callback, attempt = 1) {
       if (scripts.length === 0) {
@@ -43,13 +42,13 @@
     
     // Al cargar el documento, cargamos todos los scripts en orden
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM cargado, cargando scripts...');
-      // Nuevo orden de scripts - Counter-selector primero
+      console.log('DOM cargado, cargando scripts...');      // Nuevo orden de scripts - Counter-selector primero
       var scripts = [
+        "{{ url_for('static', filename='js/test_reorganizer.js') }}",
         "{{ url_for('static', filename='js/counter-selector.js') }}",
         "{{ url_for('static', filename='js/debug-panel.js') }}",
         "{{ url_for('static', filename='js/test.js') }}",
-        "{{ url_for('static', filename='js/test_finalizacion.js') }}"
+        "{{ url_for('static', filename='js/test_finalizacion_fixed.js') }}"
       ];
       
       // Cargar scripts en orden y luego inicializar con verificaciones adicionales
@@ -234,6 +233,56 @@
       display: block;
       opacity: 1;
     }
+      /* Estilos mejorados para preguntas y transiciones */    .pregunta {
+      margin-bottom: 20px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #f97316;
+      border-radius: 10px;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      opacity: 0;
+      max-height: 0;
+      overflow: hidden;
+      transform: translateY(20px);
+      pointer-events: none;
+      position: absolute !important; /* Forzar posición absoluta */
+      left: -9999px !important;
+      display: none !important; /* Forzar ocultamiento */
+      z-index: -1 !important; /* Asegurar que esté detrás */
+      visibility: hidden !important; /* Triple seguridad */
+    }
+      .pregunta.active {
+      opacity: 1 !important;
+      max-height: none !important; /* No limitar altura */
+      transform: translateY(0) !important;
+      pointer-events: auto !important;
+      position: relative !important;
+      left: 0 !important;
+      display: block !important; /* Forzar visualización */
+      z-index: 10 !important; /* Traer al frente */
+      visibility: visible !important; /* Triple seguridad */
+    }
+    
+    /* Estilos para las transiciones entre preguntas */
+    .pregunta:not(.active) {
+      display: none !important; /* Forzar ocultamiento para todas las preguntas no activas */
+    }
+    
+    .pregunta.active {
+      opacity: 1;
+      height: auto;
+      overflow: visible;
+      padding: 25px;
+      margin: 20px 0;
+      pointer-events: all;
+    }
+    
+    /* Asegurar que el contenido dentro de las preguntas esté siempre centrado */
+    .pregunta > * {
+      max-width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+    }
     
     .progress-container {      
       width: 100%;
@@ -377,15 +426,34 @@
       color: #aaa;
       font-style: italic;
       margin-top: 5px;
-    }
-      /* Estilos para las ramas condicionales */
+    }    /* Estilos para las ramas condicionales - forzar ocultamiento */
     .rama-tecnica, .rama-practica {
       display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      position: absolute !important;
+      visibility: hidden !important;
     }
     
+    /* Solo mostrar cuando tienen clase active */
     .rama-tecnica.active, .rama-practica.active {
       display: block !important;
-      opacity: 1;
+      height: auto !important;
+      opacity: 1 !important;
+      overflow: visible !important;
+      pointer-events: auto !important;
+      position: relative !important;
+      visibility: visible !important;
+    }
+    
+    /* Compatibilidad con lógica legacy de hidden-branch */
+    .hidden-branch {
+      display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      visibility: hidden !important;
     }
       /* Estilos para el rango slider de presupuesto */
     .budget-range-container {
@@ -651,6 +719,50 @@
       border: 1px solid rgba(249, 115, 22, 0.3);
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
+    
+    /* Estilos para corregir visualización de preguntas */
+  .pregunta {
+    display: none;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .pregunta.active {
+    display: block !important;
+  }
+  
+  /* Estilos para preguntas técnicas */
+  .rama-tecnica {
+    border-left: 3px solid #3498db;
+    padding-left: 15px;
+  }
+  
+  /* Estilos para preguntas prácticas */
+  .rama-practica {
+    border-left: 3px solid #e67e22;
+    padding-left: 15px;
+  }
+  
+  /* Estilos para preguntas ocultas por data-hidden */
+  [data-hidden="true"] {
+    display: none !important;
+  }
+  
+  /* Mejorar la transición entre preguntas */
+  .pregunta {
+    transition: opacity 0.3s ease-in-out;
+  }
+  
+  .pregunta.active {
+    opacity: 1;
+  }
+  
+  .pregunta:not(.active) {
+    display: none !important;
+    opacity: 0;
+    position: absolute;
+    pointer-events: none;
+  }
   </style>
 </head>
 <body>
@@ -690,9 +802,19 @@
             <button id="retry-button-marcas" class="retry-button" onclick="window.verificarYRestaurarCanvas('botón reintentar marcas')">Error al cargar. Reintentar</button>
           </div>
         </div>
-      </section>      <!-- Pregunta 3: Rango de Presupuesto -->
-      <section class="pregunta" id="pregunta-3" data-type="range" data-key="presupuesto">
-        <h2>3. ¿Cuál es tu rango de presupuesto?</h2>
+      </section>      <!-- Pregunta 3: Condicional - Interés en especificaciones (PUNTO DE BIFURCACIÓN) -->
+      <section class="pregunta" id="pregunta-3" data-type="select" data-key="interesa_especificaciones" data-branch="true">
+        <h2>3. ¿Te interesan las especificaciones técnicas de la moto?</h2>
+        <select name="interesa_especificaciones" id="interesa_especificaciones">
+          <option value="si">Sí, me interesan los detalles técnicos (cilindrada, potencia, torque)</option>
+          <option value="no">No, prefiero información general de uso (comodidad, economía, practicidad)</option>
+        </select>
+        <p class="help-text">Esta respuesta determinará el tipo de preguntas que se te mostrarán a continuación</p>
+      </section>
+
+      <!-- Pregunta 4: Rango de Presupuesto -->
+      <section class="pregunta" id="pregunta-4" data-type="range" data-key="presupuesto">
+        <h2>4. ¿Cuál es tu rango de presupuesto?</h2>
         <div class="dual-range-container">
             <div class="range-display">
                 <span>Desde: <strong id="presupuesto-min-display">Q15,000</strong></span>
@@ -713,9 +835,9 @@
                 <span>Q100,000</span>
             </div>
             <p class="range-description">Ajusta tu rango de presupuesto ideal</p>
-        </div></section>      <!-- Pregunta 4: Rango de años -->
-      <section class="pregunta" id="pregunta-4" data-type="range" data-key="ano">
-        <h2>4. ¿Qué rango de años prefieres?</h2>
+        </div></section>      <!-- Pregunta 5: Rango de años -->
+      <section class="pregunta" id="pregunta-5" data-type="range" data-key="ano">
+        <h2>5. ¿Qué rango de años prefieres?</h2>
         <div class="dual-range-container">
             <div class="range-display">
                 <span>Desde: <strong id="ano-min-display">2015</strong></span>
@@ -737,9 +859,9 @@
             </div>
             <p class="range-description">Años más recientes = mejor tecnología, años más antiguos = mejor precio</p>
         </div>
-      </section><!-- Pregunta 5: Peso preferido -->
-      <section class="pregunta" id="pregunta-5" data-type="range" data-key="peso">
-        <h2>5. ¿Qué rango de peso prefieres?</h2>
+      </section><!-- Pregunta 6: Peso preferido -->
+      <section class="pregunta" id="pregunta-6" data-type="range" data-key="peso">
+        <h2>6. ¿Qué rango de peso prefieres?</h2>
         <div class="dual-range-container">
             <div class="range-display">
                 <span>Desde: <strong id="peso-min-display">120kg</strong></span>
@@ -763,9 +885,9 @@
         </div>
       </section>
       
-      <!-- Pregunta 6: Relación potencia/peso -->
-      <section class="pregunta" id="pregunta-6" data-type="select" data-key="preferencia_potencia_peso">
-        <h2>6. ¿Prefieres una moto con mejor relación potencia/peso?</h2>
+      <!-- Pregunta 7: Relación potencia/peso -->
+      <section class="pregunta" id="pregunta-7" data-type="select" data-key="preferencia_potencia_peso">
+        <h2>7. ¿Prefieres una moto con mejor relación potencia/peso?</h2>
         <select name="preferencia_potencia_peso" id="preferencia_potencia_peso">
           <option value="alta">Alta relación potencia/peso (más deportiva)</option>
           <option value="media">Relación media potencia/peso (equilibrada)</option>
@@ -774,26 +896,16 @@
         <p class="help-text">Una mejor relación potencia/peso significa más agilidad y aceleración</p>
       </section>
       
-      <!-- Pregunta 7: Rendimiento vs Economía -->
-      <section class="pregunta" id="pregunta-7" data-type="select" data-key="preferencia_rendimiento">
-        <h2>7. ¿Te interesa más rendimiento o economía?</h2>
+      <!-- Pregunta 8: Rendimiento vs Economía -->
+      <section class="pregunta" id="pregunta-8" data-type="select" data-key="preferencia_rendimiento">
+        <h2>8. ¿Te interesa más rendimiento o economía?</h2>
         <select name="preferencia_rendimiento" id="preferencia_rendimiento">
           <option value="rendimiento">Rendimiento (potencia, velocidad, aceleración)</option>
           <option value="economia">Economía (bajo consumo, mantenimiento económico)</option>
           <option value="balance">Balance entre rendimiento y economía</option>
         </select>
         <p class="help-text">Tu prioridad principal en el uso de la moto</p>
-      </section>
-      
-      <!-- Pregunta 8: Condicional - Interés en especificaciones (PUNTO DE BIFURCACIÓN) -->
-      <section class="pregunta" id="pregunta-8" data-type="select" data-key="interesa_especificaciones" data-branch="true">
-        <h2>8. ¿Te interesan las especificaciones de la moto?</h2>
-        <select name="interesa_especificaciones" id="interesa_especificaciones">
-          <option value="si">Sí, me interesan los detalles técnicos</option>
-          <option value="no">No, prefiero información general de uso</option>
-        </select>
-        <p class="help-text">Esta respuesta determinará el tipo de preguntas que se te mostrarán a continuación</p>
-      </section>      <!-- RAMA TÉCNICA (SI en pregunta 8) -->      <!-- Pregunta 9a: Rango de potencia (Técnica) -->
+      </section>      <!-- RAMA TÉCNICA (SI en pregunta 3) -->      <!-- Pregunta 9a: Rango de potencia (Técnica) -->
       <section class="pregunta rama-tecnica" id="pregunta-9a" data-type="range" data-key="potencia" data-branch-target="si">
         <h2>9. ¿Cuánta potencia prefieres?</h2>
         <div class="dual-range-container">
@@ -866,7 +978,7 @@
         </div>
       </section>
       
-      <!-- RAMA PRÁCTICA (NO en pregunta 8) -->
+      <!-- RAMA PRÁCTICA (NO en pregunta 3) -->
       <!-- Pregunta 9b: Tipo de uso (Práctica) -->
       <section class="pregunta rama-practica" id="pregunta-9b" data-type="select" data-key="tipo_uso" data-branch-target="no">
         <h2>9. ¿Para qué la usarás principalmente?</h2>
@@ -884,7 +996,7 @@
         <h2>10. ¿Llevarás pasajeros o carga frecuentemente?</h2>
         <select name="pasajeros_carga" id="pasajeros_carga">
           <option value="solo">Solo yo la mayoría del tiempo</option>
-          <option value="ocasional">Ocasionalmente con pasajero</option>
+          <option value="ocasional">Ocasionalmente with pasajero</option>
           <option value="frecuente">Frecuentemente con pasajero</option>
           <option value="carga">Necesito cargar cosas seguido</option>
         </select>
@@ -942,43 +1054,57 @@
     document.body.appendChild(form);
     console.log("Enviando datos del test:", testData);
     form.submit();
-  }
-
-  // Lógica de bifurcación para la pregunta 8
+  }  // Lógica de bifurcación para la pregunta 3
   document.addEventListener('DOMContentLoaded', function() {
     // Configurar listener específico para la pregunta de bifurcación
-    const pregunta8Select = document.getElementById('interesa_especificaciones');
-    if (pregunta8Select) {
-      pregunta8Select.addEventListener('change', function() {
+    const pregunta3Select = document.getElementById('interesa_especificaciones');
+    
+    /* START OF BLOCK TO COMMENT OUT 
+    // This inline logic might conflict with test_branch_fixed.js
+    // We will let test_branch_fixed.js handle the branching logic.
+    if (pregunta3Select) {
+      pregunta3Select.addEventListener('change', function() {
         const value = this.value;
-        console.log('Bifurcación seleccionada:', value);
+        console.log('Bifurcación seleccionada (inline script - will be disabled):', value);
         
-        const ramaTecnica = document.querySelectorAll('.rama-tecnica');
-        const ramaPractica = document.querySelectorAll('.rama-practica');
-        
-        if (value === 'si') {
-          // Mostrar rama técnica, ocultar rama práctica
-          ramaTecnica.forEach(pregunta => {
-            pregunta.classList.remove('hidden-branch');
-            console.log('Mostrando pregunta técnica:', pregunta.id);
-          });
-          ramaPractica.forEach(pregunta => {
-            pregunta.classList.add('hidden-branch');
-            console.log('Ocultando pregunta práctica:', pregunta.id);
-          });
-        } else if (value === 'no') {
-          // Mostrar rama práctica, ocultar rama técnica
-          ramaTecnica.forEach(pregunta => {
-            pregunta.classList.add('hidden-branch');
-            console.log('Ocultando pregunta técnica:', pregunta.id);
-          });
-          ramaPractica.forEach(pregunta => {
-            pregunta.classList.remove('hidden-branch');
-            console.log('Mostrando pregunta práctica:', pregunta.id);
-          });
-        }
+        window.testResults = window.testResults || {};
+        window.testResults.interesa_especificaciones = value;
+        window.respuestas = window.respuestas || {};
+        window.respuestas.interesa_especificaciones = value;
+
+        // The following lines that add/remove 'active' directly will be handled by test_branch_fixed.js
+        // document.querySelectorAll('.rama-tecnica, .rama-practica').forEach(pregunta => {
+        //   pregunta.classList.remove('active');
+        // });
+        // 
+        // if (value === 'si') {
+        //   document.querySelectorAll('.rama-practica').forEach(pregunta => {
+        //     pregunta.classList.remove('active');
+        //   });
+        //   const primeraPreguntaTecnica = document.querySelector('#pregunta-9a');
+        //   if (primeraPreguntaTecnica) {
+        //     primeraPreguntaTecnica.classList.add('active');
+        //   }
+        // } else if (value === 'no') {
+        //   document.querySelectorAll('.rama-tecnica').forEach(pregunta => {
+        //     pregunta.classList.remove('active');
+        //   });
+        //   const primeraPreguntaPractica = document.querySelector('#pregunta-9b');
+        //   if (primeraPreguntaPractica) {
+        //     primeraPreguntaPractica.classList.add('active');
+        //   }
+        // }
+
+        // Instead, ensure test_branch_fixed.js has a robust handler for this.
+        // If test_branch_fixed.js has its own event listener for 'interesa_especificaciones',
+        // this entire inline listener might be redundant. For now, we just disable its actions.
+        // A function call like this would be ideal if test_branch_fixed.js exposes it:
+        // if (window.handleBranchChange) {
+        //     window.handleBranchChange(value);
+        // }
       });
     }
+    END OF BLOCK TO COMMENT OUT */
     
     // Modificar el comportamiento del botón de finalización en el modal
     const finishButton = document.querySelector('.completion-modal .modal-content button');
@@ -1310,6 +1436,8 @@ document.addEventListener('DOMContentLoaded', function() {
   window.verificarCapturaSliders();
 });
 </script>
+
+<script src="{{ url_for('static', filename='js/test_branch_fixed.js') }}?v=fixedversion"></script>
 
   <footer>
     <p>&copy; 2025 MotoMatch. Todos los derechos reservados. | <a href="/" class="link">Inicio</a></p>
