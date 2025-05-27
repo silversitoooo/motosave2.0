@@ -1182,3 +1182,226 @@ def moto_detail(moto_id):
         logger.error(f"Error al mostrar detalles de la moto {moto_id}: {str(e)}")
         flash('Error al cargar los detalles de la moto.', 'error')
         return redirect(url_for('main.dashboard'))
+
+# Rutas para manejar botones de recomendaciones
+
+@fixed_routes.route('/marcar_moto_ideal', methods=['POST'])
+def marcar_moto_ideal():
+    """Marca una moto como ideal para el usuario (relación IDEAL)."""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'No has iniciado sesión'})
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No se recibieron datos'})
+    
+    username = session.get('username', '')
+    user_id = session.get('user_id', '')
+    moto_id = data.get('moto_id', '')
+    
+    logger.info(f"Marcando moto {moto_id} como ideal para usuario {username}")
+    
+    if not moto_id:
+        return jsonify({'success': False, 'error': 'ID de moto no válido'})
+    
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if not adapter:
+            return jsonify({'success': False, 'error': 'Sistema no disponible'})
+        
+        # Asegurar conexión a Neo4j
+        if not hasattr(adapter, '_ensure_neo4j_connection') or not adapter._ensure_neo4j_connection():
+            return jsonify({'success': False, 'error': 'No se pudo conectar a la base de datos'})
+        
+        with adapter.driver.session() as neo4j_session:
+            # Primero obtener el ID del usuario desde la base de datos
+            user_result = neo4j_session.run(
+                "MATCH (u:User {username: $username}) RETURN u.id as user_id",
+                username=username
+            )
+            user_record = user_result.single()
+            
+            if not user_record:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado en la base de datos'})
+            
+            db_user_id = user_record['user_id']
+            
+            # Verificar que la moto existe
+            moto_result = neo4j_session.run(
+                "MATCH (m:Moto {id: $moto_id}) RETURN m.id as moto_id",
+                moto_id=moto_id
+            )
+            if not moto_result.single():
+                return jsonify({'success': False, 'error': 'Moto no encontrada'})
+            
+            # Eliminar cualquier relación IDEAL existente (solo una moto ideal por usuario)
+            neo4j_session.run(
+                "MATCH (u:User {id: $user_id})-[r:IDEAL]->(:Moto) DELETE r",
+                user_id=db_user_id
+            )
+            
+            # Crear nueva relación IDEAL
+            reasons = [
+                "Seleccionada desde recomendaciones",
+                "Coincide con tus preferencias",
+                "Recomendada por nuestro sistema"
+            ]
+            reasons_json = json.dumps(reasons)
+            
+            neo4j_session.run("""
+                MATCH (u:User {id: $user_id})
+                MATCH (m:Moto {id: $moto_id})
+                CREATE (u)-[r:IDEAL]->(m)
+                SET r.score = 100.0,
+                    r.reasons = $reasons,
+                    r.timestamp = timestamp()
+            """, user_id=db_user_id, moto_id=moto_id, reasons=reasons_json)
+            
+            logger.info(f"Moto {moto_id} marcada como ideal para usuario {username}")
+            return jsonify({'success': True, 'message': 'Moto marcada como ideal exitosamente'})
+            
+    except Exception as e:
+        logger.error(f"Error al marcar moto como ideal: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': f'Error interno: {str(e)}'})
+
+@fixed_routes.route('/dar_like_moto', methods=['POST'])
+def dar_like_moto():
+    """Da like a una moto (relación INTERACTED con type='like')."""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'No has iniciado sesión'})
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No se recibieron datos'})
+    
+    username = session.get('username', '')
+    user_id = session.get('user_id', '')
+    moto_id = data.get('moto_id', '')
+    
+    logger.info(f"Dando like a moto {moto_id} por usuario {username}")
+    
+    if not moto_id:
+        return jsonify({'success': False, 'error': 'ID de moto no válido'})
+    
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if not adapter:
+            return jsonify({'success': False, 'error': 'Sistema no disponible'})
+        
+        # Asegurar conexión a Neo4j
+        if not hasattr(adapter, '_ensure_neo4j_connection') or not adapter._ensure_neo4j_connection():
+            return jsonify({'success': False, 'error': 'No se pudo conectar a la base de datos'})
+        
+        with adapter.driver.session() as neo4j_session:
+            # Obtener el ID del usuario desde la base de datos
+            user_result = neo4j_session.run(
+                "MATCH (u:User {username: $username}) RETURN u.id as user_id",
+                username=username
+            )
+            user_record = user_result.single()
+            
+            if not user_record:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado en la base de datos'})
+            
+            db_user_id = user_record['user_id']
+            
+            # Verificar que la moto existe
+            moto_result = neo4j_session.run(
+                "MATCH (m:Moto {id: $moto_id}) RETURN m.id as moto_id",
+                moto_id=moto_id
+            )
+            if not moto_result.single():
+                return jsonify({'success': False, 'error': 'Moto no encontrada'})
+            
+            # Verificar si ya existe un like para esta moto de este usuario
+            existing_like = neo4j_session.run("""
+                MATCH (u:User {id: $user_id})-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                WHERE r.type = 'like'
+                RETURN r
+            """, user_id=db_user_id, moto_id=moto_id)
+            
+            if existing_like.single():
+                return jsonify({'success': False, 'error': 'Ya has dado like a esta moto'})
+            
+            # Crear relación INTERACTED con type='like'
+            neo4j_session.run("""
+                MATCH (u:User {id: $user_id})
+                MATCH (m:Moto {id: $moto_id})
+                CREATE (u)-[r:INTERACTED]->(m)
+                SET r.type = 'like',
+                    r.weight = 3.0,
+                    r.timestamp = timestamp()
+            """, user_id=db_user_id, moto_id=moto_id)
+            
+            logger.info(f"Like dado a moto {moto_id} por usuario {username}")
+            return jsonify({'success': True, 'message': 'Like dado exitosamente'})
+            
+    except Exception as e:
+        logger.error(f"Error al dar like a la moto: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': f'Error interno: {str(e)}'})
+
+@fixed_routes.route('/quitar_like_moto', methods=['POST'])
+def quitar_like_moto():
+    """Quita el like de una moto."""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'No has iniciado sesión'})
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No se recibieron datos'})
+    
+    username = session.get('username', '')
+    moto_id = data.get('moto_id', '')
+    
+    logger.info(f"Quitando like de moto {moto_id} por usuario {username}")
+    
+    if not moto_id:
+        return jsonify({'success': False, 'error': 'ID de moto no válido'})
+    
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if not adapter:
+            return jsonify({'success': False, 'error': 'Sistema no disponible'})
+        
+        # Asegurar conexión a Neo4j
+        if not hasattr(adapter, '_ensure_neo4j_connection') or not adapter._ensure_neo4j_connection():
+            return jsonify({'success': False, 'error': 'No se pudo conectar a la base de datos'})
+        
+        with adapter.driver.session() as neo4j_session:
+            # Obtener el ID del usuario desde la base de datos
+            user_result = neo4j_session.run(
+                "MATCH (u:User {username: $username}) RETURN u.id as user_id",
+                username=username
+            )
+            user_record = user_result.single()
+            
+            if not user_record:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado en la base de datos'})
+            
+            db_user_id = user_record['user_id']
+            
+            # Eliminar la relación INTERACTED de tipo 'like'
+            result = neo4j_session.run("""
+                MATCH (u:User {id: $user_id})-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                WHERE r.type = 'like'
+                DELETE r
+                RETURN count(r) as deleted_count
+            """, user_id=db_user_id, moto_id=moto_id)
+            
+            deleted_count = result.single()['deleted_count']
+            
+            if deleted_count > 0:
+                logger.info(f"Like quitado de moto {moto_id} por usuario {username}")
+                return jsonify({'success': True, 'message': 'Like quitado exitosamente'})
+            else:
+                return jsonify({'success': False, 'error': 'No se encontró like para quitar'})
+            
+    except Exception as e:
+        logger.error(f"Error al quitar like de la moto: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': f'Error interno: {str(e)}'})

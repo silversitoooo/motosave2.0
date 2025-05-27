@@ -1182,3 +1182,198 @@ a[href="/dashboard"], a[href="/dashboard"] button {
     background-color: #fff8e1;
     color: #ff8f00;
 }
+
+/* Estilos para botones de recomendaciones */
+.moto-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.moto-actions button {
+    flex: 1 0 auto;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 120px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.btn-moto-ideal {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #333;
+    border: 2px solid #ffd700;
+}
+
+.btn-moto-ideal:hover {
+    background: linear-gradient(135deg, #ffed4e, #fff176);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.btn-moto-ideal.btn-ideal-selected {
+    background: linear-gradient(135deg, #ff9800, #ffc107);
+    color: white;
+    border-color: #ff9800;
+}
+
+.btn-like {
+    background: linear-gradient(135deg, #e91e63, #f06292);
+    color: white;
+    border: 2px solid #e91e63;
+}
+
+.btn-like:hover {
+    background: linear-gradient(135deg, #f06292, #f48fb1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(233, 30, 99, 0.4);
+}
+
+.btn-like.btn-like-selected {
+    background: linear-gradient(135deg, #c2185b, #e91e63);
+    border-color: #c2185b;
+}
+
+.btn-detalles {
+    background: linear-gradient(135deg, #2196f3, #64b5f6);
+    color: white;
+    border: 2px solid #2196f3;
+}
+
+.btn-detalles:hover {
+    background: linear-gradient(135deg, #64b5f6, #90caf9);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+/* Estilos para las tarjetas de motos */
+.moto-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border-radius: 15px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.moto-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.moto-image-container {
+    text-align: center;
+    margin-bottom: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 15px;
+}
+
+.moto-img {
+    max-width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.moto-info {
+    color: white;
+}
+
+.moto-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #ffd700;
+    text-align: center;
+}
+
+.moto-specs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.moto-specs p {
+    margin: 0;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.match-score {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    margin: 15px 0;
+    text-align: center;
+}
+
+.score-label {
+    font-weight: 600;
+    color: #ffd700;
+}
+
+.score-bar {
+    background: rgba(255, 255, 255, 0.2);
+    height: 8px;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow: hidden;
+}
+
+.score-fill {
+    background: linear-gradient(90deg, #ffd700, #ff9800);
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+}
+
+.score-percentage {
+    font-weight: 700;
+    color: #ffd700;
+}
+
+.reasons-container {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.reasons-container h4 {
+    color: #ffd700;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.reasons-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.reasons-list li {
+    margin: 8px 0;
+    padding: 5px 0;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.reasons-list i {
+    color: #4caf50;
+    margin-right: 8px;
+}
