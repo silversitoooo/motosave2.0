@@ -17,52 +17,26 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 def main():
     """Función principal para ejecutar la aplicación"""
     logger.info("Iniciando aplicación MotoMatch con carga anticipada de datos...")
-    # Asegurar que los módulos son encontrados
-    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
     
-    # Importar algoritmos necesarios
-    try:
-        from app.algoritmo.label_propagation import MotoLabelPropagation
-        from app.algoritmo.pagerank import MotoPageRank
-        from app.algoritmo.moto_ideal import MotoIdealRecommender
-        logger.info("Algoritmos de recomendación importados correctamente")
-    except ImportError as e:
-        logger.error(f"Error al importar algoritmos: {str(e)}")
-        logger.error("Asegúrate de que los módulos de algoritmos estén en la ruta correcta")
-    
-    # IMPORTANTE: Este monkey patch ya no es necesario en la versión actual, pero lo dejamos por compatibilidad
-    # con versiones antiguas o en caso de que la clase se modifique en el futuro.
-    from app.algoritmo.utils import DatabaseConnector
-    original_init = DatabaseConnector.__init__
-    
-    def patched_init(self, uri="bolt://localhost:7687", user="neo4j", password="22446688"):
-        # Asegurar que siempre se pasan los parámetros en el orden correcto
-        self.uri = uri
-        self.user = user
-        self.password = password
-        self.driver = None
-        self.is_connected = False
-        
-        try:
-            self.driver = GraphDatabase.driver(uri, auth=(user, password))
-            # Probar la conexión
-            with self.driver.session() as session:
-                session.run("RETURN 1")
-            self.is_connected = True
-            logger.info("Conexión a Neo4j establecida correctamente")
-        except Exception as e:
-            logger.error(f"No se pudo conectar a Neo4j: {str(e)}")
-    
-    # Aplicar el monkey patch
-    DatabaseConnector.__init__ = patched_init
-    
-    # Ahora importar la app y el factory de adaptador
+    # IMPORTANTE: Usar la función create_app en lugar de crear Flask directamente
     from app import create_app
-    from app.adapter_factory import create_adapter
-      # Crear la aplicación Flask
+    
+    # Crear la aplicación usando la factory function
     app = create_app()
     
-    # AÑADE ESTA CONFIGURACIÓN EXPLÍCITA DE NEO4J
+    # Context processor para fix de URLs
+    @app.context_processor
+    def inject_url_prefix():
+        def url_for_with_prefix(endpoint, **kwargs):
+            # If the endpoint doesn't contain a dot and it's not a static endpoint,
+            # prepend 'main.' to it
+            if '.' not in endpoint and endpoint != 'static':
+                endpoint = 'main.' + endpoint
+            return url_for(endpoint, **kwargs)
+        
+        return dict(url_for=url_for_with_prefix)
+    
+    # Configurar Neo4j específicamente
     app.config['NEO4J_CONFIG'] = {
         'uri': 'bolt://localhost:7687',
         'user': 'neo4j',
@@ -82,17 +56,31 @@ def main():
     app.config['SESSION_PERMANENT'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
     
-    # Crear e inicializar el adaptador - cargará datos inmediatamente
-    adapter = create_adapter(app)
+    # Crear e inicializar el adaptador DESPUÉS de configurar la app
+    try:
+        from app.adapter_factory import create_adapter
+        
+        # Crear e inicializar el adaptador - cargará datos inmediatamente
+        adapter = create_adapter(app)
+        
+        # FIX: Asegurar que el adaptador tenga logger
+        if adapter and not hasattr(adapter, 'logger'):
+            adapter.logger = logging.getLogger('MotoRecommenderAdapter')
+            adapter.logger.setLevel(logging.INFO)
+        
+        # Registrar el adaptador en la aplicación
+        app.config['MOTO_RECOMMENDER'] = adapter
+        
+        if adapter:
+            logger.info("✅ Adaptador de recomendaciones creado exitosamente")
+        else:
+            logger.warning("⚠️ No se pudo crear el adaptador de recomendaciones")
+            
+    except Exception as e:
+        logger.error(f"❌ Error creando adaptador: {str(e)}")
+        # Continuar sin adaptador - las rutas manejarán este caso
+        app.config['MOTO_RECOMMENDER'] = None
     
-    # FIX: Asegurar que el adaptador tenga logger
-    if adapter and not hasattr(adapter, 'logger'):
-        adapter.logger = logging.getLogger('MotoRecommenderAdapter')
-        adapter.logger.setLevel(logging.INFO)
-    
-    # Registrar el adaptador en la aplicación
-    app.config['MOTO_RECOMMENDER'] = adapter
-
     # Retornar la app para uso en servidores de producción
     return app
 

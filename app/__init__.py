@@ -2,6 +2,7 @@ from venv import logger
 from flask import Flask
 from neo4j import GraphDatabase
 import os
+import logging
 
 from app.algoritmo.label_propagation import MotoLabelPropagation
 from app.algoritmo.moto_ideal import MotoIdealRecommender
@@ -9,6 +10,7 @@ from app.algoritmo.pagerank import MotoPageRank
 from .adapter_factory import create_adapter
 
 def create_app():
+    """Create and configure the Flask application"""
     app = Flask(__name__, 
                 template_folder='templates',  # Ruta relativa dentro de app
                 static_folder='static')
@@ -17,6 +19,12 @@ def create_app():
     app.secret_key = 'clave-super-secreta'
       # Cargar configuración de la base de datos
     app.config.from_pyfile('config.py')
+    
+    # Configuración básica
+    app.config['SECRET_KEY'] = 'your-secret-key-here'
+    
+    # Configurar logging
+    logging.basicConfig(level=logging.INFO)
     
     # Fix database connection issues
     fix_database_connection()

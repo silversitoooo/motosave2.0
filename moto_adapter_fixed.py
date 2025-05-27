@@ -339,12 +339,45 @@ class MotoRecommenderAdapter:
                 (filtered_motos['peso'] >= peso_min_tolerancia) & 
                 (filtered_motos['peso'] <= peso_max_tolerancia)
             ]
-        
-        logger.info(f"Motos que cumplen filtros estrictos: {len(filtered_motos)} de {len(self.motos_df)}")
+            logger.info(f"Motos que cumplen filtros estrictos: {len(filtered_motos)} de {len(self.motos_df)}")
         
         if filtered_motos.empty:
-            logger.warning(f"No hay motos que cumplan los filtros estrictos. No se generarán recomendaciones.")
-            return []
+            logger.warning(f"No hay motos que cumplan los filtros estrictos. Usando filtros relajados.")
+            
+            # FILTROS RELAJADOS: Motos que cumplan al menos algunos requisitos importantes
+            filtered_motos = self.motos_df.copy()
+            
+            # Aplicar solo los filtros más importantes con mayor tolerancia (30%)
+            tolerancia_relajada = 0.30
+            presupuesto_min_rel = presupuesto_min * (1 - tolerancia_relajada)
+            presupuesto_max_rel = presupuesto_max * (1 + tolerancia_relajada)
+            cilindrada_min_rel = cilindrada_min * (1 - tolerancia_relajada)
+            cilindrada_max_rel = cilindrada_max * (1 + tolerancia_relajada)
+            
+            logger.info(f"Filtros relajados con 30% tolerancia:")
+            logger.info(f"Presupuesto: {presupuesto_min_rel:.0f} - {presupuesto_max_rel:.0f}")
+            logger.info(f"Cilindrada: {cilindrada_min_rel:.0f} - {cilindrada_max_rel:.0f}")
+            
+            # Aplicar filtros relajados solo para presupuesto y cilindrada
+            if 'cilindrada' in filtered_motos.columns:
+                filtered_motos = filtered_motos[
+                    (filtered_motos['cilindrada'] >= cilindrada_min_rel) &
+                    (filtered_motos['cilindrada'] <= cilindrada_max_rel)
+                ]
+            
+            # Si aún no hay resultados, obtener las top N motos más populares
+            if filtered_motos.empty:
+                logger.warning(f"No hay motos que cumplan los filtros relajados. Usando top motos populares.")
+                
+                # Ordenar por popularidad o ID si no hay campo de popularidad
+                if 'popularity' in self.motos_df.columns:
+                    filtered_motos = self.motos_df.sort_values('popularity', ascending=False).head(top_n)
+                else:
+                    filtered_motos = self.motos_df.head(top_n)
+                
+                logger.info(f"Seleccionadas {len(filtered_motos)} motos populares como recomendación de respaldo")
+            else:
+                logger.info(f"Motos que cumplen filtros relajados: {len(filtered_motos)} de {len(self.motos_df)}")
         
         # Calcular score para cada moto que cumple los filtros
         results = []
@@ -502,55 +535,35 @@ class MotoRecommenderAdapter:
             return False
     
     def get_moto_by_id(self, moto_id):
-        """
-        Obtiene los detalles de una moto por su ID.
-        
-        Args:
-            moto_id (str): ID de la moto a buscar
-            
-        Returns:
-            dict: Diccionario con los detalles de la moto, o None si no se encuentra
-        """
-        logger.info(f"Buscando detalles de la moto con ID: {moto_id}")
-        
-        # Verificar que los datos estén cargados
-        if self.motos_df is None:
-            logger.warning("No hay datos de motos cargados")
-            return None
-            
+        """Obtiene los datos de una moto por su ID"""
         try:
-            # Primero buscar en el dataframe local por eficiencia
-            moto_rows = self.motos_df[self.motos_df['moto_id'] == moto_id]
-            
-            if not moto_rows.empty:
-                # Convertir la fila a diccionario
-                return moto_rows.iloc[0].to_dict()
-            
-            # Si no se encuentra en el dataframe, intentar buscar en Neo4j directamente
-            if self._ensure_neo4j_connection():
+            if not self.moto_df.empty:
+                # Buscar la moto en el DataFrame
+                moto_data = self.moto_df[self.moto_df['moto_id'] == moto_id]
+                if len(moto_data) > 0:
+                    # Convertir a diccionario y devolver
+                    moto_dict = moto_data.iloc[0].to_dict()
+                    return moto_dict
+        
+            # Si no se encuentra en el DataFrame o está vacío, intentar con Neo4j
+            if self.driver:
                 with self.driver.session() as session:
-                    result = session.run("""
-                    MATCH (m:Moto {id: $moto_id})
-                    RETURN m
-                    """, moto_id=moto_id)
-                    
+                    result = session.run(
+                        "MATCH (m:Moto) WHERE m.id = $moto_id RETURN m",
+                        moto_id=moto_id
+                    )
                     record = result.single()
                     if record:
-                        # Extraer propiedades del nodo
-                        moto_data = dict(record['m'])
-                        # Asegurar consistencia con el nombre del campo ID
-                        if 'id' in moto_data and 'moto_id' not in moto_data:
-                            moto_data['moto_id'] = moto_data['id']
+                        moto = record['m']
+                        moto_data = dict(moto.items())
                         return moto_data
-            
-            logger.warning(f"No se encontró la moto con ID: {moto_id}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error al buscar la moto {moto_id}: {str(e)}")
-            logger.error(traceback.format_exc())
-            return None
         
+            self.logger.error(f"Moto no encontrada con ID: {moto_id}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error al obtener moto por ID: {str(e)}")
+            return None
+    
     def get_popular_motos(self, top_n=10):
         """
         Obtiene las motos más populares usando PageRank.

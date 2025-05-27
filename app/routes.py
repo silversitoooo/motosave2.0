@@ -53,115 +53,51 @@ def home():
 
 @main.route('/recomendaciones')
 def recomendaciones():
-    """Muestra recomendaciones personalizadas basadas en los datos del test."""
+    """Muestra las recomendaciones de motos para el usuario"""
+    # Check if user is logged in
     if 'username' not in session:
         return redirect(url_for('main.login'))
     
-    username = session.get('username')
-    user_id = username  # Using username as user_id
+    # Get user data
+    username = session['username']
     
-    # Obtener datos del test de la sesión
+    # Get test data from session
     test_data = session.get('test_data', {})
-    motos_recomendadas = []
     
-    if not test_data:
-        flash("No hay datos de test disponibles. Por favor completa el test primero.", "warning")
-        return redirect(url_for('main.test'))
+    # Debug output for verification
+    current_app.logger.info(f"Renderizando recomendaciones para {username}")
     
-    try:
-        # Obtener el adaptador de recomendación
-        adapter = current_app.config.get('MOTO_RECOMMENDER')
-        
-        if not adapter:
-            flash("Sistema de recomendación no disponible", "error")
-            logger.error("Adaptador de recomendaciones no disponible")
-            return render_template('recomendaciones.html', motos_recomendadas=[])
-        
-        # Log detailed info about what we're sending to the adapter
-        logger.info(f"Generando recomendaciones para {username} usando adaptador {type(adapter).__name__}")
-        logger.info(f"Datos del test: {test_data}")
-          # Obtener recomendaciones basadas en los datos del test - LIMITADO A TOP 6
-        recommendations = adapter.get_recommendations(
-            user_id=user_id,
-            algorithm='hybrid', 
-            top_n=6,
-            user_preferences=test_data
-        )
-        
-        # Verificar si hubo problemas con las recomendaciones
-        if not recommendations:
-            logger.warning(f"El adaptador no generó recomendaciones para {username}")
-            flash("No se pudieron generar recomendaciones. Por favor, intenta de nuevo.", "warning")
-            return render_template('recomendaciones.html', motos_recomendadas=[])
-        
-        # Procesar las recomendaciones para la plantilla
-        logger.info(f"Obtenidas {len(recommendations)} recomendaciones del adaptador")
-        
-        for moto_info in recommendations:
-            if isinstance(moto_info, tuple) and len(moto_info) >= 2:
-                moto_id, score = moto_info[0], moto_info[1]
-                reasons = moto_info[2] if len(moto_info) > 2 else []
-                
-                try:
-                    # Buscar datos completos de la moto con manejo de errores
-                    moto_data = None
-                    if hasattr(adapter, 'get_moto_by_id'):
-                        moto_data = adapter.get_moto_by_id(moto_id)
-                    elif hasattr(adapter, 'motos_df') and adapter.motos_df is not None:
-                        moto_rows = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
-                        if not moto_rows.empty:
-                            moto_data = moto_rows.iloc[0].to_dict()
-                    
-                    # Si no se encontraron datos, crear un objeto mínimo
-                    if not moto_data:
-                        logger.warning(f"No se encontraron datos para la moto {moto_id}, usando valores por defecto")
-                        moto_data = {
-                            'moto_id': moto_id,
-                            'marca': 'Desconocida',
-                            'modelo': f'Moto {moto_id}',
-                            'tipo': 'standard',
-                            'cilindrada': 0,
-                            'potencia': 0,
-                            'precio': 0,
-                            'imagen': '/static/images/default-moto.jpg'
-                        }
-                    
-                    # Asegurar que todos los campos necesarios existan
-                    moto_recomendada = {
-                        'moto_id': moto_id,
-                        'marca': moto_data.get('marca', 'Desconocida'),
-                        'modelo': moto_data.get('modelo', f"Moto {moto_id}"),
-                        'tipo': moto_data.get('tipo', 'Estándar'),
-                        'estilo': moto_data.get('tipo', 'Estándar'),
-                        'cilindrada': moto_data.get('cilindrada', 0),
-                        'potencia': moto_data.get('potencia', 0),
-                        'precio': moto_data.get('precio', 0),
-                        'imagen': moto_data.get('imagen', '/static/images/default-moto.jpg'),
-                        'anio': moto_data.get('anio', 'N/D'),
-                        'score': float(score),
-                        'reasons': reasons
-                    }
-                    motos_recomendadas.append(moto_recomendada)
-                except Exception as e:
-                    logger.error(f"Error al procesar la moto {moto_id}: {str(e)}")
-                    # Continuar con la siguiente moto en lugar de fallar completamente
-        
-        # Registrar información sobre las recomendaciones generadas
-        logger.info(f"Generadas {len(motos_recomendadas)} recomendaciones para {username} basadas en test")
-        
-        # Asegurarse de pasar la lista de motos a la plantilla, incluso si está vacía
-        return render_template('recomendaciones.html', 
-                              motos_recomendadas=motos_recomendadas,
-                              test_data=test_data)
-                              
-    except Exception as e:
-        logger.error(f"Error al generar recomendaciones: {str(e)}")
-        logger.error(traceback.format_exc())
-        flash("Ocurrió un error al generar tus recomendaciones.", "error")
-        # No redirigir al dashboard, mostrar la página de error en recomendaciones
-        return render_template('recomendaciones.html', 
-                              motos_recomendadas=[],
-                              error=str(e))
+    # Get recommendations from session
+    motos_recomendadas = session.get('motos_recomendadas', [])
+    
+    # Convert to list if it's a tuple format (moto_id, score, reasons)
+    processed_recommendations = []
+    for rec in motos_recomendadas:
+        if isinstance(rec, tuple) and len(rec) == 3:
+            moto_id, score, reasons = rec
+            # Buscar la moto en el adaptador
+            adapter = current_app.config.get('MOTO_RECOMMENDER')
+            if adapter:
+                moto_data = adapter.get_moto_by_id(moto_id)
+                if moto_data:
+                    moto_data['score'] = score
+                    moto_data['reasons'] = reasons
+                    processed_recommendations.append(moto_data)
+        else:
+            processed_recommendations.append(rec)
+    
+    # Log the number of recommendations
+    current_app.logger.info(f"Enviando {len(processed_recommendations)} recomendaciones al template")
+    if processed_recommendations:
+        current_app.logger.info(f"Primera recomendación: {processed_recommendations[0]}")
+    
+    # Debug info
+    current_app.logger.info(f"Datos pasados al template de recomendaciones: {test_data}")
+    
+    # Render template with recommendations
+    return render_template('recomendaciones.html', 
+                         motos_recomendadas=processed_recommendations,
+                         test_data=test_data)
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
@@ -330,51 +266,102 @@ def test_preferencias():
 @main.route('/guardar_test', methods=['POST'])
 def guardar_test():
     """Guarda los resultados del test y redirige a recomendaciones"""
-    if 'user_id' not in session:
-        flash('Debes iniciar sesión para realizar el test.', 'error')
+    if 'username' not in session:
         return redirect(url_for('main.login'))
     
     try:
-        data = request.get_json()
-        user_id = session['user_id']
-        username = session.get('username', 'unknown')
+        username = session['username']
         
-        current_app.logger.info(f"DATOS ORIGINALES del test para {username}: {data}")
+        # Los datos vienen como form data, no JSON
+        data = request.form.to_dict()
         
-        # FORZAR conversión de presupuesto a rango SIEMPRE
-        processed_preferences = {}
+        # Procesar JSON strings de estilos y marcas
+        if 'estilos' in data:
+            try:
+                data['estilos'] = json.loads(data['estilos'])
+            except:
+                data['estilos'] = {}
         
-        # 1. PRESUPUESTO - OBLIGATORIO convertir a rango numérico
-        if 'presupuesto' in data:
-            presupuesto = float(data['presupuesto'])
-            processed_preferences['presupuesto_min'] = presupuesto * 0.7  # 70% como mínimo
-            processed_preferences['presupuesto_max'] = presupuesto  # 100% como máximo
-            current_app.logger.info(f"PRESUPUESTO CONVERTIDO DE {presupuesto} A RANGO: {processed_preferences['presupuesto_min']} - {processed_preferences['presupuesto_max']}")
-        else:
-            processed_preferences['presupuesto_min'] = 0
-            processed_preferences['presupuesto_max'] = 999999
-            current_app.logger.info("Sin presupuesto, usando rango completo")
+        if 'marcas' in data:
+            try:
+                data['marcas'] = json.loads(data['marcas'])
+            except:
+                data['marcas'] = {}
         
-        # 2. Copiar el resto de preferencias EXCEPTO presupuesto original
-        for key, value in data.items():
-            if key != 'presupuesto':  # NO incluir presupuesto original
-                processed_preferences[key] = value
+        # Convertir strings a números
+        for key in ['presupuesto_min', 'presupuesto_max', 'cilindrada_min', 'cilindrada_max', 
+                   'potencia_min', 'potencia_max', 'torque_min', 'torque_max', 
+                   'peso_min', 'peso_max', 'ano_min', 'ano_max']:
+            if key in data and data[key]:
+                try:
+                    data[key] = int(data[key])
+                except:
+                    pass
         
-        current_app.logger.info(f"PREFERENCIAS PROCESADAS FINALES para {username}: {processed_preferences}")
+        current_app.logger.info(f"Guardando resultados del test para {username}: {data}")
         
-        # Guardar en base de datos
-        if store_user_test_results(user_id, processed_preferences):
+        # Capturar rangos para logging
+        for key in ['presupuesto_min', 'presupuesto_max', 'cilindrada_min', 'cilindrada_max', 
+                   'potencia_min', 'potencia_max', 'torque_min', 'torque_max', 
+                   'peso_min', 'peso_max']:
+            if key in data:
+                current_app.logger.info(f"Rango capturado: {key} = {data[key]}")
+        
+        current_app.logger.info(f"Preferencias estilos: {data.get('estilos', {})}")
+        current_app.logger.info(f"Preferencias marcas: {data.get('marcas', {})}")
+        
+        # Capturar campos cualitativos
+        for key in ['experiencia', 'uso', 'uso_previsto', 'reset_recommendation']:
+            if key in data:
+                current_app.logger.info(f"Campo cualitativo: {key} = {data[key]}")
+        
+        # Calcular presupuesto medio para retrocompatibilidad
+        if 'presupuesto_min' in data and 'presupuesto_max' in data:
+            presupuesto_medio = (data['presupuesto_min'] + data['presupuesto_max']) / 2
+            data['presupuesto'] = presupuesto_medio
+            current_app.logger.info(f"Presupuesto medio para retrocompatibilidad: {presupuesto_medio}")
+        
+        # Logging de resumen
+        current_app.logger.info("=== RESUMEN DE RANGOS CAPTURADOS ===")
+        current_app.logger.info(f"PRESUPUESTO: {data.get('presupuesto_min')} - {data.get('presupuesto_max')}")
+        current_app.logger.info(f"CILINDRADA: {data.get('cilindrada_min')} - {data.get('cilindrada_max')}")
+        current_app.logger.info(f"POTENCIA: {data.get('potencia_min')} - {data.get('potencia_max')}")
+        current_app.logger.info(f"TORQUE: {data.get('torque_min')} - {data.get('torque_max')}")
+        current_app.logger.info(f"PESO: {data.get('peso_min')} - {data.get('peso_max')}")
+        current_app.logger.info("====================================")
+        
+        # Guardar en sesión
+        session['test_data'] = data
+        current_app.logger.info(f"Datos del test guardados en sesión: {data}")
+        
+        # Guardar en Neo4j
+        success = store_user_test_results(username, data)
+        
+        if success:
             current_app.logger.info(f"Preferencias guardadas en Neo4j para {username}")
-            return jsonify({'success': True, 'redirect': '/recomendaciones'})
+            
+            # Generar recomendaciones
+            current_app.logger.info(f"Generando recomendaciones para {username} con datos: {data}")
+            
+            # Obtener adaptador
+            adapter = current_app.config.get('MOTO_RECOMMENDER')
+            if adapter:
+                try:
+                    recomendaciones = adapter.get_recommendations(username, top_n=6)
+                    session['motos_recomendadas'] = recomendaciones
+                    current_app.logger.info(f"Generadas {len(recomendaciones)} recomendaciones para {username}")
+                except Exception as e:
+                    current_app.logger.error(f"Error al generar recomendaciones: {str(e)}")
+            
+            return redirect(url_for('main.recomendaciones'))
         else:
             current_app.logger.error(f"Error guardando preferencias para {username}")
-            return jsonify({'success': False, 'message': 'Error guardando preferencias'})
+            return redirect(url_for('main.test_preferencias'))
             
     except Exception as e:
         current_app.logger.error(f"Error en guardar_test: {str(e)}")
-        import traceback
-        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'success': False, 'message': 'Error procesando test'})
+        current_app.logger.error(traceback.format_exc())
+        return redirect(url_for('main.test_preferencias'))
     
 @main.route('/recomendaciones_test', methods=['GET', 'POST'])
 def recomendaciones_test():
@@ -756,7 +743,6 @@ def recomendador():
                                test_data={})
     except Exception as e:
         logger.error(f"Error en recomendador: {str(e)}")
-        import traceback
         logger.error(traceback.format_exc())
         # Mostrar página con mensaje de error
         return render_template('recomendaciones.html', 
@@ -908,471 +894,55 @@ def moto_ideal():
                               marcas=["Honda", "Yamaha", "Kawasaki", "Suzuki"],
                               estilos=["Naked", "Deportiva", "Adventure", "Scooter"])
 
-@main.route('/guardar-preferencias', methods=['POST'])
-def guardar_preferencias():
-    """
-    Guarda las preferencias del usuario en la base de datos.
-    Esta ruta recibe datos de preferencias de motos (estilos, marcas, etc.)
-    y los almacena en Neo4j para usarlos en futuras recomendaciones.
-    """
-    username = session.get('username')
-    if not username:
-        return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
-    
-    try:
-        # Obtener datos del formulario
-        preferences = {
-            'estilos': {},
-            'marcas': {},
-            'experiencia': request.form.get('experiencia', 'Intermedio')
-        }
-        
-        # Procesar estilos
-        estilos_str = request.form.get('estilos', '{}')
-        try:
-            preferences['estilos'] = json.loads(estilos_str.replace("'", '"'))
-        except:
-            current_app.logger.error("Error al procesar JSON de estilos")
-            
-        # Procesar marcas
-        marcas_str = request.form.get('marcas', '{}')
-        try:
-            preferences['marcas'] = json.loads(marcas_str.replace("'", '"'))
-        except:
-            current_app.logger.error("Error al procesar JSON de marcas")
-        
-        # Guardar en la sesión
-        session['test_data'] = preferences
-        
-        # Guardar en Neo4j usando la función mejorada
-        result = store_user_test_results(username, preferences)
-        
-        if result:
-            current_app.logger.info(f"Preferencias guardadas correctamente para {username}")
-            return jsonify({"success": True, "message": "Preferencias guardadas correctamente"})
-        else:
-            current_app.logger.warning(f"No se pudieron guardar las preferencias para {username}")
-            return jsonify({"success": False, "message": "No se pudieron guardar las preferencias en la base de datos"}), 500
-            
-    except Exception as e:
-        current_app.logger.error(f"Error al guardar preferencias: {str(e)}")
-        return jsonify({"success": False, "message": f"Error al procesar la solicitud: {str(e)}"}), 500
-
-@main.route('/recomendaciones-amigos')
-def recomendaciones_amigos():
-    """
-    Muestra recomendaciones de motos basadas en los gustos de los amigos del usuario.
-    Utiliza el algoritmo de propagación de etiquetas para generar recomendaciones.
-    """
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('main.login'))
-    
-    try:
-        # Obtener recomendaciones basadas en amigos
-        friend_recommendations = get_friend_recommendations(username, top_n=4)
-        
-        if not friend_recommendations:
-            # Si no hay recomendaciones de la base de datos, usar datos simulados
-            friend_recommendations = [
-                {"modelo": "R3", "marca": "Yamaha", "precio": 48000, "estilo": "Deportiva", 
-                 "imagen": "https://yamaha-motor.com.ar/uploads/product_images/R3.png",
-                 "score": 0.85, "amigo": "maria"},
-                {"modelo": "Monster", "marca": "Ducati", "precio": 89000, "estilo": "Naked", 
-                 "imagen": "https://www.motofichas.com/images/phocagallery/Ducati/monster-2021/01-ducati-monster-2021-estudio-rojo.jpg",
-                 "score": 0.78, "amigo": "pedro"},
-                {"modelo": "Street Triple", "marca": "Triumph", "precio": 85000, "estilo": "Naked", 
-                 "imagen": "https://www.motofichas.com/images/phocagallery/Triumph/street-triple-765-rs-2023/01-triumph-street-triple-765-rs-2023-estudio-gris.jpg",
-                 "score": 0.72, "amigo": "jose"},
-                {"modelo": "Z900", "marca": "Kawasaki", "precio": 82000, "estilo": "Naked", 
-                 "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/z900-2023/01-kawasaki-z900-2023-estudio-verde.jpg",
-                 "score": 0.65, "amigo": "maria"}
-            ]
-        
-        return render_template('recomendaciones_amigos.html', 
-                              recomendaciones=friend_recommendations,
-                              username=username)
-    
-    except Exception as e:
-        current_app.logger.error(f"Error al obtener recomendaciones de amigos: {str(e)}")
-        # En caso de error, mostrar un mensaje
-        return render_template('error.html', 
-                              error="No se pudieron cargar las recomendaciones basadas en amigos",
-                              username=username)
-
-@main.route('/recomendador')
-def recomendador():
-    """
-    Ruta para mostrar recomendaciones usando el nuevo sistema corregido,
-    con fallback al sistema antiguo en caso de error.
-    """
-    # Verificar si el usuario está logueado
+@main.route('/debug_recomendaciones')
+def debug_recomendaciones():
+    """Debug endpoint to check recommendation data"""
     if 'username' not in session:
         return redirect(url_for('main.login'))
     
-    usuario = session.get('username')
+    # Get data from session
+    motos_recomendadas = session.get('motos_recomendadas', [])
+    test_data = session.get('test_data', {})
+    username = session.get('username', 'unknown')
     
-    try:
-        # Usar el nuevo sistema de recomendaciones corregido
-        logger.info(f"Generando recomendaciones para {usuario} con el sistema corregido")
-        recomendaciones = get_recommendations_for_user(current_app, usuario, top_n=5)
-        motos_recomendadas = format_recommendations_for_display(recomendaciones)
-        
-        # Si no hay recomendaciones, usar el método alternativo
-        if not motos_recomendadas:
-            logger.warning(f"Sin recomendaciones del nuevo sistema para {usuario}, usando alternativo")
-            # Usar el sistema antiguo como fallback
-            recomendaciones = get_moto_ideal(usuario, top_n=5)
-            motos_recomendadas = []
-            for moto in recomendaciones:
-                motos_recomendadas.append({
-                    'id': moto.get('moto_id', ''),
-                    'modelo': moto.get('modelo', f"Moto {moto.get('moto_id')}"),
-                    'marca': moto.get('marca', 'Desconocida'),
-                    'estilo': moto.get('tipo', 'Estándar'),
-                    'precio': moto.get('precio', 0),
-                    'imagen': moto.get('imagen', 'https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg'),
-                    'score': moto.get('score', 0),
-                    'razones': moto.get('reasons', [])
-                })
-        
-        return render_template('recomendaciones.html', 
-                               usuario=usuario,
-                               motos_recomendadas=motos_recomendadas,
-                               test_data={})
-    except Exception as e:
-        logger.error(f"Error en recomendador: {str(e)}")
-        logger.error(traceback.format_exc())
-        # Mostrar página con mensaje de error
-        return render_template('recomendaciones.html', 
-                               usuario=usuario,
-                               error="Hubo un problema al generar recomendaciones. Inténtalo más tarde.",
-                               motos_recomendadas=[],
-                               test_data={})
+    # Format debug output
+    debug_info = {
+        "username": username,
+        "recommendations_count": len(motos_recomendadas),
+        "recommendations": motos_recomendadas,
+        "test_data": test_data,
+        "session_keys": list(session.keys())
+    }
+    
+    # Return as JSON for easy debugging
+    return jsonify(debug_info)
 
-@main.route('/test_moto_ideal', methods=['GET', 'POST'])
-def test_moto_ideal():
-    """Página de test para encontrar la moto ideal y generar recomendaciones."""
-    if 'username' not in session:
-        return redirect(url_for('main.login'))
+@main.route('/status')
+def status():
+    """Verificar el estado de la aplicación"""
+    adapter = current_app.config.get('MOTO_RECOMMENDER')
     
-    username = session.get('username')
-    user_id = session.get('user_id')
+    status_info = {
+        "adapter_available": adapter is not None,
+        "neo4j_connected": False,
+        "motos_count": 0,
+        "users_count": 0
+    }
     
-    # Si es POST, procesar formulario
-    if request.method == 'POST':
+    if adapter:
+        # Verificar conexión Neo4j
         try:
-            # Recopilar datos del formulario
-            experiencia = request.form.get('experiencia', 'principiante')
-            presupuesto = request.form.get('presupuesto', '8000')
-            uso = request.form.get('uso', 'urbano')
-            reset_recommendation = request.form.get('reset_recommendation', 'false') == 'true'
-            
-            # Crear diccionario de preferencias
-            test_data = {
-                'experiencia': experiencia,
-                'presupuesto': presupuesto,
-                'uso': uso,
-                'reset': reset_recommendation
-            }
-            
-            # Guardar en sesión
-            session['test_data'] = test_data
-            
-            # Registrar datos
-            current_app.logger.info(f"Test completado por {username}: {test_data}")
-            
-            # Enviar usuario a página de recomendaciones donde se usarán estos datos
-            return redirect(url_for('main.recomendaciones'))
-            
-        except Exception as e:
-            current_app.logger.error(f"Error al procesar test: {str(e)}")
-            flash("Ocurrió un error al procesar tus respuestas. Por favor intenta nuevamente.", "error")
-    
-    # Si es GET, mostrar página de test
-    return render_template('test_moto_ideal.html')
-
-@main.route('/moto_ideal', methods=['GET', 'POST'])
-def moto_ideal():
-    """Página de moto ideal con soporte para GET y POST"""
-    if 'username' not in session:
-        flash('Debes iniciar sesión para ver tu moto ideal', 'warning')
-        return redirect(url_for('main.login'))
-    
-    username = session.get('username')
-    
-    # Si es POST, procesar datos y luego redirigir
-    if request.method == 'POST':
-        # Procesar los datos del formulario
-        test_data = {
-            'experiencia': request.form.get('experiencia', 'principiante'),
-            'presupuesto': request.form.get('presupuesto', '8000'),
-            'uso': request.form.get('uso', ''),
-            'reset_recommendation': request.form.get('reset_recommendation', 'true')
-        }
-        
-        logger.info(f"Datos del test recibidos en moto_ideal: {test_data}")
-        
-        # Guardar datos
-        try:
-            from app.utils import store_user_test_results
-            success = store_user_test_results(username, test_data)
-            
-            if success:
-                flash("Preferencias guardadas correctamente", "success")
-            else:
-                flash("No se pudieron guardar las preferencias", "warning")
+            with adapter.driver.session() as session:
+                # Contar motos
+                result = session.run("MATCH (m:Moto) RETURN count(m) as count")
+                status_info["motos_count"] = result.single()["count"]
                 
-        except Exception as e:
-            logger.error(f"Error al guardar preferencias: {str(e)}")
-            flash(f"Error al guardar preferencias: {str(e)}", "error")
-        
-        # Redirigir a la versión GET con reset
-        return redirect(url_for('main.moto_ideal', reset='true'))
-    
-    # Si es GET, mostrar la moto ideal del usuario
-    try:
-        # Verificar si se solicitó reset (desde el test)
-        reset_requested = request.args.get('reset') == 'true'
-        
-        # Intentar obtener el ID de la moto ideal desde la sesión o la base de datos
-        moto_id = session.get('ideal_moto_id')
-        
-        # Obtener el adaptador
-        adapter = current_app.config.get('MOTO_RECOMMENDER')
-        
-        # Obtener datos de la moto ideal si está disponible
-        moto_data = None
-        
-        if adapter and moto_id:
-            try:
-                if hasattr(adapter, 'get_moto_by_id'):
-                    moto_data = adapter.get_moto_by_id(moto_id)
-            except Exception as e:
-                logger.error(f"Error al obtener moto ideal: {str(e)}")
-        
-        # Si tenemos datos de la moto, mostrarlos
-        if moto_data:
-            return render_template('moto_ideal.html', moto=moto_data)
-        
-        # Si no hay moto ideal o hay reset, intentar obtener recomendaciones
-        if reset_requested or not moto_id:
-            try:
-                from app.utils import get_moto_ideal
-                recomendaciones = get_moto_ideal(username, force_random=reset_requested)
+                # Contar usuarios
+                result = session.run("MATCH (u:User) RETURN count(u) as count")
+                status_info["users_count"] = result.single()["count"]
                 
-                # Si hay recomendaciones, mostrar la primera
-                if recomendaciones and len(recomendaciones) > 0:
-                    return render_template('moto_ideal.html', moto=recomendaciones[0])
-            except Exception as e:
-                logger.error(f"Error al obtener recomendaciones: {str(e)}")
-        
-        # Obtener listas de marcas y estilos disponibles
-        marcas = ["Honda", "Yamaha", "Kawasaki", "Suzuki"]
-        estilos = ["Naked", "Deportiva", "Adventure", "Scooter"]
-        
-        if adapter and hasattr(adapter, 'motos_df') and adapter.motos_df is not None:
-            try:
-                marcas = adapter.motos_df['marca'].unique().tolist()
-                estilos = adapter.motos_df['tipo'].unique().tolist()
-            except Exception:
-                pass
-        
-        # Mostrar mensaje si no hay moto ideal
-        return render_template('moto_ideal.html',
-                              error="No se pudo generar una recomendación personalizada. ¡Completa el test!",
-                              marcas=marcas,
-                              estilos=estilos)
-                              
-    except Exception as e:
-        logger.error(f"Error al mostrar moto ideal: {str(e)}")
-        logger.error(traceback.format_exc())
-        
-        return render_template('moto_ideal.html',
-                              error="Ocurrió un error al procesar tu recomendación. Inténtalo de nuevo.",
-                              marcas=["Honda", "Yamaha", "Kawasaki", "Suzuki"],
-                              estilos=["Naked", "Deportiva", "Adventure", "Scooter"])
-
-@main.route('/guardar-preferencias', methods=['POST'])
-def guardar_preferencias():
-    """
-    Guarda las preferencias del usuario en la base de datos.
-    Esta ruta recibe datos de preferencias de motos (estilos, marcas, etc.)
-    y los almacena en Neo4j para usarlos en futuras recomendaciones.
-    """
-    username = session.get('username')
-    if not username:
-        return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
-    
-    try:
-        # Obtener datos del formulario
-        preferences = {
-            'estilos': {},
-            'marcas': {},
-            'experiencia': request.form.get('experiencia', 'Intermedio')
-        }
-        
-        # Procesar estilos
-        estilos_str = request.form.get('estilos', '{}')
-        try:
-            preferences['estilos'] = json.loads(estilos_str.replace("'", '"'))
-        except:
-            current_app.logger.error("Error al procesar JSON de estilos")
-            
-        # Procesar marcas
-        marcas_str = request.form.get('marcas', '{}')
-        try:
-            preferences['marcas'] = json.loads(marcas_str.replace("'", '"'))
-        except:
-            current_app.logger.error("Error al procesar JSON de marcas")
-        
-        # Guardar en la sesión
-        session['test_data'] = preferences
-        
-        # Guardar en Neo4j usando la función mejorada
-        result = store_user_test_results(username, preferences)
-        
-        if result:
-            current_app.logger.info(f"Preferencias guardadas correctamente para {username}")
-            return jsonify({"success": True, "message": "Preferencias guardadas correctamente"})
-        else:
-            current_app.logger.warning(f"No se pudieron guardar las preferencias para {username}")
-            return jsonify({"success": False, "message": "No se pudieron guardar las preferencias en la base de datos"}), 500
-            
-    except Exception as e:
-        current_app.logger.error(f"Error al guardar preferencias: {str(e)}")
-        return jsonify({"success": False, "message": f"Error al procesar la solicitud: {str(e)}"}), 500
-
-@main.route('/recomendaciones-amigos')
-def recomendaciones_amigos():
-    """
-    Muestra recomendaciones de motos basadas en los gustos de los amigos del usuario.
-    Utiliza el algoritmo de propagación de etiquetas para generar recomendaciones.
-    """
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('main.login'))
-    
-    try:
-        # Obtener recomendaciones basadas en amigos
-        friend_recommendations = get_friend_recommendations(username, top_n=4)
-        
-        if not friend_recommendations:
-            # Si no hay recomendaciones de la base de datos, usar datos simulados
-            friend_recommendations = [
-                {"modelo": "R3", "marca": "Yamaha", "precio": 48000, "estilo": "Deportiva", 
-                 "imagen": "https://yamaha-motor.com.ar/uploads/product_images/R3.png",
-                 "score": 0.85, "amigo": "maria"},
-                {"modelo": "Monster", "marca": "Ducati", "precio": 89000, "estilo": "Naked", 
-                 "imagen": "https://www.motofichas.com/images/phocagallery/Ducati/monster-2021/01-ducati-monster-2021-estudio-rojo.jpg",
-                 "score": 0.78, "amigo": "pedro"},
-                {"modelo": "Street Triple", "marca": "Triumph", "precio": 85000, "estilo": "Naked", 
-                 "imagen": "https://www.motofichas.com/images/phocagallery/Triumph/street-triple-765-rs-2023/01-triumph-street-triple-765-rs-2023-estudio-gris.jpg",
-                 "score": 0.72, "amigo": "jose"},
-                {"modelo": "Z900", "marca": "Kawasaki", "precio": 82000, "estilo": "Naked", 
-                 "imagen": "https://www.motofichas.com/images/phocagallery/Kawasaki/z900-2023/01-kawasaki-z900-2023-estudio-verde.jpg",
-                 "score": 0.65, "amigo": "maria"}
-            ]
-        
-        return render_template('recomendaciones_amigos.html', 
-                              recomendaciones=friend_recommendations,
-                              username=username)
-    
-    except Exception as e:
-        current_app.logger.error(f"Error al obtener recomendaciones de amigos: {str(e)}")
-        # En caso de error, mostrar un mensaje
-        return render_template('error.html', 
-                              error="No se pudieron cargar las recomendaciones basadas en amigos",
-                              username=username)
-
-@main.route('/recomendador')
-def recomendador():
-    """
-    Ruta para mostrar recomendaciones usando el nuevo sistema corregido,
-    con fallback al sistema antiguo en caso de error.
-    """
-    # Verificar si el usuario está logueado
-    if 'username' not in session:
-        return redirect(url_for('main.login'))
-    
-    usuario = session.get('username')
-    
-    try:
-        # Usar el nuevo sistema de recomendaciones corregido
-        logger.info(f"Generando recomendaciones para {usuario} con el sistema corregido")
-        recomendaciones = get_recommendations_for_user(current_app, usuario, top_n=5)
-        motos_recomendadas = format_recommendations_for_display(recomendaciones)
-        
-        # Si no hay recomendaciones, usar el método alternativo
-        if not motos_recomendadas:
-            logger.warning(f"Sin recomendaciones del nuevo sistema para {usuario}, usando alternativo")
-            # Usar el sistema antiguo como fallback
-            recomendaciones = get_moto_ideal(usuario, top_n=5)
-            motos_recomendadas = []
-            for moto in recomendaciones:
-                motos_recomendadas.append({
-                    'id': moto.get('moto_id', ''),
-                    'modelo': moto.get('modelo', f"Moto {moto.get('moto_id')}"),
-                    'marca': moto.get('marca', 'Desconocida'),
-                    'estilo': moto.get('tipo', 'Estándar'),
-                    'precio': moto.get('precio', 0),
-                    'imagen': moto.get('imagen', 'https://www.motofichas.com/images/phocagallery/Kawasaki/ninja-zx-10r-2021/01-kawasaki-ninja-zx-10r-2024-performance-estudio-verde.jpg'),
-                    'score': moto.get('score', 0),
-                    'razones': moto.get('reasons', [])
-                })
-        
-        return render_template('recomendaciones.html', 
-                               usuario=usuario,
-                               motos_recomendadas=motos_recomendadas,
-                               test_data={})
-    except Exception as e:
-        logger.error(f"Error en recomendador: {str(e)}")
-        logger.error(traceback.format_exc())
-        # Mostrar página con mensaje de error
-        return render_template('recomendaciones.html', 
-                               usuario=usuario,
-                               error="Hubo un problema al generar recomendaciones. Inténtalo más tarde.",
-                               motos_recomendadas=[],
-                               test_data={})
-
-@main.route('/test_moto_ideal', methods=['GET', 'POST'])
-def test_moto_ideal():
-    """Página de test para encontrar la moto ideal y generar recomendaciones."""
-    if 'username' not in session:
-        return redirect(url_for('main.login'))
-    
-    username = session.get('username')
-    user_id = session.get('user_id')
-    
-    # Si es POST, procesar formulario
-    if request.method == 'POST':
-        try:
-            # Recopilar datos del formulario
-            experiencia = request.form.get('experiencia', 'principiante')
-            presupuesto = request.form.get('presupuesto', '8000')
-            uso = request.form.get('uso', 'urbano')
-            reset_recommendation = request.form.get('reset_recommendation', 'false') == 'true'
-            
-            # Crear diccionario de preferencias
-            test_data = {
-                'experiencia': experiencia,
-                'presupuesto': presupuesto,
-                'uso': uso,
-                'reset': reset_recommendation
-            }
-            
-            # Guardar en sesión
-            session['test_data'] = test_data
-            
-            # Registrar datos
-            current_app.logger.info(f"Test completado por {username}: {test_data}")
-            
-            # Enviar usuario a página de recomendaciones donde se usarán estos datos
-            return redirect(url_for('main.recomendaciones'))
-            
+                status_info["neo4j_connected"] = True
         except Exception as e:
-            current_app.logger.error(f"Error al procesar test: {str(e)}")
-            flash("Ocurrió un error al procesar tus respuestas. Por favor intenta nuevamente.", "error")
+            status_info["error"] = str(e)
     
-    # Si es GET, mostrar página de test
-    return render_template('test_moto_ideal.html')
+    return jsonify(status_info)

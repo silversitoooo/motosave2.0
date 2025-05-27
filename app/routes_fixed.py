@@ -519,48 +519,114 @@ def recomendaciones():
         if not adapter:
             flash("Error: Sistema de recomendación no disponible")
             return redirect(url_for('main.dashboard'))
-          # Pasar explícitamente los datos del test al adaptador
+            
+        # Pasar explícitamente los datos del test al adaptador
         recomendaciones = adapter.get_recommendations(
             user_id, 
             algorithm='hybrid', 
             top_n=6, 
             user_preferences=test_data  # Aquí pasamos los datos del test
         )
-          # Formatear para la plantilla
+        
+        logger.info(f"Recomendaciones obtenidas: {len(recomendaciones) if recomendaciones else 0}")
+        
+        # Formatear para la plantilla
         motos_recomendadas = []
-        for recomendacion in recomendaciones:
+        for i, recomendacion in enumerate(recomendaciones):
+            logger.info(f"Procesando recomendación {i+1}: {recomendacion}")
+            
             # Manejar diferentes formatos de recomendaciones
+            moto_id = None
+            score = 0.5
+            reasons = ["Recomendación personalizada"]
+            
             if isinstance(recomendacion, tuple):
                 if len(recomendacion) >= 3:
                     moto_id, score, reasons = recomendacion[0], recomendacion[1], recomendacion[2]
                 elif len(recomendacion) == 2:
                     moto_id, score = recomendacion[0], recomendacion[1]
-                    reasons = ["Recomendación personalizada"]
                 else:
                     continue  # Saltar recomendaciones malformadas
+            elif isinstance(recomendacion, dict):
+                # Si ya es un objeto completo
+                motos_recomendadas.append(recomendacion)
+                continue
             else:
-                continue  # Saltar si no es una tupla
+                continue  # Saltar si no es tupla ni dict
             
-            # Obtener datos completos de la moto
-            moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
-            if not moto_info.empty:
-                moto_row = moto_info.iloc[0]
-                motos_recomendadas.append({
-                    "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
-                    "marca": moto_row.get('marca', 'Marca Desconocida'),
-                    "precio": float(moto_row.get('precio', 0)),
-                    "estilo": moto_row.get('tipo', 'Estilo Desconocido'),
-                    "imagen": moto_row.get('imagen', ''),
-                    "score": score,
-                    "razones": reasons,
-                    "moto_id": moto_id
-                })
+            # Obtener datos completos de la moto usando el método correcto
+            moto_data = None
+            try:
+                # Intentar obtener de DataFrame primero
+                if hasattr(adapter, 'motos_df') and not adapter.motos_df.empty:
+                    moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
+                    if not moto_info.empty:
+                        moto_row = moto_info.iloc[0]
+                        moto_data = {
+                            "moto_id": moto_id,
+                            "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
+                            "marca": moto_row.get('marca', 'Marca Desconocida'),
+                            "precio": float(moto_row.get('precio', 0)),
+                            "tipo": moto_row.get('tipo', 'Estilo Desconocido'),
+                            "imagen": moto_row.get('imagen', '/static/images/default-moto.jpg'),
+                            "cilindrada": moto_row.get('cilindrada', 'N/D'),
+                            "potencia": moto_row.get('potencia', 'N/D'),
+                            "anio": moto_row.get('anio', 'N/D'),
+                            "score": score,
+                            "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
+                        }
+                
+                # Si no se encontró en DataFrame, intentar con método get_moto_by_id
+                if not moto_data and hasattr(adapter, 'get_moto_by_id'):
+                    moto_dict = adapter.get_moto_by_id(moto_id)
+                    if moto_dict:
+                        moto_data = {
+                            "moto_id": moto_id,
+                            "modelo": moto_dict.get('modelo', 'Modelo Desconocido'),
+                            "marca": moto_dict.get('marca', 'Marca Desconocida'),
+                            "precio": float(moto_dict.get('precio', 0)),
+                            "tipo": moto_dict.get('tipo', 'Estilo Desconocido'),
+                            "imagen": moto_dict.get('imagen', '/static/images/default-moto.jpg'),
+                            "cilindrada": moto_dict.get('cilindrada', 'N/D'),
+                            "potencia": moto_dict.get('potencia', 'N/D'),
+                            "anio": moto_dict.get('anio', 'N/D'),
+                            "score": score,
+                            "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
+                        }
+                
+                # Si aún no tenemos datos, crear uno básico
+                if not moto_data:
+                    logger.warning(f"No se pudieron obtener datos para moto_id: {moto_id}")
+                    moto_data = {
+                        "moto_id": moto_id,
+                        "modelo": f"Moto {moto_id}",
+                        "marca": "Marca Desconocida",
+                        "precio": 0,
+                        "tipo": "Estilo Desconocido",
+                        "imagen": "/static/images/default-moto.jpg",
+                        "cilindrada": "N/D",
+                        "potencia": "N/D", 
+                        "anio": "N/D",
+                        "score": score,
+                        "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
+                    }
+                
+                motos_recomendadas.append(moto_data)
+                logger.info(f"Añadida moto: {moto_data['marca']} {moto_data['modelo']} (Score: {score})")
+                
+            except Exception as e:
+                logger.error(f"Error al procesar moto {moto_id}: {str(e)}")
+                continue
+        
+        logger.info(f"Total de motos procesadas para el template: {len(motos_recomendadas)}")
         
         return render_template('recomendaciones.html', 
                                motos_recomendadas=motos_recomendadas,
                                test_data=test_data)
     except Exception as e:
         logger.error(f"Error al generar recomendaciones: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         flash(f"Error al generar recomendaciones: {str(e)}")
         return redirect(url_for('main.dashboard'))
 
