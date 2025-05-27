@@ -14,6 +14,83 @@
             --border: 1px;
             --ease: cubic-bezier(0.5, 1, 0.89, 1);
         }
+
+        /* Estilos para la información del ranking */
+        .ranking-info {
+            background: linear-gradient(45deg, rgba(249, 115, 22, 0.1), rgba(251, 146, 60, 0.1));
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+
+        .ranking-position {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .ranking-position i {
+            color: #f97316;
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .position-text {
+            font-weight: bold;
+            font-size: 18px;
+            color: #f97316;
+            margin-right: 5px;
+        }
+
+        .ranking-label {
+            color: #e2e2e2;
+            font-size: 14px;
+        }
+
+        .ranking-score {
+            display: flex;
+            align-items: center;
+        }
+
+        .ranking-score i {
+            color: #fbbf24;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .score-text {
+            font-weight: bold;
+            color: #fbbf24;
+            margin-right: 8px;
+        }
+
+        .score-breakdown {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        /* Estilo mejorado para el botón de actualizar */
+        .reload-btn {
+            background: linear-gradient(45deg, #f97316, #fb923c);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
+        }
+
+        .reload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+        }
+
+        .reload-btn:active {
+            transform: translateY(0);
+        }
     </style>
     <script>
         window.motosPopulares = JSON.parse('{{ motos_populares|tojson|safe }}');
@@ -62,12 +139,29 @@
                 <p><strong>Marca:</strong> {{ moto.marca }}</p>
                 <p><strong>Estilo:</strong> {{ moto.estilo }}</p>
                 <p><strong>Precio:</strong> Q{{ moto.precio }}</p>
+                
+                <!-- FIXED: Mostrar información del ranking con validación -->
+                <div class="ranking-info">
+                    <div class="ranking-position">
+                        <i class="fas fa-trophy"></i>
+                        <span class="position-text">#{​{ moto.ranking_position or loop.index }}</span>
+                        <span class="ranking-label">en popularidad</span>
+                    </div>
+                    <div class="ranking-score">
+                        <i class="fas fa-star"></i>
+                        <span class="score-text">{{ moto.score or moto.likes or 0 }} puntos</span>
+                        <span class="score-breakdown">
+                            ({{ moto.likes or 0 }} likes{% if (moto.score or 0) > (moto.likes or 0) %} + motos ideales{% endif %})
+                        </span>
+                    </div>
+                </div>
+                
                 <div class="like-section">
                     <button type="button" class="like-btn" data-modelo="{{ moto.modelo }}">
                         <i class="far fa-heart"></i> Like
                     </button>
                     <span class="like-info">
-                        <span class="like-count">{{ moto.likes }}</span> personas les gustó
+                        <span class="like-count">{{ moto.likes or 0 }}</span> personas les gustó
                     </span>
                 </div>
             </div>
@@ -75,7 +169,7 @@
         </div>
         <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
             <button id="reload-btn" class="reload-btn">
-                <i class="fas fa-sync-alt"></i> Recargar motos
+                <i class="fas fa-sync-alt"></i> Actualizar ranking
             </button>
         </div>
     </div>

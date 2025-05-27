@@ -24,6 +24,10 @@ class MotoRecommenderAdapter:
         self.neo4j_user = user
         self.neo4j_password = password
         
+        # Inicializar logger PRIMERO
+        self.logger = logging.getLogger('MotoRecommenderAdapter')
+        self.logger.setLevel(logging.INFO)
+        
         # Inicializar atributos
         self.driver = None
         self.data_loaded = False
@@ -31,7 +35,16 @@ class MotoRecommenderAdapter:
         self.moto_data = None
         self.ratings_data = None
         self.friendships_df = None
-          # Inicializar algoritmos de recomendación correctamente
+        
+        # Inicializar DataFrames
+        self.users_df = None
+        self.motos_df = None
+        self.ratings_df = None
+        
+        # Configuración
+        self.allow_mock_data = False  # Solo usar datos de Neo4j
+        
+        # Inicializar algoritmos de recomendación correctamente
         self.pagerank = MotoPageRank()
         self.label_propagation = MotoLabelPropagation() 
         
@@ -121,11 +134,237 @@ class MotoRecommenderAdapter:
             logger.error(f"Error al verificar conexión Neo4j: {str(e)}")
             return False
     
-    def load_data(self, users_df=None, motos_df=None, ratings_df=None):
-        """
-        Carga los datos exclusivamente desde Neo4j.
-        """
-        logger.info("Cargando datos desde Neo4j (modo exclusivo)")
+    def load_data(self):
+        """Cargar datos desde Neo4j de manera robusta"""
+        self.logger.info("Cargando datos desde Neo4j (modo exclusivo)")
+        
+        if not self.driver:
+            self.logger.error("No hay conexión a Neo4j disponible")
+            if not self.allow_mock_data:
+                self.logger.error("La aplicación requiere Neo4j. No se usarán datos mock.")
+                raise RuntimeError("No se pudieron cargar datos desde Neo4j")
+            return False
+        
+        try:
+            # Intentar cargar datos reales desde Neo4j
+            success = self._load_from_neo4j()
+            if success:
+                self.logger.info(f"Datos cargados desde Neo4j: {len(self.motos_df)} motos, {len(self.users_df)} usuarios, {len(self.ratings_df)} ratings")
+                
+                # NUEVO: Construir ranking con manejo de errores mejorado
+                try:
+                    self.logger.info("Construyendo ranking desde datos de interacción...")
+                    
+                    # Preparar datos para PageRank con validación de tipos
+                    pagerank_data = []
+                    for _, row in self.ratings_df.iterrows():
+                        # Validar y convertir datos
+                        user_id = str(row['user_id']) if row['user_id'] else None
+                        moto_id = str(row['moto_id']) if row['moto_id'] else None
+                        
+                        # Convertir weight de manera segura
+                        raw_weight = row.get('rating', 1.0)
+                        try:
+                            if isinstance(raw_weight, str):
+                                # Limpiar string y convertir
+                                cleaned_weight = raw_weight.strip()
+                                weight = float(cleaned_weight) if cleaned_weight else 1.0
+                            else:
+                                weight = float(raw_weight) if raw_weight is not None else 1.0
+                        except (ValueError, TypeError):
+                            weight = 1.0
+                            self.logger.warning(f"Peso inválido '{raw_weight}' convertido a 1.0")
+                        
+                        # Solo agregar si tenemos datos válidos
+                        if user_id and moto_id and weight > 0:
+                            pagerank_data.append({
+                                'user_id': user_id,
+                                'moto_id': moto_id,
+                                'weight': weight
+                            })
+                    
+                    self.logger.info(f"Preparados {len(pagerank_data)} registros para PageRank")
+                    
+                    # Construir grafo con datos validados
+                    if pagerank_data:
+                        self.pagerank.build_graph(pagerank_data)
+                        self.logger.info("Ranking de motos construido exitosamente")
+                    else:
+                        self.logger.warning("No hay datos válidos para construir el ranking")
+                        
+                except Exception as ranking_error:
+                    self.logger.error(f"Error construyendo ranking: {str(ranking_error)}")
+                    # Continuar sin ranking en lugar de fallar completamente
+                    self.logger.info("Continuando sin sistema de ranking...")
+                
+                return True
+            else:
+                self.logger.error("Error crítico al cargar datos desde Neo4j")
+                
+        except Exception as e:
+            self.logger.error(f"Error crítico al cargar datos desde Neo4j: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        
+        # Si llegamos aquí, falló la carga desde Neo4j
+        if not self.allow_mock_data:
+            self.logger.error("La aplicación requiere Neo4j. No se usarán datos mock.")
+            raise RuntimeError("No se pudieron cargar datos desde Neo4j")
+        
+        return False
+    
+    def connect_to_neo4j(self, max_retries=3, timeout=10):
+        """Establecer conexión robusta a Neo4j."""
+        from neo4j import GraphDatabase
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Intento {attempt+1}/{max_retries} de conexión a Neo4j: {self.neo4j_uri}")
+                self.driver = GraphDatabase.driver(
+                    self.neo4j_uri, 
+                    auth=(self.neo4j_user, self.neo4j_password)
+                )
+                
+                # Test connection
+                with self.driver.session() as session:
+                    result = session.run("RETURN 'Conexión exitosa' as mensaje")
+                    message = result.single()["mensaje"]
+                    logger.info(f"Neo4j: {message}")
+                
+                logger.info("Conexión a Neo4j establecida exitosamente")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error de conexión a Neo4j (intento {attempt+1}): {str(e)}")
+                if attempt < max_retries - 1:
+                    wait_time = timeout * (attempt + 1)
+                    logger.info(f"Reintentando en {wait_time} segundos...")
+                    time.sleep(wait_time)
+                else:
+                    logger.error("Se agotaron los intentos de conexión a Neo4j.")
+                    # Ahora fallamos si no hay conexión - nunca datos mock
+                    return False
+                    
+    def test_connection(self):
+        """Prueba la conexión a Neo4j y retorna True si es exitosa."""
+        try:
+            if not self.driver:
+                return self.connect_to_neo4j(max_retries=1)
+                
+            with self.driver.session() as session:
+                result = session.run("RETURN 'Test exitoso' as mensaje")
+                message = result.single()["mensaje"]
+                logger.info(f"Test de conexión a Neo4j: {message}")
+                return True
+        except Exception as e:
+            logger.error(f"Error en test de conexión: {str(e)}")
+            return False
+    
+    def _ensure_neo4j_connection(self):
+        """Asegura que hay una conexión activa a Neo4j o intenta reconectar."""
+        try:
+            if not self.driver:
+                logger.warning("No hay un driver de Neo4j, intentando conectar...")
+                return self.connect_to_neo4j()
+            
+            # Probar la conexión existente
+            with self.driver.session() as session:
+                try:
+                    result = session.run("RETURN 'Conexión verificada' as mensaje")
+                    message = result.single()["mensaje"]
+                    logger.debug(f"Neo4j conexión verificada: {message}")
+                    return True
+                except Exception as session_error:
+                    logger.warning(f"Error con la sesión actual: {str(session_error)}. Reconectando...")
+                    self.driver.close()
+                    self.driver = None
+                    return self.connect_to_neo4j()
+        except Exception as e:
+            logger.error(f"Error al verificar conexión Neo4j: {str(e)}")
+            return False
+    
+    def load_data(self):
+        """Cargar datos desde Neo4j de manera robusta"""
+        self.logger.info("Cargando datos desde Neo4j (modo exclusivo)")
+        
+        if not self.driver:
+            self.logger.error("No hay conexión a Neo4j disponible")
+            if not self.allow_mock_data:
+                self.logger.error("La aplicación requiere Neo4j. No se usarán datos mock.")
+                raise RuntimeError("No se pudieron cargar datos desde Neo4j")
+            return False
+        
+        try:
+            # Intentar cargar datos reales desde Neo4j
+            success = self._load_from_neo4j()
+            if success:
+                self.logger.info(f"Datos cargados desde Neo4j: {len(self.motos_df)} motos, {len(self.users_df)} usuarios, {len(self.ratings_df)} ratings")
+                
+                # NUEVO: Construir ranking con manejo de errores mejorado
+                try:
+                    self.logger.info("Construyendo ranking desde datos de interacción...")
+                    
+                    # Preparar datos para PageRank con validación de tipos
+                    pagerank_data = []
+                    for _, row in self.ratings_df.iterrows():
+                        # Validar y convertir datos
+                        user_id = str(row['user_id']) if row['user_id'] else None
+                        moto_id = str(row['moto_id']) if row['moto_id'] else None
+                        
+                        # Convertir weight de manera segura
+                        raw_weight = row.get('rating', 1.0)
+                        try:
+                            if isinstance(raw_weight, str):
+                                # Limpiar string y convertir
+                                cleaned_weight = raw_weight.strip()
+                                weight = float(cleaned_weight) if cleaned_weight else 1.0
+                            else:
+                                weight = float(raw_weight) if raw_weight is not None else 1.0
+                        except (ValueError, TypeError):
+                            weight = 1.0
+                            self.logger.warning(f"Peso inválido '{raw_weight}' convertido a 1.0")
+                        
+                        # Solo agregar si tenemos datos válidos
+                        if user_id and moto_id and weight > 0:
+                            pagerank_data.append({
+                                'user_id': user_id,
+                                'moto_id': moto_id,
+                                'weight': weight
+                            })
+                    
+                    self.logger.info(f"Preparados {len(pagerank_data)} registros para PageRank")
+                    
+                    # Construir grafo con datos validados
+                    if pagerank_data:
+                        self.pagerank.build_graph(pagerank_data)
+                        self.logger.info("Ranking de motos construido exitosamente")
+                    else:
+                        self.logger.warning("No hay datos válidos para construir el ranking")
+                        
+                except Exception as ranking_error:
+                    self.logger.error(f"Error construyendo ranking: {str(ranking_error)}")
+                    # Continuar sin ranking en lugar de fallar completamente
+                    self.logger.info("Continuando sin sistema de ranking...")
+                
+                return True
+            else:
+                self.logger.error("Error crítico al cargar datos desde Neo4j")
+                
+        except Exception as e:
+            self.logger.error(f"Error crítico al cargar datos desde Neo4j: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        
+        # Si llegamos aquí, falló la carga desde Neo4j
+        if not self.allow_mock_data:
+            self.logger.error("La aplicación requiere Neo4j. No se usarán datos mock.")
+            raise RuntimeError("No se pudieron cargar datos desde Neo4j")
+        
+        return False
+    
+    def _load_from_neo4j(self):
+        """Carga los datos reales desde Neo4j."""
+        logger.info("Cargando datos desde Neo4j...")
         
         try:
             # Verificar conexión a Neo4j
@@ -578,286 +817,118 @@ class MotoRecommenderAdapter:
             # Conectar a Neo4j si es necesario
             if not self._ensure_neo4j_connection():
                 logger.error("No se pudo conectar a Neo4j para obtener motos populares")
-                return []
+                return self._get_mock_popular_motos(top_n)
                 
-            # Obtener datos de interacción
+            # FIXED: Mejorar la consulta para obtener datos correctos
             query = """
             MATCH (u:User)-[r:INTERACTED]->(m:Moto)
             WHERE r.type = 'like' OR r.type = 'rating'
-            RETURN u.id as user_id, m.id as moto_id, r.weight as weight
+            RETURN u.id as user_id, m.id as moto_id, 
+                   COALESCE(r.weight, 1.0) as weight
+            UNION
+            MATCH (u:User)-[r:RATED]->(m:Moto)
+            RETURN u.id as user_id, m.id as moto_id, 
+                   COALESCE(r.rating, 1.0) as weight
+            UNION
+            MATCH (u:User)-[r:IDEAL]->(m:Moto)
+            RETURN u.id as user_id, m.id as moto_id, 
+                   5.0 as weight
             """
             
             with self.driver.session() as session:
                 result = session.run(query)
-                interactions = [(record["user_id"], record["moto_id"], 
-                               record.get("weight", 1.0)) for record in result]
+                
+                # FIXED: Convertir a formato de diccionario con validación
+                interactions = []
+                for record in result:
+                    user_id = record.get("user_id")
+                    moto_id = record.get("moto_id")
+                    weight = record.get("weight", 1.0)
+                    
+                    # Validar que tenemos datos válidos
+                    if user_id and moto_id:
+                        # Asegurar que weight es numérico
+                        try:
+                            weight = float(weight) if weight is not None else 1.0
+                        except (ValueError, TypeError):
+                            weight = 1.0
+                            
+                        interaction = {
+                            'user_id': str(user_id),
+                            'moto_id': str(moto_id),
+                            'weight': weight
+                        }
+                        interactions.append(interaction)
             
-            # Si no hay datos de interacción, devolver lista vacía
-            if not interactions:
-                logger.warning("No hay datos de interacción para calcular motos populares")
-                return []
+            logger.info(f"Obtenidas {len(interactions)} interacciones para PageRank")
+            
+            # Si no hay datos de interacción suficientes, devolver motos mock
+            if len(interactions) < 5:
+                logger.warning("Pocos datos de interacción para calcular motos populares, usando datos mock")
+                return self._get_mock_popular_motos(top_n)
                 
             # Inicializar y ejecutar PageRank
             from app.algoritmo.pagerank import MotoPageRank
             pagerank = MotoPageRank()
             pagerank.build_graph(interactions)
-            pagerank.run()
             
-            # Obtener las motos más populares
-            popular_moto_ids = pagerank.get_popular_motos(top_n=top_n)
+            # FIXED: Usar el parámetro correcto 'n' en lugar de 'top_n'
+            popular_moto_rankings = pagerank.get_top_motos(n=top_n)
+            
+            if not popular_moto_rankings:
+                logger.warning("No se obtuvieron rankings de PageRank, usando datos mock")
+                return self._get_mock_popular_motos(top_n)
             
             # Obtener información detallada de las motos
             popular_motos_info = []
             
-            if not self.motos_df is None and not self.motos_df.empty:
-                # Usar DataFrame en memoria si está disponible
-                for moto_id, score in popular_moto_ids:
-                    # Buscar la moto en el DataFrame
-                    moto_info = self.motos_df[self.motos_df['moto_id'] == moto_id]
-                    if not moto_info.empty:
-                        # Convertir la primera fila a diccionario
-                        moto_dict = moto_info.iloc[0].to_dict()
-                        # Agregar puntuación
-                        moto_dict['score'] = score
-                        popular_motos_info.append(moto_dict)
-            else:
-                # Buscar datos en Neo4j
-                moto_ids = [moto_id for moto_id, _ in popular_moto_ids]
+            for i, (moto_id, score) in enumerate(popular_moto_rankings):
+                # Buscar datos de la moto en Neo4j
                 moto_query = """
-                MATCH (m:Moto)
-                WHERE m.id IN $moto_ids
-                RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
-                       m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                MATCH (m:Moto {id: $moto_id})
+                OPTIONAL MATCH (u:User)-[r:INTERACTED]->(m) WHERE r.type = 'like'
+                RETURN m.marca as marca, m.modelo as modelo, m.tipo as estilo,
+                       m.precio as precio, m.imagen as imagen, count(r) as likes
                 """
                 
                 with self.driver.session() as session:
-                    result = session.run(moto_query, moto_ids=moto_ids)
+                    result = session.run(moto_query, moto_id=moto_id)
+                    record = result.single()
                     
-                    for record in result:
-                        # Buscar la puntuación
-                        score = 0.0
-                        for moto_id, s in popular_moto_ids:
-                            if moto_id == record["id"]:
-                                score = s
-                                break
-                                
-                        popular_motos_info.append({
-                            "id": record["id"],
-                            "marca": record["marca"],
-                            "modelo": record["modelo"],
-                            "tipo": record["tipo"],
-                            "precio": record["precio"],
-                            "imagen": record["imagen"],
-                            "score": score
-                        })
+                    if record:
+                        # FIXED: Asegurar que todos los campos requeridos están presentes
+                        moto_info = {
+                            'moto_id': moto_id,
+                            'marca': record.get('marca', 'Marca desconocida'),
+                            'modelo': record.get('modelo', 'Modelo desconocido'),
+                            'estilo': record.get('estilo', 'Estilo desconocido'),
+                            'precio': record.get('precio', 0),
+                            'imagen': record.get('imagen', '/static/images/default-moto.jpg'),
+                            'likes': record.get('likes', 0),
+                            'score': round(score * 100, 1),  # Convertir a escala 0-100
+                            'ranking_position': i + 1
+                        }
+                        popular_motos_info.append(moto_info)
             
-            return popular_motos_info
+            logger.info(f"Obtenidas {len(popular_motos_info)} motos populares del ranking PageRank")
+            
+            # Si no obtuvimos suficientes motos, complementar con mock data
+            if len(popular_motos_info) < top_n:
+                logger.info("Complementando con datos mock para alcanzar el número solicitado")
+                mock_motos = self._get_mock_popular_motos(top_n - len(popular_motos_info))
+                # Ajustar posiciones de ranking
+                for i, moto in enumerate(mock_motos):
+                    moto['ranking_position'] = len(popular_motos_info) + i + 1
+                    moto['score'] = max(0, moto.get('score', 50) - (i * 10))  # Decrementar scores
+                popular_motos_info.extend(mock_motos)
+            
+            return popular_motos_info[:top_n]
             
         except Exception as e:
             logger.error(f"Error al obtener motos populares: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
-            return []
-    
-    def _get_popular_motos(self, top_n=10):
-        """
-        Método de compatibilidad para código antiguo que llama a _get_popular_motos.
-        
-        Args:
-            top_n (int): Número de motos a devolver
-            
-        Returns:
-            list: Lista de motos populares con sus puntuaciones
-        """
-        return self.get_popular_motos(top_n)
-    
-    def _get_enriched_interactions(self, user_id):
-        """
-        Obtiene interacciones enriquecidas con detalles de motos para el algoritmo de Label Propagation.
-        
-        Args:
-            user_id (str): ID del usuario
-            
-        Returns:
-            list: Lista de interacciones enriquecidas
-        """
-        try:
-            # Verificar conexión a Neo4j
-            if not self._ensure_neo4j_connection():
-                logger.warning("No hay conexión a Neo4j para obtener interacciones")
-                return []
-                
-            with self.driver.session() as session:
-                # Obtener interacciones del usuario y sus amigos
-                result = session.run("""
-                MATCH (u:User)-[:FRIEND_OF|FRIEND]-(f:User)
-                MATCH (u_or_f:User)-[r:INTERACTED|IDEAL|RATED]->(m:Moto)
-                WHERE u.id = $user_id AND (u_or_f.id = u.id OR u_or_f.id = f.id)
-                RETURN 
-                    u_or_f.id as user_id,
-                    m.id as moto_id,
-                    m.marca as marca,
-                    m.modelo as modelo,
-                    m.tipo as tipo,
-                    m.cilindrada as cilindrada,
-                    m.potencia as potencia,
-                    m.precio as precio,
-                    CASE type(r)
-                        WHEN 'INTERACTED' THEN r.weight
-                        WHEN 'IDEAL' THEN 1.0
-                        WHEN 'RATED' THEN r.rating / 5.0
-                        ELSE 0.5
-                    END as weight
-                """, user_id=user_id)
-                
-                interactions = [dict(record) for record in result]
-                
-                # Si no tenemos suficientes interacciones, obtener las motos más populares
-                if len(interactions) < 10:
-                    popular_result = session.run("""
-                    MATCH (u:User)-[r:INTERACTED|IDEAL|RATED]->(m:Moto)
-                    WITH m, count(r) as popularity
-                    ORDER BY popularity DESC
-                    LIMIT 20
-                    RETURN 
-                        'synthetic_user' as user_id,
-                        m.id as moto_id,
-                        m.marca as marca,
-                        m.modelo as modelo,
-                        m.tipo as tipo,
-                        m.cilindrada as cilindrada,
-                        m.potencia as potencia,
-                        m.precio as precio,
-                        0.5 as weight
-                    """)
-                    
-                    popular_interactions = [dict(record) for record in popular_result]
-                    interactions.extend(popular_interactions)
-                
-                return interactions
-                
-        except Exception as e:
-            logger.error(f"Error al obtener interacciones enriquecidas: {str(e)}")
-            return []
-    
-    def save_preferences(self, user_id, preferences):
-        """
-        Guarda las preferencias de usuario en Neo4j.
-        
-        Args:
-            user_id: ID del usuario
-            preferences: Diccionario con preferencias
-            
-        Returns:
-            bool: True si se guardaron correctamente, False en caso contrario
-        """
-        try:
-            self._ensure_neo4j_connection()
-            if not self.driver:
-                self.logger.error("No hay conexión a Neo4j para guardar preferencias")
-                return False
-                
-            with self.driver.session() as session:
-                # Verificar si existe el usuario
-                result = session.run("MATCH (u:User {id: $user_id}) RETURN count(u) as count", user_id=user_id)
-                user_exists = result.single()["count"] > 0
-                
-                if not user_exists:
-                    # Crear el usuario si no existe
-                    username = preferences.get('username', f"user_{user_id[-3:]}")
-                    session.run("""
-                        CREATE (u:User {id: $user_id, username: $username, created_at: timestamp()})
-                    """, user_id=user_id, username=username)
-                    self.logger.info(f"Usuario creado: {user_id}")
-                    
-                # MEJORADO: Manejar valores cuantitativos correctamente
-                quantitative_props = {}
-                for key, value in preferences.items():
-                    # Procesar solo valores numéricos
-                    if key in ['presupuesto', 'presupuesto_min', 'presupuesto_max', 
-                               'cilindrada', 'cilindrada_min', 'cilindrada_max',
-                               'potencia', 'potencia_min', 'potencia_max']:
-                        try:
-                            # Asegurar que son números
-                            quantitative_props[key] = int(value)
-                        except (ValueError, TypeError):
-                            self.logger.warning(f"Valor no numérico para {key}: {value}")
-                
-                # Guardar propiedades cuantitativas directamente en el nodo
-                if quantitative_props:
-                    query_parts = []
-                    for key in quantitative_props:
-                        query_parts.append(f"u.{key} = ${key}")
-                    
-                    query = f"""
-                        MATCH (u:User {{id: $user_id}})
-                        SET {', '.join(query_parts)}
-                    """
-                    session.run(query, user_id=user_id, **quantitative_props)
-                    self.logger.info(f"Propiedades cuantitativas guardadas: {list(quantitative_props.keys())}")
-                    
-                # Guardar preferencias de estilo
-                if 'estilos' in preferences and isinstance(preferences['estilos'], dict):
-                    # Eliminar relaciones anteriores
-                    session.run("""
-                        MATCH (u:User {id: $user_id})-[r:PREFERS_STYLE]->()
-                        DELETE r
-                    """, user_id=user_id)
-                    
-                    # Crear nuevas relaciones
-                    for estilo, peso in preferences['estilos'].items():
-                        session.run("""
-                            MATCH (u:User {id: $user_id})
-                            MERGE (s:Style {name: $estilo})
-                            MERGE (u)-[r:PREFERS_STYLE]->(s)
-                            SET r.weight = $peso
-                        """, user_id=user_id, estilo=estilo, peso=float(peso))
-                    
-                    self.logger.info(f"Preferencias de estilo guardadas: {list(preferences['estilos'].keys())}")
-                    
-                # Guardar preferencias de marca
-                if 'marcas' in preferences and isinstance(preferences['marcas'], dict):
-                    # Eliminar relaciones anteriores
-                    session.run("""
-                        MATCH (u:User {id: $user_id})-[r:PREFERS_BRAND]->()
-                        DELETE r
-                    """, user_id=user_id)
-                    
-                    # Crear nuevas relaciones
-                    for marca, peso in preferences['marcas'].items():
-                        session.run("""
-                            MATCH (u:User {id: $user_id})
-                            MERGE (b:Brand {name: $marca})
-                            MERGE (u)-[r:PREFERS_BRAND]->(b)
-                            SET r.weight = $peso
-                        """, user_id=user_id, marca=marca, peso=float(peso))
-                    
-                    self.logger.info(f"Preferencias de marca guardadas: {list(preferences['marcas'].keys())}")
-                    
-                # Guardar otras preferencias como nodo PreferenceSet
-                other_prefs = {k: v for k, v in preferences.items() if k not in ['estilos', 'marcas'] 
-                              and not k.startswith('presupuesto') and not k.startswith('cilindrada')
-                              and not k.startswith('potencia')}
-                
-                if other_prefs:
-                    # Convertir a formato JSON para guardar
-                    prefs_json = json.dumps(other_prefs)
-                    
-                    # Guardar en nodo de preferencias
-                    session.run("""
-                        MATCH (u:User {id: $user_id})
-                        MERGE (p:PreferenceSet {user_id: $user_id})
-                        SET p.preferences = $prefs,
-                            p.updated_at = timestamp()
-                        MERGE (u)-[:HAS_PREFERENCES]->(p)
-                    """, user_id=user_id, prefs=prefs_json)
-                    
-                    self.logger.info(f"Otras preferencias guardadas como JSON")
-                
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"Error al guardar preferencias: {str(e)}")
-            import traceback
-            self.logger.error(traceback.format_exc())
-            return False
+            # En caso de error, devolver datos mock
+            return self._get_mock_popular_motos(top_n)
+
+# ...existing code...

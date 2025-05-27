@@ -4,6 +4,7 @@ Script para ejecutar la aplicación
 import os
 import sys
 import logging
+import traceback
 from flask import Flask, render_template, session, render_template_string, redirect, url_for, jsonify, request
 from neo4j import GraphDatabase
 
@@ -60,6 +61,8 @@ def main():
     try:
         from app.adapter_factory import create_adapter
         
+        logger.info("🔧 Intentando crear adaptador de recomendaciones...")
+        
         # Crear e inicializar el adaptador - cargará datos inmediatamente
         adapter = create_adapter(app)
         
@@ -73,13 +76,30 @@ def main():
         
         if adapter:
             logger.info("✅ Adaptador de recomendaciones creado exitosamente")
+            
+            # NUEVO: Inicializar el ranking de motos como instancia global
+            from app.algoritmo.pagerank import MotoPageRank
+            try:
+                ranking = MotoPageRank()
+                if hasattr(adapter, 'driver') and adapter.driver:
+                    logger.info("🔄 Inicializando ranking de motos desde Neo4j...")
+                    ranking.update_from_neo4j(adapter.driver)
+                    app.config['MOTO_RANKING'] = ranking
+                    logger.info("✅ Ranking de motos inicializado correctamente")
+                else:
+                    logger.warning("⚠️ No hay driver de Neo4j disponible para el ranking")
+                    
+            except Exception as ranking_error:
+                logger.error(f"❌ Error inicializando ranking: {str(ranking_error)}")
+                logger.error(traceback.format_exc())
+
         else:
             logger.warning("⚠️ No se pudo crear el adaptador de recomendaciones")
             
     except Exception as e:
-        logger.error(f"❌ Error creando adaptador: {str(e)}")
-        # Continuar sin adaptador - las rutas manejarán este caso
-        app.config['MOTO_RECOMMENDER'] = None
+        logger.error(f"❌ Error crítico en main: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
     
     # Retornar la app para uso en servidores de producción
     return app

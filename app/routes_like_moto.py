@@ -1,6 +1,15 @@
+from flask import Blueprint, request, jsonify, session, current_app
+import logging
+
+# Configurar logging
+logger = logging.getLogger(__name__)
+
+fixed_routes = Blueprint('fixed_routes', __name__)
+
+
 @fixed_routes.route('/like_moto', methods=['POST'])
 def like_moto():
-    """Ruta para registrar un like a una moto"""
+    """Ruta para registrar un like a una moto y actualizar el ranking"""
     if 'username' not in session:
         return jsonify({'success': False, 'message': 'Debes iniciar sesión para dar like'})
     
@@ -10,7 +19,7 @@ def like_moto():
         return jsonify({'success': False, 'message': 'Datos incompletos'})
     
     moto_id = data['moto_id']
-    user_id = session.get('user_id')
+    user_id = session.get('user_id', session.get('username'))
     
     # Obtener el adaptador
     adapter = current_app.config.get('MOTO_RECOMMENDER')
@@ -19,7 +28,9 @@ def like_moto():
     
     try:
         # Registro directo en Neo4j para crear la relación INTERACTED con type='like'
-        adapter._ensure_neo4j_connection()
+        if not hasattr(adapter, '_ensure_neo4j_connection') or not adapter._ensure_neo4j_connection():
+            return jsonify({'success': False, 'message': 'Error de conexión a la base de datos'})
+            
         with adapter.driver.session() as neo4j_session:
             # Verificar si ya existe la interacción
             result = neo4j_session.run("""
@@ -47,6 +58,11 @@ def like_moto():
             record = result.single()
             if record:
                 logger.info(f"Usuario {session.get('username')} dio like a {record['marca']} {record['modelo']}")
+                
+                # NUEVO: Actualizar el ranking de popularidad
+                from app.utils import update_moto_ranking_like
+                update_moto_ranking_like(moto_id)
+                
                 return jsonify({'success': True, 'message': 'Like registrado correctamente'})
             else:
                 return jsonify({'success': False, 'message': 'No se pudo registrar el like'})

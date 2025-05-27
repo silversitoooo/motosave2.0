@@ -99,11 +99,19 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.innerHTML = '<i class="fas fa-heart"></i> ¡Te gusta!';
             btn.disabled = true;
             
-            // Efecto de brillo naranja            btn.style.boxShadow = "0 0 15px hsl(24, 90%, 50%), 0 0 30px hsl(24, 90%, 40%)";
+            // Efecto de brillo naranja            
+            btn.style.boxShadow = "0 0 15px hsl(24, 90%, 50%), 0 0 30px hsl(24, 90%, 40%)";
             
             // Incrementar contador localmente
             const count = parseInt(likeCountSpan.textContent);
             likeCountSpan.textContent = count + 1;
+            
+            // NUEVO: Actualizar información del ranking localmente
+            const rankingScore = card.querySelector('.score-text');
+            if (rankingScore) {
+                const currentScore = parseInt(rankingScore.textContent);
+                rankingScore.textContent = `${currentScore + 1} puntos`;
+            }
             
             // Añadir efecto flotante con emojis
             addFloatingEmojis(card);
@@ -130,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         likeCountSpan.textContent = data.likes;
                     }
                     // Muestra un mensaje de éxito 
-                    showNotification(`¡Te gusta la ${modelo}!`);
+                    showNotification(`¡Te gusta la ${modelo}! Ranking actualizado.`);
                 } else {
                     console.error("Error al registrar like:", data.message);
                     showNotification("No se pudo registrar tu like. Inténtalo de nuevo.", "error");
@@ -151,13 +159,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 likeInfo.style.transition = "all 0.5s cubic-bezier(0.5, 1, 0.89, 1)";
             }, 300);
         });
-    });    // Funcionalidad para botón de recargar motos
+    });
+
+    // Funcionalidad para botón de recargar motos - ACTUALIZADA
     const reloadBtn = document.getElementById('reload-btn');
     if (reloadBtn) {
         reloadBtn.addEventListener('click', () => {
             // Añadir clase de animación
             reloadBtn.classList.add('pulse');
-            reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+            reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando ranking...';
             
             // Obtener el contenedor de la cuadrícula
             const gridContainer = document.querySelector('.grid-container');
@@ -172,13 +182,9 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             
             // Simular carga y refrescar las tarjetas
-            setTimeout(() => {                // Recargar la página con parámetro de aleatorización
-                window.location.href = '/populares?shuffle=true';
-                
-                // En una implementación más avanzada:
-                // - Podríamos usar fetch() para obtener nuevas motos del servidor
-                // - Actualizar dinámicamente los elementos del DOM
-                // - Mantener el estado de likes del usuario sin recargar la página
+            setTimeout(() => {
+                // Recargar la página con parámetro de actualización del ranking
+                window.location.href = '/populares?update_ranking=true';
             }, 800);
         });
     }
