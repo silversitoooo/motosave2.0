@@ -140,16 +140,33 @@ def run_server(app=None, suppress_warnings=False):
         logger.info("Servidor detenido por el usuario")
         print("\n✅ Servidor detenido correctamente")
 
+def run_production_server():
+    """Ejecutar el servidor en modo producción usando Waitress"""
+    try:
+        import waitress
+        app = main()
+        if app:
+            logger.info("🚀 Iniciando servidor de producción con Waitress en http://0.0.0.0:5000")
+            waitress.serve(app, host='0.0.0.0', port=5000)
+    except ImportError:
+        logger.warning("⚠️ Waitress no está instalado. Para usar un servidor de producción ejecute:")
+        logger.warning("   pip install waitress")
+        # Fallback to development server
+        run_server(main(), suppress_warnings=True)
+
+# Modify your if __name__ == "__main__" block:
 if __name__ == "__main__":
     import sys
     
-    # Verificar si se pasó el argumento para suprimir advertencias
-    if len(sys.argv) > 1 and sys.argv[1] == "--no-warnings":
+    # Check for production mode
+    if len(sys.argv) > 1 and sys.argv[1] == "--production":
+        run_production_server()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--no-warnings":
         app = main()
         if app:
             run_server(app, suppress_warnings=True)
     else:
-        # Comportamiento original
+        # Original behavior
         app = main()
         if app:
             run_server(app, suppress_warnings=False)

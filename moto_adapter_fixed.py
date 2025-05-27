@@ -541,10 +541,32 @@ class MotoRecommenderAdapter:
         logger.info(f"Potencia: {potencia_min_tolerancia:.0f} - {potencia_max_tolerancia:.0f}")
         logger.info(f"Torque: {torque_min_tolerancia:.0f} - {torque_max_tolerancia:.0f}")
         logger.info(f"Peso: {peso_min_tolerancia:.0f} - {peso_max_tolerancia:.0f}")
-        
-        # FILTROS ESTRICTOS: Solo motos que cumplan TODOS los requisitos
+          # FILTROS ESTRICTOS: Solo motos que cumplan TODOS los requisitos
         filtered_motos = self.motos_df.copy()
         
+        # PASO 1: FILTROS DE PREFERENCIAS (PRIORIDAD ALTA)
+        # Filtro por estilo preferido (aplicar PRIMERO)
+        if estilos_preferidos:
+            estilo_filter = filtered_motos['tipo'].str.lower().isin(estilos_preferidos.keys())
+            filtered_motos = filtered_motos[estilo_filter]
+            logger.info(f"Después de filtro por estilo {list(estilos_preferidos.keys())}: {len(filtered_motos)} motos")
+            
+            if filtered_motos.empty:
+                logger.warning(f"No hay motos del estilo preferido. Relajando filtro de estilo...")
+                filtered_motos = self.motos_df.copy()
+        
+        # Filtro por marca preferida (aplicar SEGUNDO)
+        if marcas_preferidas and not filtered_motos.empty:
+            marca_filter = filtered_motos['marca'].str.lower().isin(marcas_preferidas.keys())
+            filtered_motos_marca = filtered_motos[marca_filter]
+            
+            if not filtered_motos_marca.empty:
+                filtered_motos = filtered_motos_marca
+                logger.info(f"Después de filtro por marca {list(marcas_preferidas.keys())}: {len(filtered_motos)} motos")
+            else:
+                logger.warning(f"No hay motos de la marca preferida en el estilo elegido. Manteniendo filtro de estilo...")
+        
+        # PASO 2: FILTROS TÉCNICOS (aplicar después de preferencias)
         # Filtro por presupuesto (estricto con 10% tolerancia)
         filtered_motos = filtered_motos[
             (filtered_motos['precio'] >= presupuesto_min_tolerancia) & 
@@ -578,15 +600,32 @@ class MotoRecommenderAdapter:
                 (filtered_motos['peso'] >= peso_min_tolerancia) & 
                 (filtered_motos['peso'] <= peso_max_tolerancia)
             ]
-            logger.info(f"Motos que cumplen filtros estrictos: {len(filtered_motos)} de {len(self.motos_df)}")
-        
+            logger.info(f"Motos que cumplen TODOS los filtros (preferencias + técnicos): {len(filtered_motos)} de {len(self.motos_df)}")
         if filtered_motos.empty:
-            logger.warning(f"No hay motos que cumplan los filtros estrictos. Usando filtros relajados.")
+            logger.warning(f"No hay motos que cumplan TODOS los filtros. Aplicando filtros relajados...")
             
-            # FILTROS RELAJADOS: Motos que cumplan al menos algunos requisitos importantes
+            # FILTROS RELAJADOS: Mantener preferencias de estilo/marca pero relajar especificaciones técnicas
             filtered_motos = self.motos_df.copy()
             
-            # Aplicar solo los filtros más importantes con mayor tolerancia (30%)
+            # SIEMPRE mantener filtros de preferencias si existen
+            if estilos_preferidos:
+                estilo_filter = filtered_motos['tipo'].str.lower().isin(estilos_preferidos.keys())
+                filtered_motos = filtered_motos[estilo_filter]
+                logger.info(f"Filtros relajados - Manteniendo filtro de estilo: {len(filtered_motos)} motos")
+                
+                if filtered_motos.empty:
+                    logger.warning(f"Sin motos del estilo preferido. Expandiendo búsqueda...")
+                    filtered_motos = self.motos_df.copy()
+            
+            if marcas_preferidas and not filtered_motos.empty:
+                marca_filter = filtered_motos['marca'].str.lower().isin(marcas_preferidas.keys())
+                filtered_motos_marca = filtered_motos[marca_filter]
+                
+                if not filtered_motos_marca.empty:
+                    filtered_motos = filtered_motos_marca
+                    logger.info(f"Filtros relajados - Manteniendo filtro de marca: {len(filtered_motos)} motos")
+            
+            # Aplicar solo los filtros técnicos más importantes con mayor tolerancia (30%)
             tolerancia_relajada = 0.30
             presupuesto_min_rel = presupuesto_min * (1 - tolerancia_relajada)
             presupuesto_max_rel = presupuesto_max * (1 + tolerancia_relajada)
@@ -603,20 +642,41 @@ class MotoRecommenderAdapter:
                     (filtered_motos['cilindrada'] >= cilindrada_min_rel) &
                     (filtered_motos['cilindrada'] <= cilindrada_max_rel)
                 ]
-            
-            # Si aún no hay resultados, obtener las top N motos más populares
+              # Si aún no hay resultados, intentar con solo preferencias (sin filtros técnicos)
             if filtered_motos.empty:
-                logger.warning(f"No hay motos que cumplan los filtros relajados. Usando top motos populares.")
+                logger.warning(f"No hay motos que cumplan filtros relajados. Intentando solo con preferencias...")
                 
-                # Ordenar por popularidad o ID si no hay campo de popularidad
-                if 'popularity' in self.motos_df.columns:
-                    filtered_motos = self.motos_df.sort_values('popularity', ascending=False).head(top_n)
+                filtered_motos = self.motos_df.copy()
+                
+                # Aplicar solo filtros de preferencias sin restricciones técnicas
+                if estilos_preferidos:
+                    estilo_filter = filtered_motos['tipo'].str.lower().isin(estilos_preferidos.keys())
+                    filtered_motos = filtered_motos[estilo_filter]
+                    logger.info(f"Solo filtro de estilo: {len(filtered_motos)} motos")
+                
+                if marcas_preferidas and not filtered_motos.empty:
+                    marca_filter = filtered_motos['marca'].str.lower().isin(marcas_preferidas.keys())
+                    filtered_motos_marca = filtered_motos[marca_filter]
+                    
+                    if not filtered_motos_marca.empty:
+                        filtered_motos = filtered_motos_marca
+                        logger.info(f"Solo filtros de preferencias (estilo + marca): {len(filtered_motos)} motos")
+                
+                # Si aún no hay resultados, usar motos populares como último recurso
+                if filtered_motos.empty:
+                    logger.warning(f"No hay motos que cumplan las preferencias. Usando top motos populares.")
+                    
+                    # Ordenar por popularidad o ID si no hay campo de popularidad
+                    if 'popularity' in self.motos_df.columns:
+                        filtered_motos = self.motos_df.sort_values('popularity', ascending=False).head(top_n)
+                    else:
+                        filtered_motos = self.motos_df.head(top_n)
+                    
+                    logger.info(f"Seleccionadas {len(filtered_motos)} motos populares como recomendación de respaldo")
                 else:
-                    filtered_motos = self.motos_df.head(top_n)
-                
-                logger.info(f"Seleccionadas {len(filtered_motos)} motos populares como recomendación de respaldo")
+                    logger.info(f"Usando solo filtros de preferencias: {len(filtered_motos)} motos")
             else:
-                logger.info(f"Motos que cumplen filtros relajados: {len(filtered_motos)} de {len(self.motos_df)}")
+                logger.info(f"Motos que cumplen filtros relajados (preferencias + técnicos relajados): {len(filtered_motos)} de {len(self.motos_df)}")
         
         # Calcular score para cada moto que cumple los filtros
         results = []
@@ -930,5 +990,44 @@ class MotoRecommenderAdapter:
             logger.error(traceback.format_exc())
             # En caso de error, devolver datos mock
             return self._get_mock_popular_motos(top_n)
-
-# ...existing code...
+    
+    def save_preferences(self, user_id, preferences):
+        """
+        Guarda las preferencias del usuario en Neo4j.
+        
+        Args:
+            user_id (str): ID del usuario
+            preferences (dict): Preferencias del usuario
+        
+        Returns:
+            bool: True si se guardaron correctamente
+        """
+        if not self._ensure_neo4j_connection():
+            self.logger.error("Error de conexión a Neo4j al guardar preferencias")
+            return False
+            
+        try:
+            with self.driver.session() as session:
+                # Convertir preferencias a formato adecuado para Neo4j
+                prefs_json = json.dumps(preferences)
+                
+                # Guardar preferencias en el nodo User
+                query = """
+                MATCH (u:User {id: $user_id})
+                SET u.preferences = $preferences
+                RETURN u
+                """
+                
+                result = session.run(query, user_id=user_id, preferences=prefs_json)
+                summary = result.consume()
+                
+                if summary.counters.properties_set > 0:
+                    self.logger.info(f"Preferencias guardadas para usuario {user_id}")
+                    return True
+                else:
+                    self.logger.warning(f"No se guardaron preferencias para {user_id}")
+                    return False
+                    
+        except Exception as e:
+            self.logger.error(f"Error guardando preferencias: {str(e)}")
+            return False

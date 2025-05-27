@@ -353,3 +353,40 @@ class MotoIdealRecommender:
             self.logger.error(f"Error al combinar recomendaciones: {str(e)}")
             # En caso de error, devolver solo las híbridas
             return hybrid_recs[:top_n] if hybrid_recs else []
+    
+    def _apply_filters(self, motos, preferences, tolerance=0.2):  # Increase tolerance from 0.1 to 0.2
+        """
+        Aplica filtros a las motos según las preferencias.
+        
+        Args:
+            motos (list): Lista de motos
+            preferences (dict): Preferencias del usuario
+            tolerance (float): Tolerancia para ampliar rangos (0.2 = 20%)
+            
+        Returns:
+            list: Motos filtradas
+        """
+        # Obtener valores mínimos y máximos con tolerancia
+        filtered_motos = [...] # your existing filtering code
+        
+        # Lógica de retroceso
+        original_tolerance = tolerance
+        max_tolerance = 0.5  # Máximo 50% de tolerancia
+        
+        while len(filtered_motos) < 10 and tolerance < max_tolerance:
+            tolerance += 0.1
+            self.logger.info(f"Incrementando tolerancia a {tolerance*100}% para obtener más resultados")
+            # Recalcular min/max con nueva tolerancia
+            # ...recalculate your filters with the new tolerance...
+            # Re-aplicar filtrado
+        
+        if len(filtered_motos) < 5:
+            self.logger.warning(f"Pocos resultados ({len(filtered_motos)}), añadiendo motos recomendadas por popularidad")
+            # Agregar algunas motocicletas populares
+            popular_motos = self._get_popular_motos(10)
+            filtered_motos.extend(popular_motos)
+            # Eliminar duplicados
+            seen = set()
+            filtered_motos = [m for m in filtered_motos if not (m['id'] in seen or seen.add(m['id']))]
+        
+        return filtered_motos
