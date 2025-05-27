@@ -699,3 +699,223 @@ class MotoLabelPropagation:
         
         print(f"DEBUG: Generated {len(content_based_recs)} content-based recommendations")
         return content_based_recs
+    
+    def get_multi_friend_recommendations(self, user_id, friends_data, top_n=10):
+        """
+        Obtiene recomendaciones basadas en múltiples amigos considerando:
+        - Motos ideales de amigos (peso alto)
+        - Likes de amigos (peso medio)
+        - Motos ideales del usuario (peso alto, para recomendar similares)
+        - Likes del usuario (peso medio, para recomendar similares)
+        
+        Args:
+            user_id (str): ID del usuario
+            friends_data (list): Lista de dictionaries con datos de amigos
+            top_n (int): Número de recomendaciones a retornar
+            
+        Returns:
+            list: Lista de dictionaries con recomendaciones y atribución
+        """
+        self.logger.info(f"Generando recomendaciones multi-amigo para usuario {user_id}")
+        
+        try:
+            # Inicializar scores de recomendaciones
+            recommendation_scores = defaultdict(float)
+            recommendation_sources = defaultdict(list)  # Para tracking de fuentes
+              # Obtener motos ya valoradas/ideales del usuario para excluirlas
+            user_motos = set()
+            if (hasattr(self, 'user_preferences') and 
+                self.user_preferences is not None and 
+                user_id in self.user_preferences):
+                user_motos.update(self.user_preferences[user_id].keys())
+                
+            # Obtener motos ideales del usuario desde Neo4j para también excluirlas
+            try:
+                from flask import current_app
+                adapter = current_app.config.get('MOTO_RECOMMENDER')
+                if adapter and hasattr(adapter, 'driver'):
+                    with adapter.driver.session() as session:
+                        # Motos ideales del usuario
+                        user_ideal_result = session.run("""
+                            MATCH (u:User {id: $user_id})-[:IDEAL]->(m:Moto)
+                            RETURN m.id as moto_id
+                        """, user_id=user_id)
+                        
+                        for record in user_ideal_result:
+                            user_motos.add(record["moto_id"])
+                        
+                        # Motos con like del usuario
+                        user_likes_result = session.run("""
+                            MATCH (u:User {id: $user_id})-[r:INTERACTED]->(m:Moto)
+                            WHERE r.type = 'like'
+                            RETURN m.id as moto_id
+                        """, user_id=user_id)
+                        
+                        for record in user_likes_result:
+                            user_motos.add(record["moto_id"])
+            except Exception as e:
+                self.logger.warning(f"Error al obtener motos del usuario: {e}")
+            
+            # Procesar cada amigo
+            for friend_data in friends_data:
+                friend_id = friend_data.get('id', friend_data.get('friend_id'))
+                friend_username = friend_data.get('username', friend_data.get('friend_username'))
+                
+                self.logger.info(f"Procesando amigo: {friend_username} ({friend_id})")
+                
+                try:
+                    if adapter and hasattr(adapter, 'driver'):
+                        with adapter.driver.session() as session:
+                            # 1. MOTOS IDEALES DEL AMIGO (peso máximo: 3.0)
+                            ideal_result = session.run("""
+                                MATCH (u:User {id: $friend_id})-[:IDEAL]->(m:Moto)
+                                RETURN m.id as moto_id, m.marca as marca, m.modelo as modelo,
+                                       m.tipo as tipo, m.precio as precio, m.imagen as imagen
+                            """, friend_id=friend_id)
+                            
+                            for record in ideal_result:
+                                moto_id = record["moto_id"]
+                                if moto_id not in user_motos:  # No recomendar motos que ya tiene el usuario
+                                    recommendation_scores[moto_id] += 3.0
+                                    recommendation_sources[moto_id].append({
+                                        'type': 'ideal',
+                                        'friend': friend_username,
+                                        'weight': 3.0
+                                    })
+                                    self.logger.debug(f"Moto ideal de {friend_username}: {record['marca']} {record['modelo']}")
+                            
+                            # 2. LIKES DEL AMIGO (peso medio: 1.5)
+                            likes_result = session.run("""
+                                MATCH (u:User {id: $friend_id})-[r:INTERACTED]->(m:Moto)
+                                WHERE r.type = 'like'
+                                RETURN m.id as moto_id, m.marca as marca, m.modelo as modelo,
+                                       m.tipo as tipo, m.precio as precio, m.imagen as imagen,
+                                       r.weight as interaction_weight
+                            """, friend_id=friend_id)
+                            
+                            for record in likes_result:
+                                moto_id = record["moto_id"]
+                                if moto_id not in user_motos:  # No recomendar motos que ya tiene el usuario
+                                    interaction_weight = record.get("interaction_weight", 1.0)
+                                    score = 1.5 * interaction_weight
+                                    recommendation_scores[moto_id] += score
+                                    recommendation_sources[moto_id].append({
+                                        'type': 'like',
+                                        'friend': friend_username,
+                                        'weight': score
+                                    })
+                                    self.logger.debug(f"Like de {friend_username}: {record['marca']} {record['modelo']}")
+                                    
+                except Exception as e:
+                    self.logger.error(f"Error procesando amigo {friend_username}: {e}")
+                    continue
+            
+            # 3. RECOMENDACIONES BASADAS EN CONTENIDO SIMILAR
+            # Obtener motos similares a las que le gustan al usuario y sus amigos
+            content_recommendations = self._get_content_based_recommendations(
+                user_id, user_motos, [], max_per_moto=2
+            )
+            
+            for rec in content_recommendations:
+                moto_id = rec["moto_id"]
+                if moto_id not in user_motos:
+                    recommendation_scores[moto_id] += rec["score"]
+                    recommendation_sources[moto_id].append({
+                        'type': 'content',
+                        'friend': 'sistema',
+                        'weight': rec["score"],
+                        'note': rec.get("note", "Similar a tus preferencias")
+                    })
+            
+            # Ordenar recomendaciones por score
+            sorted_recommendations = sorted(
+                recommendation_scores.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )
+            
+            # Crear resultado final con detalles completos
+            final_recommendations = []
+            
+            for moto_id, score in sorted_recommendations[:top_n]:
+                try:
+                    if adapter and hasattr(adapter, 'driver'):
+                        with adapter.driver.session() as session:
+                            moto_result = session.run("""
+                                MATCH (m:Moto {id: $moto_id})
+                                RETURN m.id as id, m.marca as marca, m.modelo as modelo,
+                                       m.tipo as tipo, m.precio as precio, m.imagen as imagen,
+                                       m.cilindrada as cilindrada, m.potencia as potencia
+                            """, moto_id=moto_id)
+                            
+                            moto_record = moto_result.single()
+                            if moto_record:
+                                # Generar descripción de las fuentes
+                                sources = recommendation_sources[moto_id]
+                                source_text = self._generate_source_description(sources)
+                                
+                                final_recommendations.append({
+                                    "moto_id": moto_id,
+                                    "score": round(score, 2),
+                                    "marca": moto_record["marca"],
+                                    "modelo": moto_record["modelo"],
+                                    "tipo": moto_record["tipo"],
+                                    "precio": moto_record["precio"],
+                                    "imagen": moto_record["imagen"],
+                                    "cilindrada": moto_record["cilindrada"],
+                                    "potencia": moto_record["potencia"],
+                                    "source_description": source_text,
+                                    "sources": sources
+                                })
+                except Exception as e:
+                    self.logger.error(f"Error obteniendo detalles de moto {moto_id}: {e}")
+                    continue
+            
+            self.logger.info(f"Generadas {len(final_recommendations)} recomendaciones para {user_id}")
+            return final_recommendations
+            
+        except Exception as e:
+            self.logger.error(f"Error en get_multi_friend_recommendations: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return []
+    
+    def _generate_source_description(self, sources):
+        """Genera descripción legible de las fuentes de recomendación"""
+        if not sources:
+            return "Recomendado por el sistema"
+        
+        # Contar tipos de fuentes
+        ideal_friends = []
+        like_friends = []
+        content_sources = []
+        
+        for source in sources:
+            if source['type'] == 'ideal':
+                ideal_friends.append(source['friend'])
+            elif source['type'] == 'like':
+                like_friends.append(source['friend'])
+            elif source['type'] == 'content':
+                content_sources.append(source.get('note', 'Similar a tus preferencias'))
+        
+        # Construir descripción
+        descriptions = []
+        
+        if ideal_friends:
+            if len(ideal_friends) == 1:
+                descriptions.append(f"Moto ideal de {ideal_friends[0]}")
+            else:
+                descriptions.append(f"Moto ideal de {', '.join(ideal_friends)}")
+        
+        if like_friends:
+            if len(like_friends) == 1:
+                descriptions.append(f"Le gustó a {like_friends[0]}")
+            else:
+                descriptions.append(f"Le gustó a {', '.join(like_friends[:2])}")
+                if len(like_friends) > 2:
+                    descriptions.append(f"y {len(like_friends) - 2} amigos más")
+        
+        if content_sources:
+            descriptions.append("Similar a tus gustos")
+        
+        return " • ".join(descriptions) if descriptions else "Recomendado por el sistema"

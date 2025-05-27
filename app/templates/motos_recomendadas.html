@@ -154,13 +154,56 @@
         .moto-actions {
             margin-top: 1rem;
         }
-        
-        .btn-like {
+          .btn-like {
             background-color: transparent;
             border: none;
             color: #ff5722;
             cursor: pointer;
             font-size: 1.5rem;
+        }
+        
+        .recommendation-subtitle {
+            color: #ccc;
+            font-style: italic;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .btn-moto-ideal {
+            background-color: #ffd700;
+            color: #000;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .btn-moto-ideal:hover {
+            background-color: #ffed4e;
+            color: #000;
+        }
+        
+        .btn-like {
+            background-color: #ff5722;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+        }
+        
+        .btn-like:hover {
+            background-color: #e64a19;
+            color: white;
+        }
+        
+        .btn-ideal-selected {
+            background-color: #4caf50 !important;
+            color: white !important;
+        }
+        
+        .btn-like-selected {
+            background-color: #e91e63 !important;
+            color: white !important;
         }
     </style>
 </head>
@@ -177,14 +220,17 @@
                 <a href="{{ url_for('main.friends') }}" class="btn btn-primary">Buscar Amigos</a>
             </div>
         {% else %}            <!-- Las secciones de motos ideales y motos con like se han eliminado -->
-            <!-- Solo se mostrará la sección de propagación de etiquetas -->            <!-- Sección de motos por propagación de etiquetas -->
+            <!-- Solo se mostrará la sección de propagación de etiquetas -->            <!-- Sección de motos por propagación de etiquetas mejorada -->
             <section class="recommendation-section">
-                <h2>Recomendaciones personalizadas mediante Label Propagation</h2>
+                <h2>Motos que podrían gustarte</h2>
+                <p class="recommendation-subtitle">Basadas en las motos ideales y gustos de tus amigos</p>
                 <div class="row">
                     {% for item in propagation_motos %}
                         <div class="col-md-4 mb-4">
                             <div class="card h-100">
-                                <div class="recommendation-badge propagation-badge">Recomendada según análisis de tus preferencias y las de {{ item.friend_name }}</div>
+                                <div class="recommendation-badge propagation-badge">
+                                    {{ item.source_description if item.source_description else 'Recomendado por el sistema' }}
+                                </div>
                                 {% if item.moto.imagen %}
                                     <img src="{{ item.moto.imagen }}" class="card-img-top" alt="{{ item.moto.marca }} {{ item.moto.modelo }}">
                                 {% else %}
@@ -194,24 +240,50 @@
                                     <h5 class="card-title">{{ item.moto.marca }} {{ item.moto.modelo }}</h5>
                                     <p class="card-text">
                                         <strong>Tipo:</strong> {{ item.moto.tipo }}<br>
-                                        <strong>Precio:</strong> ${{ item.moto.precio }}<br>
-                                        <strong>Coincidencia:</strong> {{ (item.score * 100)|int }}%
+                                        <strong>Precio:</strong> ${{ "{:,.0f}".format(item.moto.precio) }}<br>
+                                        {% if item.moto.cilindrada %}
+                                        <strong>Cilindrada:</strong> {{ item.moto.cilindrada }}cc<br>
+                                        {% endif %}
+                                        {% if item.moto.potencia %}
+                                        <strong>Potencia:</strong> {{ item.moto.potencia }}hp<br>
+                                        {% endif %}
+                                        <strong>Puntuación:</strong> {{ item.score }}/10
                                     </p>
                                     <div class="progress mb-3">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ (item.score * 100)|int }}%;" 
-                                            aria-valuenow="{{ (item.score * 100)|int }}" aria-valuemin="0" aria-valuemax="100">
-                                            {{ (item.score * 100)|int }}%                                        </div>
+                                        <div class="progress-bar" role="progressbar" style="width: {{ (item.score * 10)|int }}%;" 
+                                            aria-valuenow="{{ (item.score * 10)|int }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ item.score }}/10
+                                        </div>
                                     </div>
-                                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
+                                    
+                                    <!-- Botones de acción -->
+                                    <div class="btn-group w-100" role="group">
+                                        <button class="btn btn-moto-ideal" data-moto-id="{{ item.moto.id }}" title="Marcar como Moto Ideal">
+                                            <i class="fas fa-star"></i> Moto Ideal
+                                        </button>
+                                        <button class="btn btn-like" data-moto-id="{{ item.moto.id }}" title="Me gusta">
+                                            <i class="fas fa-heart"></i> Like
+                                        </button>
+                                    </div>
+                                    
                                     {% if item.moto.id %}
-                                    <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary">Ver detalles</a>
+                                    <a href="{{ url_for('main.moto_detail', moto_id=item.moto.id) }}" class="btn btn-primary w-100 mt-2">Ver detalles</a>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
                     {% else %}
                         <div class="col-12">
-                            <p>No hay suficientes datos para generar recomendaciones personalizadas.</p>
+                            <div class="alert alert-info text-center">
+                                <h4>¡Sin recomendaciones aún!</h4>
+                                <p>Para obtener recomendaciones personalizadas:</p>
+                                <ul class="list-unstyled">
+                                    <li>• Marca algunas motos como "Moto Ideal"</li>
+                                    <li>• Da "Like" a motos que te gusten</li>
+                                    <li>• Agrega amigos que compartan tus gustos</li>
+                                </ul>
+                                <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Explorar motos</a>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>

@@ -504,7 +504,7 @@ def guardar_test():
 
 @fixed_routes.route('/recomendaciones')
 def recomendaciones():
-    """Página de recomendaciones personalizadas basadas en el test."""
+    """Página de recomendaciones personalizadas basadas en el test de preferencias."""
     if 'username' not in session:
         return redirect(url_for('main.login'))
     
@@ -512,7 +512,94 @@ def recomendaciones():
     user_id = session.get('user_id')
     test_data = session.get('test_data', {})
     
-    logger.info(f"Generando recomendaciones para {username} con datos: {test_data}")
+    logger.info(f"Generando recomendaciones basadas en test de preferencias para {username}")
+    
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        if not adapter:
+            flash("Error: Sistema de recomendación no disponible")
+            return redirect(url_for('main.dashboard'))
+              # SOLO usar el sistema tradicional basado en el test de preferencias
+        motos_recomendadas = []
+        logger.info("Usando sistema de recomendaciones basado en test de preferencias")
+        
+        recomendaciones = adapter.get_recommendations(
+            user_id, 
+            algorithm='hybrid', 
+            top_n=6, 
+            user_preferences=test_data
+        )
+        
+        # Formatear recomendaciones tradicionales
+        for i, recomendacion in enumerate(recomendaciones or []):
+                # ...código existente para formatear recomendaciones tradicionales...
+                moto_id = None
+                score = 0.5
+                reasons = ["Recomendación personalizada"]
+                
+                if isinstance(recomendacion, tuple):
+                    if len(recomendacion) >= 3:
+                        moto_id, score, reasons = recomendacion[0], recomendacion[1], recomendacion[2]
+                    elif len(recomendacion) == 2:
+                        moto_id, score = recomendacion[0], recomendacion[1]
+                    else:
+                        continue
+                elif isinstance(recomendacion, dict):
+                    motos_recomendadas.append(recomendacion)
+                    continue
+                else:
+                    continue
+                
+                # Obtener datos completos de la moto
+                moto_data = None
+                try:
+                    if hasattr(adapter, 'motos_df') and not adapter.motos_df.empty:
+                        moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
+                        if not moto_info.empty:
+                            moto_row = moto_info.iloc[0]
+                            moto_data = {
+                                "moto_id": moto_id,
+                                "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
+                                "marca": moto_row.get('marca', 'Marca Desconocida'),
+                                "precio": float(moto_row.get('precio', 0)),
+                                "tipo": moto_row.get('tipo', 'Estilo Desconocido'),
+                                "imagen": moto_row.get('imagen', '/static/images/default-moto.jpg'),
+                                "cilindrada": moto_row.get('cilindrada', 'N/D'),
+                                "potencia": moto_row.get('potencia', 'N/D'),
+                                "anio": moto_row.get('anio', 'N/D'),
+                                "score": score,
+                                "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
+                            }
+                    
+                    if moto_data:
+                        motos_recomendadas.append(moto_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error al procesar moto {moto_id}: {str(e)}")
+                    continue        
+        logger.info(f"Total de motos procesadas para el template: {len(motos_recomendadas)}")
+        
+        return render_template('recomendaciones.html', 
+                               motos_recomendadas=motos_recomendadas,
+                               test_data=test_data,
+                               friends_count=0)  # Sin amigos en esta ruta
+    except Exception as e:
+        logger.error(f"Error al generar recomendaciones: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        flash(f"Error al generar recomendaciones: {str(e)}")
+        return redirect(url_for('main.dashboard'))
+
+@fixed_routes.route('/motos-que-podrian-gustarte')
+def motos_que_podrian_gustarte():
+    """Página de recomendaciones basadas en amigos usando label propagation."""
+    if 'username' not in session:
+        return redirect(url_for('main.login'))
+    
+    username = session.get('username')
+    user_id = session.get('user_id')
+    
+    logger.info(f"Generando recomendaciones de amigos para {username} usando label propagation")
     
     try:
         adapter = current_app.config.get('MOTO_RECOMMENDER')
@@ -520,114 +607,66 @@ def recomendaciones():
             flash("Error: Sistema de recomendación no disponible")
             return redirect(url_for('main.dashboard'))
             
-        # Pasar explícitamente los datos del test al adaptador
-        recomendaciones = adapter.get_recommendations(
-            user_id, 
-            algorithm='hybrid', 
-            top_n=6, 
-            user_preferences=test_data  # Aquí pasamos los datos del test
-        )
+        # Obtener lista de amigos
+        friends = []
+        if hasattr(adapter, '_ensure_neo4j_connection'):
+            adapter._ensure_neo4j_connection()
+            with adapter.driver.session() as db_session:
+                # Buscar amigos del usuario
+                result = db_session.run("""
+                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(f:User)
+                    RETURN f.id as friend_id, f.username as friend_username
+                """, user_id=user_id)
+                
+                friends = [{"id": record["friend_id"], "username": record["friend_username"]} 
+                          for record in result]
         
-        logger.info(f"Recomendaciones obtenidas: {len(recomendaciones) if recomendaciones else 0}")
-        
-        # Formatear para la plantilla
+        # Usar SOLO el sistema de label propagation para amigos
         motos_recomendadas = []
-        for i, recomendacion in enumerate(recomendaciones):
-            logger.info(f"Procesando recomendación {i+1}: {recomendacion}")
+        if friends:
+            logger.info(f"Usando sistema label propagation con {len(friends)} amigos: {[f['username'] for f in friends]}")
             
-            # Manejar diferentes formatos de recomendaciones
-            moto_id = None
-            score = 0.5
-            reasons = ["Recomendación personalizada"]
+            # Crear instancia del algoritmo de label propagation mejorado
+            from .algoritmo.label_propagation import MotoLabelPropagation
+            label_propagation = MotoLabelPropagation()
             
-            if isinstance(recomendacion, tuple):
-                if len(recomendacion) >= 3:
-                    moto_id, score, reasons = recomendacion[0], recomendacion[1], recomendacion[2]
-                elif len(recomendacion) == 2:
-                    moto_id, score = recomendacion[0], recomendacion[1]
-                else:
-                    continue  # Saltar recomendaciones malformadas
-            elif isinstance(recomendacion, dict):
-                # Si ya es un objeto completo
-                motos_recomendadas.append(recomendacion)
-                continue
-            else:
-                continue  # Saltar si no es tupla ni dict
+            # Obtener recomendaciones basadas en múltiples amigos
+            multi_friend_recommendations = label_propagation.get_multi_friend_recommendations(
+                user_id=user_id,
+                friends_data=friends,
+                top_n=8  # Más recomendaciones para mejor selección
+            )
             
-            # Obtener datos completos de la moto usando el método correcto
-            moto_data = None
-            try:
-                # Intentar obtener de DataFrame primero
-                if hasattr(adapter, 'motos_df') and not adapter.motos_df.empty:
-                    moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
-                    if not moto_info.empty:
-                        moto_row = moto_info.iloc[0]
-                        moto_data = {
-                            "moto_id": moto_id,
-                            "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
-                            "marca": moto_row.get('marca', 'Marca Desconocida'),
-                            "precio": float(moto_row.get('precio', 0)),
-                            "tipo": moto_row.get('tipo', 'Estilo Desconocido'),
-                            "imagen": moto_row.get('imagen', '/static/images/default-moto.jpg'),
-                            "cilindrada": moto_row.get('cilindrada', 'N/D'),
-                            "potencia": moto_row.get('potencia', 'N/D'),
-                            "anio": moto_row.get('anio', 'N/D'),
-                            "score": score,
-                            "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
-                        }
+            # Convertir al formato esperado por la plantilla
+            for rec in multi_friend_recommendations:
+                motos_recomendadas.append({
+                    "moto_id": rec["moto_id"],
+                    "modelo": rec["modelo"],
+                    "marca": rec["marca"],
+                    "precio": rec["precio"],
+                    "tipo": rec["tipo"],
+                    "imagen": rec["imagen"],
+                    "cilindrada": rec.get("cilindrada", "N/D"),
+                    "potencia": rec.get("potencia", "N/D"),
+                    "anio": "N/D",  # No disponible en este contexto
+                    "score": rec["score"] / 10.0,  # Normalizar a 0-1 para compatibilidad
+                    "reasons": [rec["source_description"]],  # Usar la descripción de fuente como razón
+                    "friend_source": rec.get("friend_source", "Amigos")  # Agregar fuente de amigo
+                })
                 
-                # Si no se encontró en DataFrame, intentar con método get_moto_by_id
-                if not moto_data and hasattr(adapter, 'get_moto_by_id'):
-                    moto_dict = adapter.get_moto_by_id(moto_id)
-                    if moto_dict:
-                        moto_data = {
-                            "moto_id": moto_id,
-                            "modelo": moto_dict.get('modelo', 'Modelo Desconocido'),
-                            "marca": moto_dict.get('marca', 'Marca Desconocida'),
-                            "precio": float(moto_dict.get('precio', 0)),
-                            "tipo": moto_dict.get('tipo', 'Estilo Desconocido'),
-                            "imagen": moto_dict.get('imagen', '/static/images/default-moto.jpg'),
-                            "cilindrada": moto_dict.get('cilindrada', 'N/D'),
-                            "potencia": moto_dict.get('potencia', 'N/D'),
-                            "anio": moto_dict.get('anio', 'N/D'),
-                            "score": score,
-                            "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
-                        }
-                
-                # Si aún no tenemos datos, crear uno básico
-                if not moto_data:
-                    logger.warning(f"No se pudieron obtener datos para moto_id: {moto_id}")
-                    moto_data = {
-                        "moto_id": moto_id,
-                        "modelo": f"Moto {moto_id}",
-                        "marca": "Marca Desconocida",
-                        "precio": 0,
-                        "tipo": "Estilo Desconocido",
-                        "imagen": "/static/images/default-moto.jpg",
-                        "cilindrada": "N/D",
-                        "potencia": "N/D", 
-                        "anio": "N/D",
-                        "score": score,
-                        "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
-                    }
-                
-                motos_recomendadas.append(moto_data)
-                logger.info(f"Añadida moto: {moto_data['marca']} {moto_data['modelo']} (Score: {score})")
-                
-            except Exception as e:
-                logger.error(f"Error al procesar moto {moto_id}: {str(e)}")
-                continue
+            logger.info(f"Generadas {len(motos_recomendadas)} recomendaciones label propagation")
+        else:
+            logger.info("Sin amigos disponibles para recomendaciones de label propagation")
         
-        logger.info(f"Total de motos procesadas para el template: {len(motos_recomendadas)}")
-        
-        return render_template('recomendaciones.html', 
+        return render_template('motos_que_podrian_gustarte.html', 
                                motos_recomendadas=motos_recomendadas,
-                               test_data=test_data)
+                               friends=friends,
+                               friends_count=len(friends))
     except Exception as e:
-        logger.error(f"Error al generar recomendaciones: {str(e)}")
+        logger.error(f"Error al generar recomendaciones de amigos: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        flash(f"Error al generar recomendaciones: {str(e)}")
+        flash(f"Error al generar recomendaciones de amigos: {str(e)}")
         return redirect(url_for('main.dashboard'))
 
 @fixed_routes.route('/guardar_moto_ideal', methods=['POST'])
@@ -982,79 +1021,40 @@ def motos_recomendadas():
             
             # Si no hay amigos, mostrar página con mensaje
             if not friends:
-                return render_template('motos_recomendadas.html', friends_data=None)
-            
-            # Preparar datos para la plantilla - solo propagation_motos
-            propagation_motos = []
-            
-            # Crear instancia del algoritmo de label propagation
+                return render_template('motos_recomendadas.html', friends_data=None)              # Usar el nuevo método mejorado para recomendaciones multi-amigo
             label_propagation = MotoLabelPropagation()
             
-            # Procesar cada amigo solo para Label Propagation
-            for friend in friends:
-                friend_id = friend["id"]
-                friend_username = friend["username"]
-                
-                # Generar recomendaciones con label propagation
-                try:
-                    # Obtener interacciones del usuario y su amigo
-                    with adapter.driver.session() as db_session:
-                        interactions_result = db_session.run("""
-                            MATCH (u:User)-[r:INTERACTED]->(m:Moto)
-                            WHERE u.id IN [$user_id, $friend_id] AND r.type = 'like'
-                            RETURN u.id as user_id, m.id as moto_id,
-                                   m.marca as marca, m.modelo as modelo, r.weight as weight
-                        """, user_id=user_id, friend_id=friend_id)
-                        
-                        # Preparar datos para el algoritmo
-                        interactions = []
-                        for record in interactions_result:
-                            interactions.append({
-                                "user_id": record["user_id"],
-                                "moto_id": record["moto_id"],
-                                "weight": record["weight"] if record["weight"] else 1.0
-                            })
-                        
-                        # Ejecutar propagación si hay suficientes datos
-                        if interactions:
-                            # Inicializar el algoritmo con los datos
-                            label_propagation.initialize_from_interactions(interactions)
-                            
-                            # Obtener recomendaciones para el usuario actual
-                            prop_recommendations = label_propagation.get_recommendations(user_id)
-                            
-                            # Obtener detalles de las motos recomendadas
-                            if prop_recommendations:
-                                for rec in prop_recommendations[:5]:  # Limitar a 5 recomendaciones por amigo
-                                    moto_id = rec["moto_id"]
-                                    score = rec["score"]
-                                    
-                                    # Obtener detalles de la moto
-                                    moto_result = db_session.run("""
-                                        MATCH (m:Moto {id: $moto_id})
-                                        RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
-                                               m.tipo as tipo, m.precio as precio, m.imagen as imagen
-                                    """, moto_id=moto_id)
-                                    
-                                    moto_record = moto_result.single()
-                                    if moto_record:
-                                        propagation_motos.append({
-                                            "friend_name": friend_username,
-                                            "score": score,
-                                            "moto": {
-                                                "id": moto_record["id"],
-                                                "marca": moto_record["marca"],
-                                                "modelo": moto_record["modelo"],
-                                                "tipo": moto_record["tipo"],
-                                                "precio": moto_record["precio"],
-                                                "imagen": moto_record["imagen"]
-                                            }
-                                        })
-                except Exception as e:
-                    logger.error(f"Error al generar recomendaciones con label propagation para {friend_username}: {e}")
+            # Inicializar el algoritmo con datos básicos (estructura vacía)
+            # Esto evita errores de NoneType en user_preferences
+            label_propagation.initialize_from_interactions([])
             
-            # Ordenar motos recomendadas por puntuación
-            propagation_motos.sort(key=lambda x: x["score"], reverse=True)
+            # Obtener recomendaciones basadas en múltiples amigos
+            propagation_motos = label_propagation.get_multi_friend_recommendations(
+                user_id=user_id,
+                friends_data=friends,
+                top_n=10
+            )
+            
+            # Convertir al formato esperado por la plantilla
+            formatted_propagation_motos = []
+            for rec in propagation_motos:
+                formatted_propagation_motos.append({
+                    "friend_name": "Múltiples amigos",  # Indicar que viene de múltiples fuentes
+                    "score": rec["score"],
+                    "source_description": rec["source_description"],
+                    "moto": {
+                        "id": rec["moto_id"],
+                        "marca": rec["marca"],
+                        "modelo": rec["modelo"],
+                        "tipo": rec["tipo"],
+                        "precio": rec["precio"],
+                        "imagen": rec["imagen"],
+                        "cilindrada": rec.get("cilindrada", 0),
+                        "potencia": rec.get("potencia", 0)
+                    }
+                })
+            
+            propagation_motos = formatted_propagation_motos
             
             # Renderizar plantilla SOLO con los datos de label propagation
             return render_template('motos_recomendadas.html', 

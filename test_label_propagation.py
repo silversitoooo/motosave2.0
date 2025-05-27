@@ -73,7 +73,8 @@ def main():
     for user in social_graph.keys():
         recommendations = algorithm.get_recommendations(user, top_n=3)
         if recommendations:
-            print(f"  - {user}: {', '.join([f'{moto} ({score:.2f})' for moto, score in recommendations])}")
+            # CORREGIDO: Manejar formato de diccionarios en lugar de tuplas
+            print(f"  - {user}: {', '.join([f'{rec['moto_id']} ({rec['score']:.2f})' for rec in recommendations])}")
         else:
             print(f"  - {user}: No hay recomendaciones")
     
@@ -116,7 +117,7 @@ def main():
             username = user_record["username"]
             logger.info(f"Probando con el usuario {username} (ID: {user_id}) que tiene {user_record['like_count']} likes")
             
-            # Encontrar un amigo de este usuario - AQUÍ ESTÁ EL CAMBIO: FRIEND_OF en lugar de FRIENDS
+            # Encontrar un amigo de este usuario
             result = session.run("""
                 MATCH (u:User {id: $user_id})-[:FRIEND_OF]-(f:User)
                 RETURN f.id as friend_id, f.username as friend_name
@@ -156,6 +157,8 @@ def main():
             
     except Exception as e:
         logger.error(f"Error al probar la propagación de etiquetas: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         driver.close()
 
