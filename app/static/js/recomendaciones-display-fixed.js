@@ -103,7 +103,8 @@ function processRecommendations(motosRecomendadas, container) {
                 tipo: moto.tipo || moto.estilo || 'N/D',
                 imagen: moto.imagen || '/static/images/default-moto.jpg',
                 score: moto.score || 0,
-                reasons: moto.reasons || moto.razones || ['Recomendación personalizada']
+                reasons: moto.reasons || moto.razones || ['Recomendación personalizada'],
+                url: moto.URL || moto.url || moto.link || '#' // Asegura que se use la URL correcta
             };
         }
         
@@ -126,58 +127,60 @@ function processRecommendations(motosRecomendadas, container) {
         // Crear HTML de la tarjeta
         motoCard.innerHTML = `
             <div class="moto-image-container">
-                <img src="${motoData.imagen}" 
-                     alt="${motoData.marca} ${motoData.modelo}" 
-                     class="moto-img" 
-                     onerror="this.src='/static/images/default-moto.jpg'; console.log('Error cargando imagen:', this.getAttribute('src'));">
+            <img src="${motoData.imagen}" 
+             alt="${motoData.marca} ${motoData.modelo}" 
+             class="moto-img" 
+             onerror="this.src='/static/images/default-moto.jpg'; console.log('Error cargando imagen:', this.getAttribute('src'));">
             </div>
             
             <div class="moto-info">
-                <h3 class="moto-title">${motoData.marca} ${motoData.modelo}</h3>
-                
-                <div class="moto-specs">
-                    <p><strong>Año:</strong> ${motoData.año}</p>
-                    <p><strong>Tipo:</strong> ${motoData.tipo}</p>
-                    <p><strong>Cilindrada:</strong> ${cilindradaFormateada}</p>
-                    <p><strong>Potencia:</strong> ${potenciaFormateada}</p>
-                    <p><strong>Precio:</strong> ${precioFormateado}</p>
-                </div>
-                
-                <div class="match-score">
-                    <span class="score-label">Coincidencia:</span>
-                    <div class="score-bar">
-                        <div class="score-fill" style="width: ${scoreFormateado}%;"></div>
-                    </div>
-                    <span class="score-percentage">${scoreFormateado}%</span>
-                </div>
-                
-                <div class="reasons-container">
-                    <h4>¿Por qué te recomendamos esta moto?</h4>
-                    <ul class="reasons-list">
-                        ${reasons.map(reason => `<li><i class="fas fa-check-circle"></i> ${reason}</li>`).join('')}
-                    </ul>
-                </div>
-                  <div class="moto-actions">
-                    <button class="btn-moto-ideal" onclick="marcarComoIdeal('${motoData.moto_id}', '${motoData.marca}', '${motoData.modelo}')">
-                        <i class="fas fa-star"></i> Moto Ideal
-                    </button>
-                    <button class="btn-like" onclick="darLike('${motoData.moto_id}', '${motoData.marca}', '${motoData.modelo}')">
-                        <i class="fas fa-heart"></i> Like
-                    </button>
-                    <button class="btn-detalles" onclick="verDetalles('${motoData.moto_id}')">
-                        <i class="fas fa-info-circle"></i> Ver detalles
-                    </button>
-                </div>
+            <h3 class="moto-title">${motoData.marca} ${motoData.modelo}</h3>
+            
+            <div class="moto-specs">
+            <p><strong>Año:</strong> ${motoData.año}</p>
+            <p><strong>Tipo:</strong> ${motoData.tipo}</p>
+            <p><strong>Cilindrada:</strong> ${cilindradaFormateada}</p>
+            <p><strong>Potencia:</strong> ${potenciaFormateada}</p>
+            <p><strong>Precio:</strong> ${precioFormateado}</p>
+            </div>
+            
+            <div class="match-score">
+            <span class="score-label">Coincidencia:</span>
+            <div class="score-bar">
+            <div class="score-fill" style="width: ${scoreFormateado}%;"></div>
+            </div>
+            <span class="score-percentage">${scoreFormateado}%</span>
+            </div>
+            
+            <div class="reasons-container">
+            <h4>¿Por qué te recomendamos esta moto?</h4>
+            <ul class="reasons-list">
+            ${reasons.map(reason => `<li><i class="fas fa-check-circle"></i> ${reason}</li>`).join('')}
+            </ul>
+            </div>
+            <div class="moto-actions">
+            <button class="btn-moto-ideal" onclick="marcarComoIdeal('${motoData.moto_id}', '${motoData.marca}', '${motoData.modelo}')">
+            <i class="fas fa-star"></i> Moto Ideal
+            </button>
+            <button class="btn-like" onclick="darLike('${motoData.moto_id}', '${motoData.marca}', '${motoData.modelo}')">
+            <i class="fas fa-heart"></i> Like
+            </button>
+            <button class="btn-detalles" onclick="window.open('${motoData.url}', '_blank')">
+            <i class="fas fa-info-circle"></i> Ver detalles
+            </button>
+            </div>
             </div>
         `;
         
+
         // Añadir al contenedor
         container.appendChild(motoCard);
         
         // Animación de entrada escalonada
         setTimeout(() => {
             motoCard.style.opacity = "1";
-            motoCard.style.transform = "translateY(0)";
+            motoCard.s
+tyle.transform = "translateY(0)";
         }, index * 150);
     });
     

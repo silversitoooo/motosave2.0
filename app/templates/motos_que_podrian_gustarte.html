@@ -272,14 +272,14 @@
                             <p>{{ reason }}</p>
                             {% endfor %}
                         </div>
-                        {% endif %}
-                        
-                        <div class="action-buttons">
+                        {% endif %}                        <div class="action-buttons">
                             <button class="btn btn-like" data-moto-id="{{ moto.moto_id }}" title="Me gusta">
                                 <i class="fas fa-heart"></i> Me gusta
                             </button>
-                            {% if moto.moto_id %}
-                            <a href="{{ url_for('main.moto_detail', moto_id=moto.moto_id) }}" class="btn btn-primary">Ver detalles</a>
+                            {% if moto.url %}
+                            <a href="{{ moto.url }}" class="btn btn-primary" target="_blank">
+                                <i class="fas fa-external-link-alt"></i> Más detalles
+                            </a>
                             {% endif %}
                         </div>
                     </div>

@@ -145,7 +145,8 @@ class DatabaseConnector:
                    m.cilindrada as cilindrada,
                    m.peso as peso,
                    m.precio as precio,
-                   m.imagen as imagen
+                   m.imagen as imagen,
+                   m.url as url
             """
             with self.driver.session() as session:
                 result = session.run(query)
@@ -250,7 +251,7 @@ class DatabaseConnector:
         """Obtiene todas las motos de Neo4j"""
         if not self.is_connected:
             logger.error("No hay conexión a Neo4j para obtener motos")
-            return pd.DataFrame(columns=['moto_id', 'marca', 'modelo', 'tipo', 'cilindrada', 'precio', 'potencia', 'peso', 'imagen'])
+            return pd.DataFrame(columns=['moto_id', 'marca', 'modelo', 'tipo', 'cilindrada', 'precio', 'potencia', 'peso', 'imagen', 'url'])
             
         try:
             with self.driver.session() as session:
@@ -264,7 +265,8 @@ class DatabaseConnector:
                        m.precio AS precio,
                        m.potencia AS potencia,
                        m.peso AS peso,
-                       m.imagen AS imagen
+                       m.imagen AS imagen,
+                       m.url AS url
                 """)
                 
                 motos_data = []
@@ -278,7 +280,8 @@ class DatabaseConnector:
                         'precio': record.get('precio', 0),
                         'potencia': record.get('potencia', 0),
                         'peso': record.get('peso', 0),
-                        'imagen': record.get('imagen', '')
+                        'imagen': record.get('imagen', ''),
+                        'url': record.get('url', '')
                     })
                 
                 return pd.DataFrame(motos_data)

@@ -45,6 +45,12 @@
         </div>
         <p>Motos que podrían gustarte</p>
       </a>
+      <a href="{{ url_for('main.logout') }}" class="dashboard-box">
+        <div class="icon-container">
+          <i class="fas fa-sign-out-alt"></i>
+        </div>
+        <p>Cerrar sesión</p>
+      </a>
     </div>
   </div>
   
@@ -72,6 +78,8 @@
             link.href = '/moto_ideal';
           } else if (iconClass.includes('fa-thumbs-up') || linkText.includes('gustarte')) {
             link.href = '/motos-que-podrian-gustarte';
+          } else if (iconClass.includes('fa-sign-out-alt') || linkText.includes('cerrar sesión')) {
+            link.href = '/logout';
           }
         } else if (linkText.includes('inicio')) {
           link.href = '/';

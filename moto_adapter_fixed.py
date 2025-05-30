@@ -725,6 +725,9 @@ class MotoRecommenderAdapter:
             
             # Obtener datos de la moto para el resultado
             moto_id = str(moto.get('moto_id', moto.get('id', '')))
+
+            
+
             
             # Crear resultado completo con todos los datos de la moto
             moto_result = {
@@ -740,7 +743,8 @@ class MotoRecommenderAdapter:
                 'torque': moto.get('torque', 0),
                 'peso': moto.get('peso', 0),
                 'imagen': moto.get('imagen', ''),
-                'note': '; '.join(reasons)
+                'note': '; '.join(reasons),
+                'url': moto.get('url', ''),
             }
             
             results.append(moto_result)

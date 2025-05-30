@@ -45,7 +45,7 @@ class HybridMotoRecommender:
                 RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
                        m.tipo as tipo, m.cilindrada as cilindrada, m.precio as precio,
                        m.potencia as potencia, m.peso as peso, m.descripcion as descripcion,
-                       m.imagen as imagen, m.año as año
+                       m.imagen as imagen, m.año as año, m.url as url
                 """
                 result = session.run(motos_query)
                 motos_data = []
@@ -61,7 +61,8 @@ class HybridMotoRecommender:
                         'peso': self._parse_numeric(record['peso']),
                         'descripcion': record['descripcion'] or '',
                         'imagen': record['imagen'] or '',
-                        'año': self._parse_numeric(record['año'])
+                        'año': self._parse_numeric(record['año']),
+                        'url': record['url'] or ''
                     })
                 self.motos_df = pd.DataFrame(motos_data)
                 

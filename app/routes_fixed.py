@@ -69,23 +69,45 @@ def login():
             flash('Error: No se pudieron cargar los datos de usuarios.')
             return render_template('login.html')
         
+        # Asegurar que la columna 'password' esté presente y poblada
+        if 'password' not in users_df.columns:
+            try:
+                logger.info("Intentando cargar contraseñas desde Neo4j...")
+                with adapter.driver.session() as neo4j_session:
+                    result = neo4j_session.run(
+                        """
+                        MATCH (u:User)
+                        RETURN u.username AS username, u.password AS password
+                        """
+                    )
+                    passwords = {record['username']: record['password'] for record in result}
+                    users_df['password'] = users_df['username'].map(passwords)
+                    logger.info("Contraseñas cargadas exitosamente desde Neo4j.")
+            except Exception as e:
+                logger.error(f"Error al cargar contraseñas desde Neo4j: {str(e)}")
+                flash('Error: No se pudieron cargar las contraseñas de los usuarios. Por favor, contacta al administrador.')
+                return render_template('login.html')
         # Buscar el usuario
         user_row = users_df[users_df['username'] == username]
-        
+
         if user_row.empty:
             flash('Usuario no encontrado.')
             return render_template('login.html')
         
         # Verificar la contraseña
         stored_password = user_row.iloc[0]['password']
-        
-        # Si la contraseña almacenada es la misma que la proporcionada (para desarrollo)
-        if stored_password == password or (check_password_hash(stored_password, password) if stored_password.startswith('pbkdf2:sha256:') else False):
-            session['username'] = username
-            session['user_id'] = user_row.iloc[0]['user_id']
-            return redirect(url_for('main.dashboard'))
-        else:
-            flash('Contraseña incorrecta.')
+
+        try:
+            # Usar check_password_hash para verificar contraseñas hasheadas
+            if check_password_hash(stored_password, password):
+                session['username'] = username
+                session['user_id'] = user_row.iloc[0]['user_id']
+                return redirect(url_for('main.dashboard'))
+            else:
+                flash('Contraseña incorrecta.')
+        except Exception as e:
+            logger.error(f"Error al verificar la contraseña: {str(e)}")
+            flash('Error al verificar la contraseña. Por favor, intenta nuevamente.')
             
     return render_template('login.html')
 
@@ -549,34 +571,7 @@ def recomendaciones():
                     continue
                 else:
                     continue
-                
-                # Obtener datos completos de la moto
-                moto_data = None
-                try:
-                    if hasattr(adapter, 'motos_df') and not adapter.motos_df.empty:
-                        moto_info = adapter.motos_df[adapter.motos_df['moto_id'] == moto_id]
-                        if not moto_info.empty:
-                            moto_row = moto_info.iloc[0]
-                            moto_data = {
-                                "moto_id": moto_id,
-                                "modelo": moto_row.get('modelo', 'Modelo Desconocido'),
-                                "marca": moto_row.get('marca', 'Marca Desconocida'),
-                                "precio": float(moto_row.get('precio', 0)),
-                                "tipo": moto_row.get('tipo', 'Estilo Desconocido'),
-                                "imagen": moto_row.get('imagen', '/static/images/default-moto.jpg'),
-                                "cilindrada": moto_row.get('cilindrada', 'N/D'),
-                                "potencia": moto_row.get('potencia', 'N/D'),
-                                "anio": moto_row.get('anio', 'N/D'),
-                                "score": score,
-                                "reasons": reasons if isinstance(reasons, list) else [str(reasons)]
-                            }
-                    
-                    if moto_data:
-                        motos_recomendadas.append(moto_data)
-                        
-                except Exception as e:
-                    logger.error(f"Error al procesar moto {moto_id}: {str(e)}")
-                    continue        
+                               
         logger.info(f"Total de motos procesadas para el template: {len(motos_recomendadas)}")
         
         return render_template('recomendaciones.html', 
@@ -614,7 +609,7 @@ def motos_que_podrian_gustarte():
             with adapter.driver.session() as db_session:
                 # Buscar amigos del usuario
                 result = db_session.run("""
-                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(f:User)
+                    MATCH (u:User {id: $user_id})-[:FRIEND|FRIEND_OF]->(f:User)
                     RETURN f.id as friend_id, f.username as friend_username
                 """, user_id=user_id)
                 
@@ -636,9 +631,25 @@ def motos_que_podrian_gustarte():
                 friends_data=friends,
                 top_n=8  # Más recomendaciones para mejor selección
             )
-            
-            # Convertir al formato esperado por la plantilla
+              # Convertir al formato esperado por la plantilla
             for rec in multi_friend_recommendations:
+                # Obtener la URL de la moto desde Neo4j
+                try:
+                    with adapter.driver.session() as neo4j_session:
+                        url_result = neo4j_session.run("""
+                            MATCH (m:Moto {id: $moto_id})
+                            RETURN m.url as url
+                        """, moto_id=rec["moto_id"])
+                        url_record = url_result.single()
+                        if url_record and url_record['url']:
+                            rec["url"] = url_record['url']
+                        else:
+                            logger.warning(f"URL no encontrada para moto {rec['moto_id']}")
+                            rec["url"] = "https://example.com/default-url"  # Use a more meaningful default URL
+                except Exception as e:
+                    logger.warning(f"Error al obtener URL para moto {rec['moto_id']}: {str(e)}")
+                    rec["url"] = "https://example.com/error-url"  # Use a fallback URL in case of error
+
                 motos_recomendadas.append({
                     "moto_id": rec["moto_id"],
                     "modelo": rec["modelo"],
@@ -648,10 +659,11 @@ def motos_que_podrian_gustarte():
                     "imagen": rec["imagen"],
                     "cilindrada": rec.get("cilindrada", "N/D"),
                     "potencia": rec.get("potencia", "N/D"),
-                    "anio": "N/D",  # No disponible en este contexto
-                    "score": rec["score"] / 10.0,  # Normalizar a 0-1 para compatibilidad
-                    "reasons": [rec["source_description"]],  # Usar la descripción de fuente como razón
-                    "friend_source": rec.get("friend_source", "Amigos")  # Agregar fuente de amigo
+                    "url": rec["url"],  # Agregar la URL externa
+                    "anio": rec.get("año", "N/D"),
+                    "score": rec["score"] / 10.0,
+                    "reasons": [rec["source_description"]],
+                    "friend_source": rec.get("friend_source", "Amigos")
                 })
                 
             logger.info(f"Generadas {len(motos_recomendadas)} recomendaciones label propagation")
@@ -724,7 +736,7 @@ def friends():
             with adapter.driver.session() as neo4j_session:
                 # Consultar amigos desde Neo4j (relación FRIEND_OF)
                 result = neo4j_session.run("""
-                    MATCH (u:User {id: $user_id})-[:FRIEND_OF]->(a:User)
+                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(a:User)
                     RETURN a.username as amigo
                 """, user_id=user_id)
                 amigos = [record['amigo'] for record in result if record['amigo']]
@@ -1012,7 +1024,7 @@ def motos_recomendadas():
             with adapter.driver.session() as db_session:
                 # Modificar para buscar tanto FRIEND como FRIEND_OF relaciones
                 result = db_session.run("""
-                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(f:User)
+                    MATCH (u:User {id: $user_id})-[:FRIEND|FRIEND_OF]->(f:User)
                     RETURN f.id as friend_id, f.username as friend_username
                 """, user_id=user_id)
                 
@@ -1034,10 +1046,26 @@ def motos_recomendadas():
                 friends_data=friends,
                 top_n=10
             )
-            
-            # Convertir al formato esperado por la plantilla
+              # Convertir al formato esperado por la plantilla
             formatted_propagation_motos = []
             for rec in propagation_motos:
+                # Obtener la URL de la moto desde Neo4j
+                try:
+                    with adapter.driver.session() as neo4j_session:
+                        url_result = neo4j_session.run("""
+                            MATCH (m:Moto {id: $moto_id})
+                            RETURN m.url as url
+                        """, moto_id=rec["moto_id"])
+                        url_record = url_result.single()
+                        if url_record and url_record['url']:
+                            rec["url"] = url_record['url']
+                        else:
+                            logger.warning(f"URL no encontrada para moto {rec['moto_id']}")
+                            rec["url"] = "https://example.com/default-url"  # Use a more meaningful default URL
+                except Exception as e:
+                    logger.warning(f"Error al obtener URL para moto {rec['moto_id']}: {str(e)}")
+                    rec["url"] = "https://example.com/error-url"  # Use a fallback URL in case of error
+
                 formatted_propagation_motos.append({
                     "friend_name": "Múltiples amigos",  # Indicar que viene de múltiples fuentes
                     "score": rec["score"],
@@ -1050,7 +1078,8 @@ def motos_recomendadas():
                         "precio": rec["precio"],
                         "imagen": rec["imagen"],
                         "cilindrada": rec.get("cilindrada", 0),
-                        "potencia": rec.get("potencia", 0)
+                        "potencia": rec.get("potencia", 0),
+                        "url": rec["url"]  # Agregar la URL externa
                     }
                 })
             
@@ -1074,7 +1103,7 @@ def motos_recomendadas():
             with connector.driver.session() as db_session:
                 # Modificar para buscar tanto FRIEND como FRIEND_OF relaciones
                 result = db_session.run("""
-                    MATCH (u:User {id: $user_id})-[:FRIEND|:FRIEND_OF]->(f:User)
+                    MATCH (u:User {id: $user_id})-[:FRIEND|FRIEND_OF]->(f:User)
                     RETURN f.id as friend_id, f.username as friend_username
                 """, user_id=user_id)
                 
@@ -1116,71 +1145,44 @@ def moto_detail(moto_id):
         if not adapter:
             flash('Sistema de recomendaciones no disponible.', 'error')
             return redirect(url_for('main.dashboard'))
+          # Asegurar conexión a Neo4j
+        adapter._ensure_neo4j_connection()
         
-        # Intentar usar el adaptador para obtener detalles de la moto
-        if hasattr(adapter, 'get_moto_details'):
-            moto = adapter.get_moto_details(moto_id)
-        else:
-            # Usar conexión directa a Neo4j como fallback
-            connector = get_db_connection()
-            if not connector:
-                flash('No se pudo conectar a la base de datos.', 'error')
-                return redirect(url_for('main.dashboard'))
-                
-            with connector.driver.session() as session:
-                result = session.run("""
-                    MATCH (m:Moto {id: $moto_id})
-                    RETURN m.id as id, m.marca as marca, m.modelo as modelo, 
-                           m.tipo as tipo, m.precio as precio, m.imagen as imagen,
-                           m.motor as motor, m.cilindrada as cilindrada, 
-                           m.potencia as potencia, m.peso as peso
-                """, moto_id=moto_id)
-                
-                record = result.single()
-                if record:
-                    moto = {
-                        "id": record["id"],
-                        "marca": record["marca"],
-                        "modelo": record["modelo"],
-                        "tipo": record["tipo"],
-                        "precio": record["precio"],
-                        "imagen": record["imagen"],
-                        "motor": record.get("motor", "No disponible"),
-                        "cilindrada": record.get("cilindrada", "No disponible"),
-                        "potencia": record.get("potencia", "No disponible"),
-                        "peso": record.get("peso", "No disponible")
-                    }
-                else:
-                    flash('Moto no encontrada.', 'error')
-                    return redirect(url_for('main.dashboard'))
-                    
-        # Obtener opiniones/reviews de la moto
-        reviews = []
-        try:
-            with connector.driver.session() as session:
-                result = session.run("""
-                    MATCH (u:User)-[r:INTERACTED]->(m:Moto {id: $moto_id})
-                    WHERE r.type = 'review' OR r.comment IS NOT NULL
-                    RETURN u.username as username, r.comment as comment, 
-                           r.rating as rating, r.timestamp as timestamp
-                    ORDER BY r.timestamp DESC
-                """, moto_id=moto_id)
-                
-                for record in result:
-                    reviews.append({
-                        "username": record["username"],
-                        "comment": record["comment"],
-                        "rating": record["rating"],
-                        "timestamp": record["timestamp"]
-                    })
-        except Exception as e:
-            logger.error(f"Error al obtener reviews de la moto {moto_id}: {str(e)}")
+        moto_details = None
+        with adapter.driver.session() as neo4j_session:
+            result = neo4j_session.run("""
+                MATCH (m:Moto {id: $moto_id})
+                RETURN m {.*} as moto
+            """, moto_id=moto_id)
+            
+            record = result.single()
+            if record and record['moto']:
+                moto_details = record['moto']
+                # Asegurar que URL esté presente, si no establecer valor por defecto
+                if 'URL' not in moto_details or not moto_details['URL']:
+                    logger.warning(f"URL no encontrada para moto {moto_id}")
+                    moto_details['URL'] = "#"  # URL por defecto
         
-        return render_template('moto_detail.html', moto=moto, reviews=reviews)
+        if not moto_details:
+            flash('Moto no encontrada.', 'error')
+            return redirect(url_for('main.dashboard'))
+            
+        # Obtener información adicional como likes, comentarios, etc.
+        with adapter.driver.session() as neo4j_session:
+            # Contar likes
+            likes_result = neo4j_session.run("""
+                MATCH (u:User)-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                WHERE r.type = 'like'
+                RETURN count(r) as like_count
+            """, moto_id=moto_id)
+            like_record = likes_result.single()
+            moto_details['likes'] = like_record['like_count'] if like_record else 0
+            
+        return render_template('moto_detail.html', moto=moto_details)
         
     except Exception as e:
         logger.error(f"Error al mostrar detalles de la moto {moto_id}: {str(e)}")
-        flash('Error al cargar los detalles de la moto.', 'error')
+        flash('No se pudieron cargar los detalles de la moto.', 'error')
         return redirect(url_for('main.dashboard'))
 
 # Rutas para manejar botones de recomendaciones
@@ -1405,3 +1407,48 @@ def quitar_like_moto():
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': f'Error interno: {str(e)}'})
+
+@fixed_routes.route('/like_moto', methods=['POST'])
+def like_moto():
+    """Manejar likes de motos."""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'No has iniciado sesión'})
+    
+    user_id = session.get('user_id', '')
+    moto_id = request.form.get('moto_id', '')
+    
+    if not moto_id:
+        return jsonify({'success': False, 'error': 'No se especificó una moto'})
+    
+    try:
+        adapter = current_app.config.get('MOTO_RECOMMENDER')
+        
+        if not adapter:
+            return jsonify({'success': False, 'error': 'Adaptador no disponible'})
+        
+        adapter._ensure_neo4j_connection()
+        with adapter.driver.session() as neo4j_session:
+            # Verificar si ya existe un like
+            result = neo4j_session.run("""
+                MATCH (u:User {id: $user_id})-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                WHERE r.type = 'like'
+                RETURN count(r) as like_exists
+            """, user_id=user_id, moto_id=moto_id)
+            
+            like_exists = result.single()['like_exists'] > 0
+            
+            if not like_exists:
+                # Crear la relación de like
+                neo4j_session.run("""
+                    MATCH (u:User {id: $user_id})
+                    MATCH (m:Moto {id: $moto_id})
+                    CREATE (u)-[r:INTERACTED {type: 'like', timestamp: timestamp()}]->(m)
+                """, user_id=user_id, moto_id=moto_id)
+                
+                return jsonify({'success': True, 'message': 'Like agregado correctamente'})
+            else:
+                return jsonify({'success': True, 'message': 'Ya habías dado like a esta moto'})
+    
+    except Exception as e:
+        logger.error(f"Error al dar like a la moto: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
