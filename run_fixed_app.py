@@ -118,27 +118,42 @@ def run_server(app=None, suppress_warnings=False):
         # Configurar logging de Werkzeug para suprimir advertencias
         werkzeug_logger = logging.getLogger('werkzeug')
         werkzeug_logger.setLevel(logging.ERROR)
-        
-        logger.info("🌐 Servidor iniciado SIN advertencias en http://localhost:5000")
-    else:
-        logger.info("🌐 Servidor iniciado en http://localhost:5000")
     
-    try:
-        app.run(
-            host='0.0.0.0',
-            port=5000,
-            debug=True,
-            threaded=True,
-            use_reloader=False
-        )
-    except Exception as e:
-        logger.error(f"Error al iniciar el servidor: {str(e)}")
-        print(f"\n❌ Error al iniciar el servidor Flask: {str(e)}")
-        print("Verifica que el puerto 5000 no esté siendo usado por otra aplicación.")
-        print("Puedes cambiar el puerto modificando el valor en app.run(port=XXXX)")
-    except KeyboardInterrupt:
-        logger.info("Servidor detenido por el usuario")
-        print("\n✅ Servidor detenido correctamente")
+    # Lista de puertos alternativos para probar
+    puertos = [5000, 8080, 3000, 8000, 4000, 5001]
+    
+    for puerto in puertos:
+        try:
+            logger.info(f"🌐 Intentando iniciar servidor en http://localhost:{puerto}")
+            app.run(
+                host='0.0.0.0',
+                port=puerto,
+                debug=True,
+                threaded=True,
+                use_reloader=False
+            )
+            # Si llega aquí, el servidor se inició correctamente
+            break
+        except OSError as e:
+            if e.errno == 48 or "Address already in use" in str(e):  # 48 es "Address already in use"
+                logger.warning(f"⚠️ Puerto {puerto} ocupado, intentando con el siguiente...")
+                continue
+            else:
+                logger.error(f"Error al iniciar el servidor: {str(e)}")
+                print(f"\n❌ Error al iniciar el servidor Flask: {str(e)}")
+                break
+        except Exception as e:
+            logger.error(f"Error al iniciar el servidor: {str(e)}")
+            print(f"\n❌ Error al iniciar el servidor Flask: {str(e)}")
+            print("Verifica la configuración del servidor.")
+            break
+        except KeyboardInterrupt:
+            logger.info("Servidor detenido por el usuario")
+            print("\n✅ Servidor detenido correctamente")
+            break
+    else:
+        logger.error("❌ No se pudo iniciar el servidor en ninguno de los puertos disponibles")
+        print("\n❌ Error: Todos los puertos están ocupados. Intenta cerrar otras aplicaciones o especificar un puerto manualmente.")
 
 def run_production_server():
     """Ejecutar el servidor en modo producción usando Waitress"""
@@ -146,8 +161,23 @@ def run_production_server():
         import waitress
         app = main()
         if app:
-            logger.info("🚀 Iniciando servidor de producción con Waitress en http://0.0.0.0:5000")
-            waitress.serve(app, host='0.0.0.0', port=5000)
+            # Lista de puertos alternativos para probar
+            puertos = [5000, 8080, 3000, 8000, 4000, 5001]
+            
+            for puerto in puertos:
+                try:
+                    logger.info(f"🚀 Iniciando servidor de producción con Waitress en http://0.0.0.0:{puerto}")
+                    waitress.serve(app, host='0.0.0.0', port=puerto)
+                    break
+                except OSError as e:
+                    if e.errno == 48 or "Address already in use" in str(e):
+                        logger.warning(f"⚠️ Puerto {puerto} ocupado, intentando con el siguiente...")
+                        continue
+                    else:
+                        logger.error(f"Error al iniciar el servidor: {str(e)}")
+                        break
+            else:
+                logger.error("❌ No se pudo iniciar el servidor en ninguno de los puertos disponibles")
     except ImportError:
         logger.warning("⚠️ Waitress no está instalado. Para usar un servidor de producción ejecute:")
         logger.warning("   pip install waitress")
