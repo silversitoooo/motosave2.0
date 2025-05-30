@@ -5,8 +5,7 @@ import os
 import sys
 import logging
 import traceback
-from flask import Flask, render_template, session, render_template_string, redirect, url_for, jsonify, request
-from neo4j import GraphDatabase
+from flask import url_for
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

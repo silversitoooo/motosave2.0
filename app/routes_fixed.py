@@ -1,10 +1,6 @@
-import os
 import logging
-import traceback
 import json
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app, jsonify
-import pandas as pd
-import numpy as np
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from .utils import get_db_connection, login_required

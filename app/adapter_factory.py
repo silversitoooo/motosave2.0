@@ -4,9 +4,6 @@ Factory for creating and initializing the recommendation adapter
 import os
 import sys
 import logging
-import pandas as pd
-import numpy as np
-import traceback
 
 # Configurar logging
 logger = logging.getLogger(__name__)

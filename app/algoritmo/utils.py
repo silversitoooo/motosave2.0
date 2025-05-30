@@ -3,7 +3,6 @@ Utilidades para los algoritmos de recomendación de motos.
 Incluye funciones para conectar con la base de datos y preprocesar datos.
 """
 import pandas as pd
-import numpy as np
 from neo4j import GraphDatabase
 import logging
 
