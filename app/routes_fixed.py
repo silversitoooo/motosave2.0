@@ -69,24 +69,7 @@ def login():
             flash('Error: No se pudieron cargar los datos de usuarios.')
             return render_template('login.html')
         
-        # Asegurar que la columna 'password' esté presente y poblada
-        if 'password' not in users_df.columns:
-            try:
-                logger.info("Intentando cargar contraseñas desde Neo4j...")
-                with adapter.driver.session() as neo4j_session:
-                    result = neo4j_session.run(
-                        """
-                        MATCH (u:User)
-                        RETURN u.username AS username, u.password AS password
-                        """
-                    )
-                    passwords = {record['username']: record['password'] for record in result}
-                    users_df['password'] = users_df['username'].map(passwords)
-                    logger.info("Contraseñas cargadas exitosamente desde Neo4j.")
-            except Exception as e:
-                logger.error(f"Error al cargar contraseñas desde Neo4j: {str(e)}")
-                flash('Error: No se pudieron cargar las contraseñas de los usuarios. Por favor, contacta al administrador.')
-                return render_template('login.html')
+    
         # Buscar el usuario
         user_row = users_df[users_df['username'] == username]
 

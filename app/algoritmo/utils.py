@@ -79,7 +79,8 @@ class DatabaseConnector:
                    u.experiencia as experiencia,
                    u.uso_previsto as uso_previsto,
                    u.presupuesto as presupuesto,
-                   u.nombre as nombre
+                   u.nombre as nombre,
+                   u.password as password
             """
             with self.driver.session() as session:
                 result = session.run(query)
@@ -104,7 +105,8 @@ class DatabaseConnector:
                        u.edad AS edad,
                        u.experiencia AS experiencia,
                        u.uso_previsto AS uso_previsto,
-                       u.presupuesto AS presupuesto
+                       u.presupuesto AS presupuesto,
+                       u.password AS password
                 """)
                 
                 users_data = []
@@ -115,7 +117,8 @@ class DatabaseConnector:
                         'edad': record.get('edad', 30),
                         'experiencia': record.get('experiencia', 'Intermedio'),
                         'uso_previsto': record.get('uso_previsto', 'Paseo'),
-                        'presupuesto': record.get('presupuesto', 8000)
+                        'presupuesto': record.get('presupuesto', 8000),
+                        'password': record.get('password', '')
                     })
                 
                 logger.info(f"Obtenidos {len(users_data)} usuarios de Neo4j")
