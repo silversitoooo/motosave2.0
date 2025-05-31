@@ -508,6 +508,89 @@ def guardar_test():
         except Exception as e:
             current_app.logger.error(f"Error al guardar preferencias: {str(e)}")
         
+        # ✅ DEBUGGING - Ver todos los datos del formulario
+        current_app.logger.info("=== DATOS RECIBIDOS DEL TEST ===")
+        for key, value in form_data.items():
+            current_app.logger.info(f"  {key}: '{value}'")
+        current_app.logger.info("================================")
+        
+        # ✅ DEBUGGING - Ver datos procesados antes de enviar al algoritmo
+        current_app.logger.info("=== DATOS PROCESADOS PARA ALGORITMO ===")
+        for key, value in processed_data.items():
+            current_app.logger.info(f"  {key}: {value}")
+        current_app.logger.info("=======================================")
+        
+        # ✅ DEBUGGING - Ver preferencias enviadas al algoritmo
+        preferences = {
+            'tipo': processed_data.get('tipo', ''),
+            'experiencia': processed_data.get('experiencia', ''),
+            'uso_principal': processed_data.get('uso_principal', ''),
+            'presupuesto_min': processed_data.get('presupuesto_min', 0),
+            'presupuesto_max': processed_data.get('presupuesto_max', 100000),
+            'cilindrada_min': processed_data.get('cilindrada_min', 0),
+            'cilindrada_max': processed_data.get('cilindrada_max', 2000),
+            'ano_min': processed_data.get('ano_min', 2000),
+            'ano_max': processed_data.get('ano_max', 2025),
+        }
+        
+        
+        
+        # ✅ MAPEAR CORRECTAMENTE LOS DATOS QUE SÍ LLEGAN
+        
+        # En lugar de buscar 'tipo', 'experiencia', 'uso_principal' que no llegan,
+        # usar los datos de estilos y rama que SÍ llegan
+        
+        # Extraer tipo de moto desde estilos
+        estilos_data = processed_data.get('estilos', {})
+        tipo_inferido = ''
+        if estilos_data:
+            # El estilo dominante se convierte en tipo
+            if 'naked' in estilos_data:
+                tipo_inferido = 'Naked'
+            elif 'sport' in estilos_data:
+                tipo_inferido = 'Deportiva'
+            elif 'cruiser' in estilos_data:
+                tipo_inferido = 'Cruiser'
+            # ... otros mapeos
+        
+        # Inferir experiencia desde la rama seleccionada
+        rama = form_data.get('rama_seleccionada', '')
+        experiencia_inferida = ''
+        if rama == 'tecnica':
+            experiencia_inferida = 'Avanzado'  # Usuario técnico = avanzado
+        elif rama == 'basica':
+            experiencia_inferida = 'Principiante'
+        else:
+            experiencia_inferida = 'Intermedio'
+        
+        # Preparar preferencias para el algoritmo CON DATOS REALES
+        preferences = {
+            'tipo': tipo_inferido,                    # ✅ Inferido desde estilos
+            'experiencia': experiencia_inferida,     # ✅ Inferido desde rama
+            'uso_principal': 'Mixto',                # ✅ Valor por defecto razonable
+            'presupuesto_min': processed_data.get('presupuesto_min', 0),
+            'presupuesto_max': processed_data.get('presupuesto_max', 100000),
+            'cilindrada_min': processed_data.get('cilindrada_min', 0),
+            'cilindrada_max': processed_data.get('cilindrada_max', 2000),
+            'ano_min': processed_data.get('ano_min', 2000),
+            'ano_max': processed_data.get('ano_max', 2025),
+            # ✅ AGREGAR LOS DATOS QUE SÍ FUNCIONAN
+            'estilos': processed_data.get('estilos', {}),
+            'marcas': processed_data.get('marcas', {}),
+            'peso_min': processed_data.get('peso_min', 0),
+            'peso_max': processed_data.get('peso_max', 500),
+            'potencia_min': processed_data.get('potencia_min', 0),
+            'potencia_max': processed_data.get('potencia_max', 300),
+            'torque_min': processed_data.get('torque_min', 0),
+            'torque_max': processed_data.get('torque_max', 200),
+        }
+        
+        current_app.logger.info("=== PREFERENCIAS CORREGIDAS PARA ALGORITMO ===")
+        for key, value in preferences.items():
+            current_app.logger.info(f"  {key}: {value}")
+        current_app.logger.info("===============================================")
+        session['preferences_corregidas'] = preferences
+        
         return redirect(url_for("main.recomendaciones"))
 
 @fixed_routes.route('/recomendaciones')
@@ -527,15 +610,61 @@ def recomendaciones():
         if not adapter:
             flash("Error: Sistema de recomendación no disponible")
             return redirect(url_for('main.dashboard'))
-              # SOLO usar el sistema tradicional basado en el test de preferencias
+        
         motos_recomendadas = []
         logger.info("Usando sistema de recomendaciones basado en test de preferencias")
         
+        # ✅ CAMBIAR ESTA SECCIÓN COMPLETA:
+        # Verificar si existen preferencias corregidas en la sesión
+        preferences_corregidas = session.get('preferences_corregidas')
+        
+        if preferences_corregidas:
+            # Usar las preferencias ya corregidas
+            preferences = preferences_corregidas
+            logger.info("Usando preferencias corregidas desde la sesión")
+        else:
+            # Si no existen, crearlas aquí mismo con la lógica de inferencia
+            estilos_data = test_data.get('estilos', {})
+            tipo_inferido = ''
+            if estilos_data:
+                if 'naked' in estilos_data:
+                    tipo_inferido = 'Naked'
+                elif 'sport' in estilos_data:
+                    tipo_inferido = 'Deportiva'
+                elif 'cruiser' in estilos_data:
+                    tipo_inferido = 'Cruiser'
+                else:
+                    tipo_inferido = 'Mixto'
+            
+            experiencia_inferida = 'Avanzado'  # Inferir desde datos disponibles
+            
+            preferences = {
+                'tipo': tipo_inferido,
+                'experiencia': experiencia_inferida,
+                'uso_principal': 'Mixto',
+                'presupuesto_min': test_data.get('presupuesto_min', 0),
+                'presupuesto_max': test_data.get('presupuesto_max', 100000),
+                'cilindrada_min': test_data.get('cilindrada_min', 0),
+                'cilindrada_max': test_data.get('cilindrada_max', 2000),
+                'ano_min': test_data.get('ano_min', 2000),
+                'ano_max': test_data.get('ano_max', 2025),
+                'estilos': test_data.get('estilos', {}),
+                'marcas': test_data.get('marcas', {}),
+                'peso_min': test_data.get('peso_min', 0),
+                'peso_max': test_data.get('peso_max', 500),
+                'potencia_min': test_data.get('potencia_min', 0),
+                'potencia_max': test_data.get('potencia_max', 300),
+                'torque_min': test_data.get('torque_min', 0),
+                'torque_max': test_data.get('torque_max', 200),
+            }
+            logger.info("Creadas preferencias corregidas desde test_data")
+        
+        # El resto del código permanece igual...
         recomendaciones = adapter.get_recommendations(
             user_id, 
             algorithm='hybrid', 
             top_n=6, 
-            user_preferences=test_data
+            user_preferences=preferences  # Ya usa preferences corregidas
         )
         
         # Formatear recomendaciones tradicionales
@@ -1252,7 +1381,7 @@ def marcar_moto_ideal():
         logger.error(f"Error al marcar moto como ideal: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': f'Error interno: {str(e)}'})
+        return jsonify({'success': False, 'error': f'Error: {str(e)}'})
 
 @fixed_routes.route('/dar_like_moto', methods=['POST'])
 def dar_like_moto():
