@@ -350,32 +350,122 @@ function setupBubblesSelector(key, container) {
   
   console.log(`🔘 Configurando selector de burbujas para ${key}...`);
   
-  // La implementación específica de las burbujas depende de tu UI
-  // Esta es una versión simplificada
+  // Primero verificamos si el CounterSelector está disponible
+  if (typeof window.CounterSelector === 'function') {
+    console.log(`Usando CounterSelector para ${key}`);
+    try {
+      // Intentar usar CounterSelector si está disponible
+      return setupCounterSelector(key, container);
+    } catch (e) {
+      console.error(`Error al usar CounterSelector: ${e.message}. Usando modo de fallback.`);
+    }
+  }
   
+  // Fallback: implementación básica de burbujas
+  console.log(`Usando implementación básica de burbujas para ${key}`);
   const bubbles = container.querySelectorAll('.bubble-item');
+  
+  // Si no hay elementos, mostrar advertencia
+  if (bubbles.length === 0) {
+    console.warn(`No se encontraron elementos .bubble-item en el contenedor de ${key}`);
+  }
+  
   bubbles.forEach(bubble => {
     const itemId = bubble.getAttribute('data-id');
     const itemLabel = bubble.getAttribute('data-label');
+    
+    if (!itemId) {
+      console.warn(`Encontrada burbuja sin data-id en ${key}`);
+      return; // Saltar este elemento
+    }
     
     // Restaurar estado si ya estaba seleccionado
     if (window.respuestas[key] && window.respuestas[key][itemId]) {
       bubble.classList.add('selected');
     }
     
-    bubble.addEventListener('click', () => {
-      bubble.classList.toggle('selected');
+    // Limpiar eventos anteriores para evitar duplicados
+    const newBubble = bubble.cloneNode(true);
+    bubble.parentNode.replaceChild(newBubble, bubble);
+    
+    newBubble.addEventListener('click', () => {
+      newBubble.classList.toggle('selected');
       
       // Actualizar respuestas
-      if (bubble.classList.contains('selected')) {
+      if (newBubble.classList.contains('selected')) {
         window.respuestas[key][itemId] = itemLabel || itemId;
       } else {
         delete window.respuestas[key][itemId];
       }
       
-      console.log(`💾 Actualizada selección de ${key}: ${itemId} - ${bubble.classList.contains('selected') ? 'seleccionado' : 'deseleccionado'}`);
+      console.log(`💾 Actualizada selección de ${key}: ${itemId} - ${newBubble.classList.contains('selected') ? 'seleccionado' : 'deseleccionado'}`);
     });
   });
+}
+
+/**
+ * Configura un selector de CounterSelector si está disponible
+ */
+function setupCounterSelector(key, container) {
+  console.log(`Inicializando CounterSelector para ${key}`);
+  
+  // Limpiar contenedor primero para evitar duplicados
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+  
+  // Obtener los elementos según el tipo
+  let items = [];
+  if (key === 'estilos') {
+    items = [
+      { id: 'sport', label: 'Deportiva', icon: 'fas fa-tachometer-alt' },
+      { id: 'naked', label: 'Naked', icon: 'fas fa-motorcycle' },
+      { id: 'cruiser', label: 'Cruiser', icon: 'fas fa-road' },
+      { id: 'touring', label: 'Touring', icon: 'fas fa-route' },
+      { id: 'adventure', label: 'Adventure', icon: 'fas fa-mountain' },
+      { id: 'scooter', label: 'Scooter', icon: 'fas fa-motorcycle' },
+      { id: 'cafe-racer', label: 'Café Racer', icon: 'fas fa-coffee' }
+    ];
+  } else if (key === 'marcas') {
+    items = [
+      { id: 'honda', label: 'Honda', icon: 'fas fa-h-square' },
+      { id: 'yamaha', label: 'Yamaha', icon: 'fab fa-y-combinator' },
+      { id: 'suzuki', label: 'Suzuki', icon: 'fas fa-s' },
+      { id: 'kawasaki', label: 'Kawasaki', icon: 'fas fa-k' },
+      { id: 'bmw', label: 'BMW', icon: 'fab fa-bluetooth-b' },
+      { id: 'ducati', label: 'Ducati', icon: 'fas fa-d' },
+      { id: 'ktm', label: 'KTM', icon: 'fas fa-fire' },
+      { id: 'triumph', label: 'Triumph', icon: 'fas fa-t' },
+      { id: 'harley-davidson', label: 'Harley-Davidson', icon: 'fas fa-h' }
+    ];
+  }
+  
+  // Crear instancia de CounterSelector
+  const selector = new window.CounterSelector(container, {
+    items: items,
+    onChange: function(selections) {
+      console.log(`Selecciones actualizadas para ${key}:`, selections);
+      
+      // Actualizar respuestas globales
+      window.respuestas[key] = {};
+      Object.keys(selections).forEach(id => {
+        if (selections[id] === true) {
+          // Buscar la etiqueta correspondiente
+          const item = items.find(item => item.id === id);
+          window.respuestas[key][id] = item ? item.label : id;
+        }
+      });
+    }
+  });
+  
+  // Restaurar selecciones anteriores
+  if (window.respuestas[key]) {
+    Object.keys(window.respuestas[key]).forEach(id => {
+      selector.setSelected(id, true);
+    });
+  }
+  
+  return selector;
 }
 
 /**
@@ -676,9 +766,11 @@ function diagnosticoDependencias() {
 // INICIALIZACIÓN Y EXPORTACIÓN DE FUNCIONES
 // ==============================================
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('🔧 Test Unificado cargado');
+/**
+ * Función principal para inicializar el test - llamada desde el HTML
+ */
+function startTest() {
+  console.log('🔧 Test Unificado iniciado explícitamente');
   
   // Inicializar test
   initializeTest();
@@ -693,12 +785,57 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Ejecutar diagnóstico para verificar dependencias
   setTimeout(diagnosticoDependencias, 500);
-});
+  
+  return true;
+}
+
+/**
+ * Función de recuperación para inicializar el test en caso de problemas
+ */
+function recuperarTest() {
+  console.log('⚠️ Ejecutando recuperación del test...');
+  
+  // Reinicializar variables globales
+  window.respuestas = window.respuestas || {
+    estilos: {},
+    marcas: {}
+  };
+  
+  window.testResults = window.testResults || {};
+  
+  // Intentar inicializar componentes mínimos
+  verificarYRestaurarCanvas('recuperación');
+  
+  // Intentar mostrar la primera pregunta
+  const preguntas = document.querySelectorAll('.pregunta');
+  if (preguntas.length > 0) {
+    // Ocultar todas las preguntas primero
+    preguntas.forEach(p => p.classList.remove('active'));
+    
+    // Mostrar la primera pregunta
+    preguntas[0].classList.add('active');
+    console.log('Primera pregunta activada en modo de recuperación');
+  }
+  
+  // Ocultar ramas específicas al inicio
+  hideAllBranchQuestions();
+  
+  // Diagnosticar estado
+  setTimeout(diagnosticoDependencias, 200);
+  
+  return true;
+}
+
+// Notificar que el script se ha cargado (para debugging)
+console.log('🔧 Test Unificado cargado - esperando inicialización explícita');
 
 // Exponer funciones globalmente para que sean accesibles desde otros scripts
+window.initializeTest = startTest; // Usar startTest como la función principal de inicialización
+window.startTest = startTest; // Alternativa para iniciar explícitamente
 window.finalizarTest = finalizarTest;
 window.reorganizeTestQuestions = reorganizeTestQuestions;
 window.inicializarSoloEstilos = inicializarSoloEstilos;
 window.inicializarSoloMarcas = inicializarSoloMarcas;
 window.verificarYRestaurarCanvas = verificarYRestaurarCanvas;
 window.diagnosticoTestUnificado = diagnosticoDependencias;
+window.recuperarTest = recuperarTest;
