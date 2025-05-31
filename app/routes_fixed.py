@@ -285,7 +285,7 @@ def moto_ideal():
                     MATCH (u:User {id: $user_id})-[r:IDEAL]->(m:Moto)
                     RETURN m.id as moto_id, m.marca as marca, m.modelo as modelo, 
                            m.potencia as potencia, m.precio as precio, m.tipo as tipo,
-                           m.imagen as imagen, m.cilindrada as cilindrada,
+                           m.imagen as imagen, m.cilindrada as cilindrada, m.url as url,
                            r.score as score, r.reasons as reasons
                     ORDER BY r.timestamp DESC
                     LIMIT 1
@@ -324,7 +324,8 @@ def moto_ideal():
                         "razones": reasons,
                         "score": score,
                         "año": None,  # La plantilla espera este campo aunque sea N/D
-                        "URL": "#",   # URL por defecto para el botón de detalles
+                        "URL": record.get('url', "#"),   # URL desde Neo4j
+                        "url": record.get('url', "#"),   # Agregar esta línea para consistencia
                         "likes": 0    # Contador de likes por defecto
                     }
                     
@@ -983,7 +984,7 @@ def motos_recomendadas():
                             user_id = records[0]["user_id"]
                             # Actualizar la sesión
                             session['user_id'] = user_id
-                            logger.info(f"Actualizada sesión con user_id {user_id} para {username}")
+                            logger.info(f"Actualizada sesión with user_id {user_id} para {username}")
             except Exception as e:
                 logger.error(f"Error al obtener user_id desde username: {str(e)}")
         

@@ -245,7 +245,9 @@
                             
                             <div class="ideal-moto-actions">
                                 <a href="/recomendaciones" class="btn btn-primary">Ver más recomendaciones</a>
-                                <a href="{{ moto.URL }}" target="_blank" class="btn btn-secondary">Ver detalles en línea</a>
+                                {% if moto.url %}
+                                <a href="{{ moto.url }}" target="_blank" class="btn btn-secondary">Ver detalles en línea</a>
+                                {% endif %}
                                 <button class="btn btn-highlight like-btn" data-moto-id="{{ moto.moto_id }}">
                                     <i class="fas fa-heart"></i> Me gusta <span class="like-count">{{ moto.likes|default(0) }}</span>
                                 </button>
