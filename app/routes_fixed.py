@@ -412,13 +412,15 @@ def guardar_test():
             'cilindrada_min', 'cilindrada_max', 
             'potencia_min', 'potencia_max',
             'torque_min', 'torque_max',
-            'peso_min', 'peso_max'
+            'peso_min', 'peso_max',
+            'ano_min', 'ano_max'
         ]
         
         for field in range_fields:
             if field in form_data:
                 try:
-                    processed_data[field] = int(form_data[field])
+                    value = int(form_data[field])
+                    processed_data[field] = value
                     current_app.logger.info(f"Rango capturado: {field} = {processed_data[field]}")
                 except (ValueError, TypeError):
                     current_app.logger.warning(f"Error convirtiendo {field} a número: {form_data[field]}")
@@ -428,7 +430,8 @@ def guardar_test():
                         'cilindrada_min': 125, 'cilindrada_max': 1000,
                         'potencia_min': 15, 'potencia_max': 200,
                         'torque_min': 10, 'torque_max': 150,
-                        'peso_min': 100, 'peso_max': 300
+                        'peso_min': 100, 'peso_max': 300,
+                        'ano_min': 2015, 'ano_max': 2025
                     }
                     processed_data[field] = defaults.get(field, 0)
         
@@ -438,7 +441,8 @@ def guardar_test():
             ('cilindrada_min', 'cilindrada_max'),
             ('potencia_min', 'potencia_max'),
             ('torque_min', 'torque_max'),
-            ('peso_min', 'peso_max')
+            ('peso_min', 'peso_max'),
+            ('ano_min', 'ano_max')
         ]
         
         for min_field, max_field in range_pairs:
