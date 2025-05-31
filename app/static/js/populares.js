@@ -1,6 +1,6 @@
 /**
  * Script para manejar la página de motos populares (PageRank)
- * Versión restaurada - esencial para el funcionamiento
+ * Versión corregida - compatible con el HTML de populares
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -19,42 +19,90 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupLikeButtons() {
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', function() {
+            // CORREGIDO: Usar moto_id en lugar de modelo
+            const motoId = this.getAttribute('data-moto-id');
             const modelo = this.getAttribute('data-modelo');
-            const likeCountSpan = this.querySelector('.like-count');
             
-            if (!modelo) {
-                console.error('No se encontró el modelo de la moto');
+            // DEBUG: Ver todos los atributos del botón
+            console.log('🔍 DEBUG BOTÓN:', {
+                motoId: motoId,
+                modelo: modelo,
+                allAttributes: Array.from(this.attributes).map(attr => `${attr.name}="${attr.value}"`).join(', ')
+            });
+            
+            // CORREGIDO: Buscar el span fuera del botón (en like-section)
+            const likeSection = this.parentElement;
+            const likeCountSpan = likeSection.querySelector('.like-count');
+            
+            if (!motoId) {
+                console.error('❌ No se encontró el ID de la moto');
+                showNotification('Error: No se pudo identificar la moto', 'error');
                 return;
             }
             
-            // Incrementar contador localmente
-            let currentLikes = parseInt(likeCountSpan.textContent) || 0;
-            likeCountSpan.textContent = currentLikes + 1;
+            console.log(`🔄 Procesando like para moto: ${motoId} (${modelo})`);
             
-            // Enviar al servidor
-            fetch('/like_moto', {
+            // Deshabilitar botón temporalmente
+            this.disabled = true;
+            this.style.opacity = '0.6';
+            
+            // CORREGIDO: Usar el endpoint que funciona
+            fetch('/dar_like_moto', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ modelo: modelo })
+                // CORREGIDO: Enviar moto_id
+                body: JSON.stringify({ moto_id: motoId })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log(`Like registrado para ${modelo}:`, data);
-                    if (data.likes && data.likes !== parseInt(likeCountSpan.textContent)) {
-                        likeCountSpan.textContent = data.likes;
+            .then(response => {
+                console.log('📡 Respuesta HTTP:', response.status, response.statusText);
+                // NUEVO: Ver el contenido exacto de la respuesta
+                return response.text(); // Cambiar temporalmente de .json() a .text()
+            })
+            .then(rawData => {
+                console.log('📄 Respuesta RAW del servidor:', rawData);
+                // Intentar parsear como JSON
+                try {
+                    const data = JSON.parse(rawData);
+                    console.log('✅ Respuesta JSON parseada:', data);
+                    
+                    // Tu código existente aquí...
+                    if (data.success) {
+                        // CORREGIDO: Actualizar estado del botón según la respuesta
+                        if (data.action === 'liked') {
+                            this.classList.add('liked');
+                            this.innerHTML = '<i class="fas fa-heart"></i> Te gusta';
+                        } else if (data.action === 'unliked') {
+                            this.classList.remove('liked');
+                            this.innerHTML = '<i class="far fa-heart"></i> Me gusta';
+                        }
+                        
+                        // CORREGIDO: Actualizar contador si está disponible
+                        if (data.likes !== undefined && likeCountSpan) {
+                            likeCountSpan.textContent = data.likes;
+                        }
+                        
+                        // Mostrar notificación
+                        showNotification(data.action === 'liked' ? '¡Like registrado!' : 'Like removido', 'success');
+                    } else {
+                        console.error('❌ Error del servidor:', data.error);
+                        showNotification('Error: ' + (data.error || 'No se pudo procesar el like'), 'error');
                     }
-                    showNotification(`¡Te gusta la ${modelo}! Ranking actualizado.`);
-                } else {
-                    console.error("Error al registrar like:", data.message);
-                    showNotification("No se pudo registrar tu like. Inténtalo de nuevo.", "error");
+                } catch (e) {
+                    console.error('❌ Error parseando JSON:', e);
+                    console.error('❌ Respuesta no válida:', rawData);
+                    showNotification('Error: Respuesta del servidor no válida', 'error');
                 }
             })
             .catch(error => {
-                console.error("Error al registrar like:", error);
-                showNotification("Error de conexión, pero tu like se guardó localmente.", "warning");
+                console.error('❌ Error en la petición:', error);
+                showNotification('Error de conexión: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // CORREGIDO: Rehabilitar botón
+                this.disabled = false;
+                this.style.opacity = '1';
             });
         });
     });
@@ -99,35 +147,58 @@ function setupVisualEffects() {
     });
 }
 
-function showNotification(message, type = 'success') {
+// CORREGIDO: Notificaciones igual a moto_ideal
+function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.textContent = message;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
     
-    // Estilos básicos
+    // Estilos integrados con el CSS del HTML
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
+        bottom: 20px;
         right: 20px;
-        padding: 12px 20px;
-        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.9);
         color: white;
-        font-weight: bold;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        border-left: 4px solid #f97316;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
         z-index: 1000;
-        transition: all 0.3s ease;
+        min-width: 200px;
+        max-width: 250px;
+        width: auto;
+        white-space: nowrap;
     `;
     
     // Colores según tipo
-    if (type === 'success') notification.style.background = '#2ecc71';
-    else if (type === 'error') notification.style.background = '#e74c3c';
-    else if (type === 'warning') notification.style.background = '#f39c12';
+    if (type === 'success') {
+        notification.style.borderLeftColor = '#10b981';
+    } else if (type === 'error') {
+        notification.style.borderLeftColor = '#dc3545';
+    }
     
     document.body.appendChild(notification);
     
-    // Remover después de 3 segundos
+    // Mostrar la notificación
     setTimeout(() => {
-        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Ocultar y eliminar la notificación después de un tiempo
+    setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
-        setTimeout(() => notification.remove(), 300);
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
     }, 3000);
 }

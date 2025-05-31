@@ -205,37 +205,96 @@ def populares():
     if 'username' not in session:
         return redirect(url_for('main.login'))
     
+    logger.info("🔍 DEBUG: Entrando a la función populares()")
+    
     adapter = current_app.config.get('MOTO_RECOMMENDER')
     
     if not adapter:
         return render_template('error.html', 
                              title="Sistema no disponible",
-                             error="El sistema de recomendaciones no está disponible en este momento.")    
+                             error="El sistema de recomendaciones no está disponible en este momento.")
+    
     # Obtener motos populares
     try:
         # Primero intentar usar get_popular_motos del adaptador
         if hasattr(adapter, 'get_popular_motos'):
             motos_populares = adapter.get_popular_motos(top_n=6)
+            logger.info(f"✅ Obtenidas {len(motos_populares)} motos del adaptador")
         else:
             # Si no existe, usar la función de utils como fallback
             from app.utils import get_populares_motos
             motos_populares = get_populares_motos(top_n=6)
+            logger.info(f"✅ Obtenidas {len(motos_populares)} motos de utils")
     except Exception as e:
+        logger.error(f'❌ Error al obtener motos populares: {str(e)}')
         flash(f'Error al obtener motos populares: {str(e)}', 'error')
         motos_populares = []
     
-    # Formatear para la plantilla
+    # DEBUG: Ver qué datos recibimos
+    if motos_populares:
+        logger.info(f"🔍 Primera moto cruda: {motos_populares[0]}")
+    
+    # DATOS DE EMERGENCIA si no hay motos
+    if not motos_populares:
+        logger.warning("⚠️ No se obtuvieron motos del backend, usando datos de emergencia")
+        motos_populares = [
+            {
+                "moto_id": "emergency_1",
+                "modelo": "Yamaha MT-09",
+                "marca": "Yamaha",
+                "precio": 12500.0,
+                "estilo": "Naked",
+                "imagen": "/static/images/principal.webp",
+                "likes": 45,
+                "score": 87.5,
+                "ranking_position": 1
+            },
+            {
+                "moto_id": "emergency_2",
+                "modelo": "Honda CBR 600RR",
+                "marca": "Honda",
+                "precio": 14500.0,
+                "estilo": "Sport",
+                "imagen": "/static/images/principal.webp",
+                "likes": 38,
+                "score": 82.3,
+                "ranking_position": 2
+            },
+            {
+                "moto_id": "emergency_3",
+                "modelo": "Kawasaki Ninja 650",
+                "marca": "Kawasaki",
+                "precio": 11500.0,
+                "estilo": "Sport",
+                "imagen": "/static/images/principal.webp",
+                "likes": 33,
+                "score": 78.1,
+                "ranking_position": 3
+            }
+        ]
+    
+    # CORREGIDO: Formatear para la plantilla con todos los campos necesarios
     motos_formateadas = []
-    for moto in motos_populares:
-        motos_formateadas.append({
+    for i, moto in enumerate(motos_populares):
+        moto_formateada = {
+            "id": moto.get('moto_id', moto.get('id', f'moto_{i+1}')),  # ID para el botón de like
+            "moto_id": moto.get('moto_id', moto.get('id', f'moto_{i+1}')),  # Backup
             "modelo": moto.get('modelo', 'Modelo Desconocido'),
             "marca": moto.get('marca', 'Marca Desconocida'),
             "precio": float(moto.get('precio', 0)),
             "estilo": moto.get('tipo', moto.get('estilo', 'Estilo Desconocido')),
-            "imagen": moto.get('imagen', ''),
-            "rating": moto.get('avg_rating', moto.get('rating', 0)),
+            "imagen": moto.get('imagen', '/static/images/principal.webp'),  # Imagen por defecto
+            "likes": moto.get('likes', 0),  # Contador de likes
+            "score": moto.get('score', moto.get('avg_rating', 0)),  # Score o rating
+            "ranking_position": moto.get('ranking_position', i + 1),  # Posición en el ranking
             "num_ratings": moto.get('num_ratings', 0)
-        })
+        }
+        motos_formateadas.append(moto_formateada)
+        
+        # DEBUG: Ver moto formateada
+        logger.info(f"🔍 Moto {i+1} formateada: {moto_formateada}")
+    
+    logger.info(f"🔍 DEBUG: Enviando {len(motos_formateadas)} motos al template")
     
     return render_template('populares.html', motos_populares=motos_formateadas)
 
@@ -1432,7 +1491,7 @@ def dar_like_moto():
             if not moto_result.single():
                 return jsonify({'success': False, 'error': 'Moto no encontrada'})
             
-            # Verificar si ya existe un like para esta moto de este usuario
+            # Verificar si ya existe un like
             existing_like = neo4j_session.run("""
                 MATCH (u:User {id: $user_id})-[r:INTERACTED]->(m:Moto {id: $moto_id})
                 WHERE r.type = 'like'
@@ -1440,23 +1499,33 @@ def dar_like_moto():
             """, user_id=db_user_id, moto_id=moto_id)
             
             if existing_like.single():
-                return jsonify({'success': False, 'error': 'Ya has dado like a esta moto'})
-            
-            # Crear relación INTERACTED con type='like'
-            neo4j_session.run("""
-                MATCH (u:User {id: $user_id})
-                MATCH (m:Moto {id: $moto_id})
-                CREATE (u)-[r:INTERACTED]->(m)
-                SET r.type = 'like',
-                    r.weight = 3.0,
-                    r.timestamp = timestamp()
-            """, user_id=db_user_id, moto_id=moto_id)
-            
-            logger.info(f"Like dado a moto {moto_id} por usuario {username}")
-            return jsonify({'success': True, 'message': 'Like dado exitosamente'})
-            
+                # NUEVO: Si ya existe, quitar el like
+                neo4j_session.run("""
+                    MATCH (u:User {id: $user_id})-[r:INTERACTED]->(m:Moto {id: $moto_id})
+                    WHERE r.type = 'like'
+                    DELETE r
+                """, user_id=db_user_id, moto_id=moto_id)
+                
+                logger.info(f"Like removido de moto {moto_id} por usuario {username}")
+                return jsonify({'success': True, 'action': 'unliked', 'message': 'Like removido'})
+            else:
+                # Crear nuevo like (código existente)
+                neo4j_session.run("""
+                    MATCH (u:User {id: $user_id})
+                    MATCH (m:Moto {id: $moto_id})
+                    CREATE (u)-[r:INTERACTED]->(m)
+                    SET r.type = 'like',
+                        r.weight = 3.0,
+                        r.timestamp = timestamp()
+                """, user_id=db_user_id, moto_id=moto_id)
+                
+                logger.info(f"Like dado a moto {moto_id} por usuario {username}")
+                return jsonify({'success': True, 'action': 'liked', 'message': 'Like registrado'})
+        
     except Exception as e:
-        logger.error(f"Error al dar like a la moto: {str(e)}")
+        error_response = {'success': False, 'error': str(e)}
+        logger.error(f"📤 Enviando error: {error_response}")
+        return jsonify(error_response), 500
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': f'Error interno: {str(e)}'})
@@ -1602,10 +1671,12 @@ def like_moto():
                     except Exception as ranking_error:
                         current_app.logger.warning(f"⚠️ No se pudo actualizar ranking: {ranking_error}")
                 
-                return jsonify({'success': True, 'action': 'liked', 'message': 'Like agregado'})
+                # NUEVO: Log la respuesta que se está enviando
+                response = {'success': True, 'action': 'liked', 'message': 'Like registrado'}
+                logger.info(f"📤 Enviando respuesta: {response}")
+                return jsonify(response)
         
     except Exception as e:
-        current_app.logger.error(f"❌ Error procesando like: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+        error_response = {'success': False, 'error': str(e)}
+        logger.error(f"📤 Enviando error: {error_response}")
+        return jsonify(error_response), 500

@@ -336,6 +336,104 @@ footer {
     color: #fff;
 }
 
+/* CSS INLINE PARA FORZAR VISIBILIDAD */
+.grid-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+    gap: 20px !important;
+    padding: 20px !important;
+    margin: 20px 0 !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+}
+
+.moto-card {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 15px !important;
+    padding: 20px !important;
+    text-align: center !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    transition: transform 0.3s ease !important;
+    position: relative !important;
+    overflow: hidden !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 400px !important;
+}
+
+.moto-card:hover {
+    transform: translateY(-5px) !important;
+}
+
+.moto-img {
+    width: 100% !important;
+    height: 200px !important;
+    object-fit: cover !important;
+    border-radius: 10px !important;
+    margin-bottom: 15px !important;
+}
+
+.popular-badge {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    background: linear-gradient(45deg, #ff6b6b, #ffa500) !important;
+    color: white !important;
+    padding: 5px 10px !important;
+    border-radius: 15px !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+}
+
+.like-btn {
+    background: linear-gradient(45deg, #ff6b6b, #ffa500) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 15px !important;
+    border-radius: 25px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    margin: 10px 0 !important;
+}
+
+.like-btn:hover {
+    transform: scale(1.05) !important;
+}
+
+.like-btn.liked {
+    background: linear-gradient(45deg, #ff1744, #ff5722) !important;
+}
+
+.ranking-info {
+    margin: 15px 0 !important;
+    padding: 10px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px !important;
+}
+
+.like-section {
+    margin-top: 15px !important;
+}
+
+.like-info {
+    display: block !important;
+    margin-top: 5px !important;
+    color: #ccc !important;
+    font-size: 12px !important;
+}
+
+/* Debug styling */
+.debug-info {
+    background: rgba(0, 255, 0, 0.2) !important;
+    padding: 10px !important;
+    margin: 10px !important;
+    border-radius: 5px !important;
+    color: white !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .features {

@@ -101,6 +101,16 @@ def main():
         logger.error(traceback.format_exc())
         raise
     
+    # DIAGNÓSTICO: Ver qué rutas están registradas
+    with app.app_context():
+        logger.info("=== TODAS LAS RUTAS REGISTRADAS ===")
+        for rule in app.url_map.iter_rules():
+            logger.info(f"🔍 RUTA: {rule.endpoint}: {rule.rule} [{', '.join(rule.methods)}]")
+        
+        logger.info("=== BLUEPRINTS REGISTRADOS ===")
+        for name, blueprint in app.blueprints.items():
+            logger.info(f"🔍 BLUEPRINT: {name}")
+    
     # Retornar la app para uso en servidores de producción
     return app
 
