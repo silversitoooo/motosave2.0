@@ -125,6 +125,109 @@ input, select {
     background-color: #0056b3;
 }
 
+/* Botones estilo btn (para compatibilidad) */
+.btn {
+    display: inline-block;
+    padding: 10px 15px;
+    color: white;
+    background: #f97316;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    text-align: center;
+}
+
+.btn:hover {
+    background: #ea580c;
+    transform: translateY(-2px);
+}
+
+.btn-primary {
+    background: #3b82f6;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: #6b7280;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+}
+
+.btn-highlight {
+    background: #10b981;
+}
+
+.btn-highlight:hover {
+    background: #059669;
+}
+
+/* Estilos para botones de like */
+.like-btn {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.like-btn:hover {
+    transform: scale(1.05);
+}
+
+.like-btn.liked {
+    background-color: #e74c3c !important;
+    border-color: #c0392b !important;
+    transform: scale(1.05);
+}
+
+.like-btn.liked i {
+    color: #fff !important;
+}
+
+/* Sistema de notificaciones */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    border-left: 4px solid #10b981;
+    z-index: 1000;
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    max-width: 300px;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.error {
+    border-left-color: #e74c3c;
+}
+
+.notification.success {
+    border-left-color: #10b981;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.notification-content i {
+    font-size: 18px;
+}
+
 .actions {
     margin-top: 2rem;
     text-align: center;
@@ -245,5 +348,22 @@ footer {
     
     .moto-info {
         grid-template-columns: 1fr;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    .notification {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        transform: translateY(-100px);
+    }
+
+    .notification.show {
+        transform: translateY(0);
     }
 }
