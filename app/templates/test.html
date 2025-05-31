@@ -42,13 +42,11 @@
     
     // Al cargar el documento, cargamos todos los scripts en orden
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM cargado, cargando scripts...');      // Nuevo orden de scripts - Counter-selector primero
+      console.log('DOM cargado, cargando scripts...');      // Script unificado + utilidades
       var scripts = [
-        "{{ url_for('static', filename='js/test_reorganizer.js') }}",
+        "{{ url_for('static', filename='js/test_unificado.js') }}",
         "{{ url_for('static', filename='js/counter-selector.js') }}",
-        "{{ url_for('static', filename='js/debug-panel.js') }}",
-        "{{ url_for('static', filename='js/test.js') }}",
-        "{{ url_for('static', filename='js/test_finalizacion_fixed.js') }}"
+        "{{ url_for('static', filename='js/debug-panel.js') }}"
       ];
       
       // Cargar scripts en orden y luego inicializar con verificaciones adicionales
