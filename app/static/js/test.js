@@ -317,21 +317,62 @@ function setupBubblesSelector(type, container) {
     options = [
       { id: 'naked', label: 'Naked', value: 1.0 },
       { id: 'sport', label: 'Deportiva', value: 1.0 },
+      { id: 'supersport', label: 'Supersport', value: 1.0 },
       { id: 'touring', label: 'Touring', value: 1.0 },
-      { id: 'trail', label: 'Trail/Adventure', value: 1.0 },
+      { id: 'adventure', label: 'Adventure', value: 1.0 },
+      { id: 'trail', label: 'Trail', value: 1.0 },
+      { id: 'enduro', label: 'Enduro', value: 1.0 },
+      { id: 'motocross', label: 'Motocross', value: 1.0 },
+      { id: 'supermoto', label: 'Supermoto', value: 1.0 },
       { id: 'scooter', label: 'Scooter', value: 1.0 },
-      { id: 'custom', label: 'Custom/Cruiser', value: 1.0 }
+      { id: 'custom', label: 'Custom', value: 1.0 },
+      { id: 'cruiser', label: 'Cruiser', value: 1.0 },
+      { id: 'chopper', label: 'Chopper', value: 1.0 },
+      { id: 'cafe_racer', label: 'Café Racer', value: 1.0 },
+      { id: 'scrambler', label: 'Scrambler', value: 1.0 },
+      { id: 'bobber', label: 'Bobber', value: 1.0 },
+      { id: 'streetfighter', label: 'Streetfighter', value: 1.0 },
+      { id: 'vintage', label: 'Vintage/Clásica', value: 1.0 },
+      { id: 'electrica', label: 'Eléctrica', value: 1.0 },
+      { id: 'trike', label: 'Trike', value: 1.0 }
     ];
   } else if (type === 'marcas') {
     options = [
+      // Marcas japonesas principales
       { id: 'honda', label: 'Honda', value: 1.0 },
       { id: 'yamaha', label: 'Yamaha', value: 1.0 },
       { id: 'suzuki', label: 'Suzuki', value: 1.0 },
       { id: 'kawasaki', label: 'Kawasaki', value: 1.0 },
+      
+      // Marcas europeas
       { id: 'ducati', label: 'Ducati', value: 1.0 },
       { id: 'bmw', label: 'BMW', value: 1.0 },
       { id: 'triumph', label: 'Triumph', value: 1.0 },
-      { id: 'ktm', label: 'KTM', value: 1.0 }
+      { id: 'ktm', label: 'KTM', value: 1.0 },
+      { id: 'husqvarna', label: 'Husqvarna', value: 1.0 },
+      { id: 'aprilia', label: 'Aprilia', value: 1.0 },
+      { id: 'mv_agusta', label: 'MV Agusta', value: 1.0 },
+      { id: 'moto_guzzi', label: 'Moto Guzzi', value: 1.0 },
+      { id: 'benelli', label: 'Benelli', value: 1.0 },
+      
+      // Marcas americanas
+      { id: 'harley_davidson', label: 'Harley-Davidson', value: 1.0 },
+      { id: 'indian', label: 'Indian', value: 1.0 },
+      
+      // Marcas chinas/asiáticas
+      { id: 'cfmoto', label: 'CFMoto', value: 1.0 },
+      { id: 'kymco', label: 'Kymco', value: 1.0 },
+      { id: 'sym', label: 'SYM', value: 1.0 },
+      { id: 'piaggio', label: 'Piaggio', value: 1.0 },
+      { id: 'vespa', label: 'Vespa', value: 1.0 },
+      
+      // Marcas emergentes/otras
+      { id: 'royal_enfield', label: 'Royal Enfield', value: 1.0 },
+      { id: 'zero', label: 'Zero (Eléctrica)', value: 1.0 },
+      { id: 'energica', label: 'Energica', value: 1.0 },
+      { id: 'gas_gas', label: 'Gas Gas', value: 1.0 },
+      { id: 'beta', label: 'Beta', value: 1.0 },
+      { id: 'sherco', label: 'Sherco', value: 1.0 }
     ];
   }
   
