@@ -426,7 +426,7 @@ def guardar_test():
                     current_app.logger.warning(f"Error convirtiendo {field} a número: {form_data[field]}")
                     # Valores predeterminados seguros por campo
                     defaults = {
-                        'presupuesto_min': 5000, 'presupuesto_max': 50000,
+                        'presupuesto_min': 5000, 'presupuesto_max': 200000,
                         'cilindrada_min': 125, 'cilindrada_max': 1000,
                         'potencia_min': 15, 'potencia_max': 200,
                         'torque_min': 10, 'torque_max': 150,
